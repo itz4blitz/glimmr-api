@@ -37,8 +37,38 @@ import { JobsService } from './jobs.service.js';
       }),
       inject: [ConfigService],
     }),
-    // Register only essential queues initially to reduce memory pressure
+    // Register all queues required by JobsService
     BullModule.registerQueue(
+      {
+        name: QUEUE_NAMES.HOSPITAL_IMPORT,
+        processors: [{
+          path: join(__dirname, 'processors', 'hospital-import.processor.js'),
+          concurrency: 1
+        }]
+      },
+      {
+        name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
+        processors: [{
+          path: join(__dirname, 'processors', 'price-file-download.processor.js'),
+          concurrency: 1
+        }]
+      },
+      {
+        name: QUEUE_NAMES.PRICE_UPDATE,
+        // No processor needed for this queue
+      },
+      {
+        name: QUEUE_NAMES.ANALYTICS_REFRESH,
+        // No processor needed for this queue
+      },
+      {
+        name: QUEUE_NAMES.DATA_VALIDATION,
+        // No processor needed for this queue
+      },
+      {
+        name: QUEUE_NAMES.EXPORT_DATA,
+        // No processor needed for this queue
+      },
       {
         name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
         processors: [{
