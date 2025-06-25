@@ -141,13 +141,12 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     maxRetriesPerRequest: null, // Required by BullMQ
     enableReadyCheck: false, // Disable for Valkey compatibility
     lazyConnect: true,
-    connectTimeout: 30000, // Reasonable timeout
-    commandTimeout: 15000, // Reasonable timeout
+    connectTimeout: 10000, // Shorter timeout for faster startup
+    commandTimeout: 5000, // Shorter timeout for faster startup
     family: 4, // Force IPv4
     enableOfflineQueue: false,
     showFriendlyErrorStack: true,
-    // Reduce memory pressure
-    maxMemoryPolicy: 'allkeys-lru',
+    // Note: maxMemoryPolicy should be configured on the Valkey server, not client
   };
 
   // Different configurations for production (Valkey) vs development (Redis)
@@ -235,9 +234,13 @@ export function createRedisConnection(configService: ConfigService): IORedis {
       console.log(`Redis reconnecting in ${ms}ms`);
     });
   } else {
-    // Production: Only log errors
+    // Production: Only log errors and warnings
     redis.on('error', (err) => {
       console.error('Valkey connection error:', err.message);
+    });
+
+    redis.on('connect', () => {
+      console.log('Valkey connected successfully');
     });
   }
 
