@@ -1,0 +1,15 @@
+# Allow build scripts for essential packages
+enable-pre-post-scripts=true
+
+# Approve build scripts for required packages
+@nestjs:registry=https://registry.npmjs.org/
+bcrypt:registry=https://registry.npmjs.org/
+esbuild:registry=https://registry.npmjs.org/
+msgpackr-extract:registry=https://registry.npmjs.org/
+core-js-pure:registry=https://registry.npmjs.org/
+nestjs-pino:registry=https://registry.npmjs.org/
+
+# Production optimizations
+prefer-frozen-lockfile=true
+auto-install-peers=true
+strict-peer-dependencies=false
