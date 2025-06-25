@@ -141,8 +141,8 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     maxRetriesPerRequest: null, // Required by BullMQ
     enableReadyCheck: false, // Disable for Valkey compatibility
     lazyConnect: true,
-    connectTimeout: 30000, // Increased timeout
-    commandTimeout: 10000,
+    connectTimeout: 60000, // Increased for private network
+    commandTimeout: 30000, // Increased for private network
     family: 4, // Force IPv4
     enableOfflineQueue: false,
     showFriendlyErrorStack: true,
@@ -151,17 +151,20 @@ export function createRedisConnection(configService: ConfigService): IORedis {
   // Different configurations for production (Valkey) vs development (Redis)
   const productionOptions = {
     ...baseOptions,
-    retryDelayOnFailover: 500,
-    retryDelayOnClusterDown: 1000,
+    retryDelayOnFailover: 1000,
+    retryDelayOnClusterDown: 2000,
     keepAlive: 60000,
-    // SSL/TLS for DigitalOcean managed Valkey service
-    tls: {
-      rejectUnauthorized: false, // DigitalOcean managed databases use self-signed certs
-      checkServerIdentity: () => undefined, // Skip hostname verification
-    },
+    // SSL/TLS for DigitalOcean managed Valkey service (only if using public endpoint)
+    // Private network connections may not need TLS
+    ...(process.env.VALKEY_HOST?.includes('private-') ? {} : {
+      tls: {
+        rejectUnauthorized: false, // DigitalOcean managed databases use self-signed certs
+        checkServerIdentity: () => undefined, // Skip hostname verification
+      },
+    }),
     // Better reconnection for managed services
     reconnectOnError: (err: Error) => {
-      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND'];
+      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT'];
       return targetErrors.some(error => err.message.includes(error));
     },
   };
