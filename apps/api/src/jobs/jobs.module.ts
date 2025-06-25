@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { join } from 'path';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from '../database/database.module.js';
 import { ExternalApisModule } from '../external-apis/external-apis.module.js';
@@ -40,11 +41,17 @@ import { JobsService } from './jobs.service.js';
     BullModule.registerQueue(
       {
         name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
-        processors: [{ concurrency: 1 }] // Most critical queue
+        processors: [{
+          path: join(__dirname, 'processors', 'pra-unified-scanner.processor.js'),
+          concurrency: 1
+        }]
       },
       {
         name: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
-        processors: [{ concurrency: 1 }] // Most critical queue
+        processors: [{
+          path: join(__dirname, 'processors', 'pra-file-download.processor.js'),
+          concurrency: 1
+        }]
       },
     ),
   ],

@@ -7,7 +7,8 @@ import { HealthModule } from './health/health.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { PricesModule } from './prices/prices.module';
 import { AnalyticsModule } from './analytics/analytics.module';
-// Removed JobsModule and JobsBullBoardModule to reduce memory usage
+import { JobsModule } from './jobs/jobs.module';
+import { JobsBullBoardModule } from './jobs/bull-board.module';
 import { ODataModule } from './odata/odata.module';
 import { DatabaseModule } from './database/database.module';
 import { ExternalApisModule } from './external-apis/external-apis.module';
@@ -100,8 +101,8 @@ import { RequestContextMiddleware } from './common/middleware';
     HospitalsModule,
     PricesModule,
     AnalyticsModule,
-    // JobsModule, // Removed to reduce memory usage
-    // JobsBullBoardModule, // Removed to reduce memory usage
+    JobsModule,
+    JobsBullBoardModule,
     ODataModule,
     DatabaseModule,
     ExternalApisModule,
