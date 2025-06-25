@@ -1,0 +1,39 @@
+# Glimmr API - Development Dockerfile
+# Optimized for development with hot reloading
+
+FROM node:20-alpine
+
+# Install pnpm globally
+RUN npm install -g pnpm@9.0.0
+
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/
+COPY packages ./packages
+
+# Install all dependencies (including dev dependencies)
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY apps/api ./apps/api
+COPY turbo.json ./
+
+# Create necessary directories
+RUN mkdir -p /app/apps/api/uploads
+RUN mkdir -p /app/apps/api/temp
+RUN mkdir -p /app/apps/api/logs
+
+# Change to API directory
+WORKDIR /app/apps/api
+
+# Expose port
+EXPOSE 3000
+
+# Start the application in development mode with hot reloading
+CMD ["pnpm", "run", "start:dev"]
