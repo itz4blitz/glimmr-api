@@ -1,0 +1,73 @@
+name: glimmr-api
+services:
+- name: api
+  github:
+    repo: itz4blitz/glimmr-api
+    branch: main
+  build_command: |
+    pnpm install --frozen-lockfile
+    pnpm run build
+  run_command: cd apps/api && node dist/main.js
+  source_dir: /
+  environment_slug: node-js
+  instance_size_slug: apps-s-1vcpu-1gb-fixed
+  instance_count: 1
+  http_port: 3000
+  envs:
+  - key: NODE_ENV
+    value: production
+    scope: RUN_AND_BUILD_TIME
+  - key: API_PORT
+    value: "3000"
+    scope: RUN_AND_BUILD_TIME
+  - key: API_PREFIX
+    value: api/v1
+    scope: RUN_AND_BUILD_TIME
+  - key: DATABASE_HOST
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DATABASE_PORT
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DATABASE_NAME
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DATABASE_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DATABASE_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DATABASE_SSL
+    value: "true"
+    scope: RUN_AND_BUILD_TIME
+  - key: JWT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: API_KEYS
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: VALKEY_HOST
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: VALKEY_PORT
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: VALKEY_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DATABASE_URL
+    value: ${db-postgresql-nyc1-73523.DATABASE_URL}
+    scope: RUN_TIME
+databases:
+- name: db-postgresql-nyc1-73523
+  engine: PG
+  version: "17"
+  production: true
+  cluster_name: db-postgresql-nyc1-73523
+  db_name: glimmr
+  db_user: doadmin
+domains:
+- domain: api.glimmr.health
+  type: PRIMARY
+region: nyc
