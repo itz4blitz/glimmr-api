@@ -131,24 +131,26 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
 };
 
 export function createRedisConnection(configService: ConfigService): IORedis {
-  const redisUrl = configService.get<string>('REDIS_URL');
   const isProduction = configService.get('NODE_ENV') === 'production';
-
-  // Use REDIS_* variables for both Redis (dev) and Valkey (prod)
-  const connectionUrl = redisUrl;
+  
+  // Use VALKEY_URL in production, REDIS_URL in development
+  const connectionUrl = isProduction 
+    ? configService.get<string>('VALKEY_URL') || configService.get<string>('REDIS_URL')
+    : configService.get<string>('REDIS_URL');
 
   const baseOptions = {
     maxRetriesPerRequest: null, // Required by BullMQ - disable retries for blocking commands
     enableReadyCheck: false, // Disable for Valkey compatibility
-    lazyConnect: true,
-    connectTimeout: 10000, // Connection timeout
-    commandTimeout: 0, // Disable timeout for blocking commands (BRPOP) - prevents worker timeouts
+    lazyConnect: false, // Let BullMQ handle connection initialization
+    connectTimeout: 30000, // Increased connection timeout for initial setup
+    // commandTimeout: 0 disables timeout for all commands including INFO
+    // This is required for BullMQ which uses blocking commands like BRPOP
+    commandTimeout: 0, // Disable command timeout to prevent BullMQ worker timeouts
     family: 4, // Force IPv4
-    enableOfflineQueue: false,
+    enableOfflineQueue: true, // Allow command queueing during reconnection
     showFriendlyErrorStack: true,
     // BullMQ-specific optimizations
     retryDelayOnFailover: 100,
-    // Prevent connection drops that cause worker timeouts
     keepAlive: 30000,
     // Note: maxMemoryPolicy should be configured on the Valkey server, not client
   };
@@ -159,8 +161,10 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     retryDelayOnFailover: 1000,
     retryDelayOnClusterDown: 2000,
     keepAlive: 60000,
-    // Improved timeout handling for BullMQ workers
-    connectTimeout: 15000, // Longer timeout for initial connection
+    // Override base connectTimeout for production managed services
+    connectTimeout: 60000, // Even longer timeout for managed services
+    // Disable autoResubscribe to prevent issues with managed Valkey
+    autoResubscribe: false,
     // SSL/TLS for DigitalOcean managed Valkey service (only if using public endpoint)
     // Private network connections may not need TLS
     ...(process.env.VALKEY_HOST?.includes('private-') ? {} : {
@@ -171,7 +175,7 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     }),
     // Better reconnection for managed services
     reconnectOnError: (err: Error) => {
-      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT'];
+      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED'];
       return targetErrors.some(error => err.message.includes(error));
     },
   };
@@ -247,12 +251,13 @@ export function createRedisConnection(configService: ConfigService): IORedis {
 
     redis.on('connect', () => {
       console.log('Valkey connected successfully');
-      // Note: If you see "IMPORTANT! Eviction policy is allkeys-lru. It should be noeviction" warnings,
-      // this is a server-side configuration that needs to be changed in DigitalOcean's Valkey service.
-      // See VALKEY_CONFIGURATION.md for instructions on how to fix this.
+      // Note: BullMQ may show eviction policy warnings. These can be safely ignored
+      // as they are informational. The important fix is commandTimeout: 0 which
+      // prevents timeout errors during BullMQ initialization (INFO command) and
+      // worker blocking operations (BRPOP).
       //
-      // Worker timeout errors have been fixed by setting commandTimeout: 0 to disable timeouts
-      // for blocking Redis commands (BRPOP) that BullMQ workers use to wait for jobs.
+      // For production: If you see "IMPORTANT! Eviction policy is allkeys-lru. It should be noeviction" warnings,
+      // this is a server-side configuration that needs to be changed in DigitalOcean's Valkey service.
     });
 
     // Log timeout-related events in production to help diagnose issues
