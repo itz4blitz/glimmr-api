@@ -141,8 +141,8 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     maxRetriesPerRequest: null, // Required by BullMQ - disable retries for blocking commands
     enableReadyCheck: false, // Disable for Valkey compatibility
     lazyConnect: true,
-    connectTimeout: 10000, // Shorter timeout for faster startup
-    commandTimeout: 5000, // Shorter timeout for faster startup
+    connectTimeout: 10000, // Connection timeout
+    commandTimeout: 0, // Disable timeout for blocking commands (BRPOP) - prevents worker timeouts
     family: 4, // Force IPv4
     enableOfflineQueue: false,
     showFriendlyErrorStack: true,
@@ -161,7 +161,6 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     keepAlive: 60000,
     // Improved timeout handling for BullMQ workers
     connectTimeout: 15000, // Longer timeout for initial connection
-    commandTimeout: 10000, // Longer timeout for commands to prevent worker timeouts
     // SSL/TLS for DigitalOcean managed Valkey service (only if using public endpoint)
     // Private network connections may not need TLS
     ...(process.env.VALKEY_HOST?.includes('private-') ? {} : {
@@ -248,6 +247,12 @@ export function createRedisConnection(configService: ConfigService): IORedis {
 
     redis.on('connect', () => {
       console.log('Valkey connected successfully');
+      // Note: If you see "IMPORTANT! Eviction policy is allkeys-lru. It should be noeviction" warnings,
+      // this is a server-side configuration that needs to be changed in DigitalOcean's Valkey service.
+      // See VALKEY_CONFIGURATION.md for instructions on how to fix this.
+      //
+      // Worker timeout errors have been fixed by setting commandTimeout: 0 to disable timeouts
+      // for blocking Redis commands (BRPOP) that BullMQ workers use to wait for jobs.
     });
 
     // Log timeout-related events in production to help diagnose issues
