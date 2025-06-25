@@ -28,19 +28,47 @@ import { JobsService } from './jobs.service.js';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         connection: createRedisConnection(configService),
+        defaultJobOptions: {
+          removeOnComplete: 3, // Global limit for memory
+          removeOnFail: 5,
+        },
       }),
       inject: [ConfigService],
     }),
     BullModule.registerQueue(
-      { name: QUEUE_NAMES.HOSPITAL_IMPORT },
-      { name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD },
-      { name: QUEUE_NAMES.PRICE_UPDATE },
-      { name: QUEUE_NAMES.ANALYTICS_REFRESH },
-      { name: QUEUE_NAMES.DATA_VALIDATION },
-      { name: QUEUE_NAMES.EXPORT_DATA },
+      {
+        name: QUEUE_NAMES.HOSPITAL_IMPORT,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
+      {
+        name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
+      {
+        name: QUEUE_NAMES.PRICE_UPDATE,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
+      {
+        name: QUEUE_NAMES.ANALYTICS_REFRESH,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
+      {
+        name: QUEUE_NAMES.DATA_VALIDATION,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
+      {
+        name: QUEUE_NAMES.EXPORT_DATA,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
       // PRA Data Pipeline Queues
-      { name: QUEUE_NAMES.PRA_UNIFIED_SCAN },
-      { name: QUEUE_NAMES.PRA_FILE_DOWNLOAD },
+      {
+        name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
+      {
+        name: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
+        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+      },
     ),
   ],
   controllers: [JobsController],

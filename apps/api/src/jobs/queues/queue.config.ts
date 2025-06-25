@@ -34,8 +34,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.HOSPITAL_IMPORT]: {
     name: QUEUE_NAMES.HOSPITAL_IMPORT,
     defaultJobOptions: {
-      removeOnComplete: 50,
-      removeOnFail: 100,
+      removeOnComplete: 5, // Reduced from 50
+      removeOnFail: 10, // Reduced from 100
       attempts: 3,
       backoff: {
         type: 'exponential',
@@ -46,8 +46,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.PRICE_FILE_DOWNLOAD]: {
     name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
     defaultJobOptions: {
-      removeOnComplete: 10,
-      removeOnFail: 50,
+      removeOnComplete: 3, // Reduced from 10
+      removeOnFail: 5, // Reduced from 50
       attempts: 3,
       backoff: {
         type: 'exponential',
@@ -58,8 +58,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.PRICE_UPDATE]: {
     name: QUEUE_NAMES.PRICE_UPDATE,
     defaultJobOptions: {
-      removeOnComplete: 100,
-      removeOnFail: 50,
+      removeOnComplete: 5, // Reduced from 100
+      removeOnFail: 10, // Reduced from 50
       attempts: 5,
       backoff: {
         type: 'exponential',
@@ -70,8 +70,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.ANALYTICS_REFRESH]: {
     name: QUEUE_NAMES.ANALYTICS_REFRESH,
     defaultJobOptions: {
-      removeOnComplete: 20,
-      removeOnFail: 20,
+      removeOnComplete: 3, // Reduced from 20
+      removeOnFail: 5, // Reduced from 20
       attempts: 2,
       backoff: {
         type: 'fixed',
@@ -82,8 +82,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.DATA_VALIDATION]: {
     name: QUEUE_NAMES.DATA_VALIDATION,
     defaultJobOptions: {
-      removeOnComplete: 30,
-      removeOnFail: 30,
+      removeOnComplete: 3, // Reduced from 30
+      removeOnFail: 5, // Reduced from 30
       attempts: 3,
       backoff: {
         type: 'exponential',
@@ -94,8 +94,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.EXPORT_DATA]: {
     name: QUEUE_NAMES.EXPORT_DATA,
     defaultJobOptions: {
-      removeOnComplete: 10,
-      removeOnFail: 10,
+      removeOnComplete: 3, // Reduced from 10
+      removeOnFail: 5, // Reduced from 10
       attempts: 2,
       backoff: {
         type: 'fixed',
@@ -107,8 +107,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.PRA_UNIFIED_SCAN]: {
     name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
     defaultJobOptions: {
-      removeOnComplete: 5,
-      removeOnFail: 10,
+      removeOnComplete: 3, // Reduced from 5
+      removeOnFail: 5, // Reduced from 10
       attempts: 2,
       backoff: {
         type: 'exponential',
@@ -119,8 +119,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.PRA_FILE_DOWNLOAD]: {
     name: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
     defaultJobOptions: {
-      removeOnComplete: 20,
-      removeOnFail: 50,
+      removeOnComplete: 3, // Reduced from 20
+      removeOnFail: 10, // Reduced from 50
       attempts: 5,
       backoff: {
         type: 'exponential',
@@ -141,11 +141,13 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     maxRetriesPerRequest: null, // Required by BullMQ
     enableReadyCheck: false, // Disable for Valkey compatibility
     lazyConnect: true,
-    connectTimeout: 60000, // Increased for private network
-    commandTimeout: 30000, // Increased for private network
+    connectTimeout: 30000, // Reasonable timeout
+    commandTimeout: 15000, // Reasonable timeout
     family: 4, // Force IPv4
     enableOfflineQueue: false,
     showFriendlyErrorStack: true,
+    // Reduce memory pressure
+    maxMemoryPolicy: 'allkeys-lru',
   };
 
   // Different configurations for production (Valkey) vs development (Redis)
