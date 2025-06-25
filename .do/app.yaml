@@ -4,9 +4,7 @@ services:
   github:
     repo: itz4blitz/glimmr-api
     branch: main
-  build_command: |
-    pnpm install --frozen-lockfile
-    pnpm run build
+  build_command: pnpm install --frozen-lockfile && pnpm run build
   run_command: cd apps/api && node dist/main.js
   source_dir: /
   environment_slug: node-js
