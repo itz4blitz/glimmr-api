@@ -136,29 +136,60 @@ export function createRedisConnection(configService: ConfigService): IORedis {
   const commonOptions = {
     maxRetriesPerRequest: null, // Required by BullMQ
     retryDelayOnFailover: 100,
+    retryDelayOnClusterDown: 300,
     enableReadyCheck: true,
     lazyConnect: false,
     connectTimeout: 10000,
     commandTimeout: 5000,
     keepAlive: 30000,
     family: 4, // Force IPv4
+    // Enhanced reconnection logic for Valkey/Redis compatibility
     reconnectOnError: (err: Error) => {
-      const targetError = 'READONLY';
-      return err.message.includes(targetError);
+      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND', 'ECONNREFUSED'];
+      return targetErrors.some(error => err.message.includes(error));
     },
+    // Connection pool settings
+    enableOfflineQueue: false,
+    // Error handling
+    showFriendlyErrorStack: true,
   };
 
+  let redis: IORedis;
+
   if (redisUrl) {
-    return new IORedis(redisUrl, commonOptions);
+    redis = new IORedis(redisUrl, commonOptions);
+  } else {
+    redis = new IORedis({
+      host: configService.get<string>('REDIS_HOST', 'localhost'),
+      port: configService.get<number>('REDIS_PORT', 6379),
+      password: configService.get<string>('REDIS_PASSWORD'),
+      db: configService.get<number>('REDIS_DB', 0),
+      ...commonOptions,
+    });
   }
 
-  return new IORedis({
-    host: configService.get<string>('REDIS_HOST', 'localhost'),
-    port: configService.get<number>('REDIS_PORT', 6379),
-    password: configService.get<string>('REDIS_PASSWORD'),
-    db: configService.get<number>('REDIS_DB', 0),
-    ...commonOptions,
+  // Add error event listeners for better debugging
+  redis.on('error', (err) => {
+    console.error('Redis connection error:', err.message);
   });
+
+  redis.on('connect', () => {
+    console.log('Redis connected successfully');
+  });
+
+  redis.on('ready', () => {
+    console.log('Redis ready for commands');
+  });
+
+  redis.on('close', () => {
+    console.log('Redis connection closed');
+  });
+
+  redis.on('reconnecting', (ms: number) => {
+    console.log(`Redis reconnecting in ${ms}ms`);
+  });
+
+  return redis;
 }
 
 export function createQueues(redis: IORedis): { queues: Queue[]; adapters: BullMQAdapter[] } {
