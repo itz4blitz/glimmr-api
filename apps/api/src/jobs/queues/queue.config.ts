@@ -132,62 +132,88 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
 
 export function createRedisConnection(configService: ConfigService): IORedis {
   const redisUrl = configService.get<string>('REDIS_URL');
+  const valkeyUrl = configService.get<string>('VALKEY_URL');
+  const isProduction = configService.get('NODE_ENV') === 'production';
 
-  const commonOptions = {
+  // Production uses Valkey, development uses Redis
+  const connectionUrl = isProduction ? (valkeyUrl ?? redisUrl) : redisUrl;
+
+  const baseOptions = {
     maxRetriesPerRequest: null, // Required by BullMQ
-    retryDelayOnFailover: 100,
-    retryDelayOnClusterDown: 300,
-    enableReadyCheck: true,
-    lazyConnect: false,
-    connectTimeout: 10000,
-    commandTimeout: 5000,
-    keepAlive: 30000,
+    enableReadyCheck: false, // Disable for Valkey compatibility
+    lazyConnect: true,
+    connectTimeout: 30000, // Increased timeout
+    commandTimeout: 10000,
     family: 4, // Force IPv4
-    // Enhanced reconnection logic for Valkey/Redis compatibility
-    reconnectOnError: (err: Error) => {
-      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND', 'ECONNREFUSED'];
-      return targetErrors.some(error => err.message.includes(error));
-    },
-    // Connection pool settings
     enableOfflineQueue: false,
-    // Error handling
     showFriendlyErrorStack: true,
   };
 
+  // Different configurations for production (Valkey) vs development (Redis)
+  const productionOptions = {
+    ...baseOptions,
+    retryDelayOnFailover: 500,
+    retryDelayOnClusterDown: 1000,
+    keepAlive: 60000,
+    // Minimal reconnection for Valkey
+    reconnectOnError: () => false,
+  };
+
+  const developmentOptions = {
+    ...baseOptions,
+    retryDelayOnFailover: 100,
+    retryDelayOnClusterDown: 300,
+    keepAlive: 30000,
+    // Standard Redis reconnection
+    reconnectOnError: (err: Error) => {
+      const targetErrors = ['READONLY', 'ECONNRESET'];
+      return targetErrors.some(error => err.message.includes(error));
+    },
+  };
+
+  const options = isProduction ? productionOptions : developmentOptions;
+
   let redis: IORedis;
 
-  if (redisUrl) {
-    redis = new IORedis(redisUrl, commonOptions);
+  if (connectionUrl) {
+    redis = new IORedis(connectionUrl, options);
   } else {
     redis = new IORedis({
-      host: configService.get<string>('REDIS_HOST', 'localhost'),
-      port: configService.get<number>('REDIS_PORT', 6379),
-      password: configService.get<string>('REDIS_PASSWORD'),
-      db: configService.get<number>('REDIS_DB', 0),
-      ...commonOptions,
+      host: configService.get<string>(isProduction ? 'VALKEY_HOST' : 'REDIS_HOST', 'localhost'),
+      port: configService.get<number>(isProduction ? 'VALKEY_PORT' : 'REDIS_PORT', 6379),
+      password: configService.get<string>(isProduction ? 'VALKEY_PASSWORD' : 'REDIS_PASSWORD'),
+      db: configService.get<number>(isProduction ? 'VALKEY_DB' : 'REDIS_DB', 0),
+      ...options,
     });
   }
 
-  // Add error event listeners for better debugging
-  redis.on('error', (err) => {
-    console.error('Redis connection error:', err.message);
-  });
+  // Minimal logging for production
+  if (!isProduction) {
+    redis.on('error', (err) => {
+      console.error('Redis connection error:', err.message);
+    });
 
-  redis.on('connect', () => {
-    console.log('Redis connected successfully');
-  });
+    redis.on('connect', () => {
+      console.log('Redis connected successfully');
+    });
 
-  redis.on('ready', () => {
-    console.log('Redis ready for commands');
-  });
+    redis.on('ready', () => {
+      console.log('Redis ready for commands');
+    });
 
-  redis.on('close', () => {
-    console.log('Redis connection closed');
-  });
+    redis.on('close', () => {
+      console.log('Redis connection closed');
+    });
 
-  redis.on('reconnecting', (ms: number) => {
-    console.log(`Redis reconnecting in ${ms}ms`);
-  });
+    redis.on('reconnecting', (ms: number) => {
+      console.log(`Redis reconnecting in ${ms}ms`);
+    });
+  } else {
+    // Production: Only log errors
+    redis.on('error', (err) => {
+      console.error('Valkey connection error:', err.message);
+    });
+  }
 
   return redis;
 }
