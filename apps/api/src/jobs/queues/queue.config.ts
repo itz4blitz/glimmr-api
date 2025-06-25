@@ -133,12 +133,23 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
 export function createRedisConnection(configService: ConfigService): IORedis {
   const redisUrl = configService.get<string>('REDIS_URL');
 
+  const commonOptions = {
+    maxRetriesPerRequest: null, // Required by BullMQ
+    retryDelayOnFailover: 100,
+    enableReadyCheck: true,
+    lazyConnect: false,
+    connectTimeout: 10000,
+    commandTimeout: 5000,
+    keepAlive: 30000,
+    family: 4, // Force IPv4
+    reconnectOnError: (err: Error) => {
+      const targetError = 'READONLY';
+      return err.message.includes(targetError);
+    },
+  };
+
   if (redisUrl) {
-    return new IORedis(redisUrl, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-      lazyConnect: true,
-    });
+    return new IORedis(redisUrl, commonOptions);
   }
 
   return new IORedis({
@@ -146,9 +157,7 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     port: configService.get<number>('REDIS_PORT', 6379),
     password: configService.get<string>('REDIS_PASSWORD'),
     db: configService.get<number>('REDIS_DB', 0),
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    lazyConnect: true,
+    ...commonOptions,
   });
 }
 
