@@ -7,8 +7,9 @@ import { ExternalApisModule } from '../external-apis/external-apis.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { HospitalsModule } from '../hospitals/hospitals.module.js';
 import { createRedisConnection, QUEUE_NAMES } from './queues/queue.config.js';
-import { HospitalImportProcessor } from './processors/hospital-import.processor.js';
-import { PriceFileDownloadProcessor } from './processors/price-file-download.processor.js';
+// Removed unused processors to reduce memory usage
+// import { HospitalImportProcessor } from './processors/hospital-import.processor.js';
+// import { PriceFileDownloadProcessor } from './processors/price-file-download.processor.js';
 import { PRAFileDownloadProcessor } from './processors/pra-file-download.processor.js';
 import { PRAUnifiedScannerProcessor } from './processors/pra-unified-scanner.processor.js';
 import { HospitalMonitorService } from './services/hospital-monitor.service.js';
@@ -35,47 +36,22 @@ import { JobsService } from './jobs.service.js';
       }),
       inject: [ConfigService],
     }),
+    // Register only essential queues initially to reduce memory pressure
     BullModule.registerQueue(
       {
-        name: QUEUE_NAMES.HOSPITAL_IMPORT,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
-      },
-      {
-        name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
-      },
-      {
-        name: QUEUE_NAMES.PRICE_UPDATE,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
-      },
-      {
-        name: QUEUE_NAMES.ANALYTICS_REFRESH,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
-      },
-      {
-        name: QUEUE_NAMES.DATA_VALIDATION,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
-      },
-      {
-        name: QUEUE_NAMES.EXPORT_DATA,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
-      },
-      // PRA Data Pipeline Queues
-      {
         name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+        processors: [{ concurrency: 1 }] // Most critical queue
       },
       {
         name: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
-        processors: [{ concurrency: 1 }] // Limit concurrency for memory
+        processors: [{ concurrency: 1 }] // Most critical queue
       },
     ),
   ],
   controllers: [JobsController],
   providers: [
     JobsService,
-    HospitalImportProcessor,
-    PriceFileDownloadProcessor,
+    // Only register essential processors to reduce memory usage
     PRAFileDownloadProcessor,
     PRAUnifiedScannerProcessor,
     HospitalMonitorService,
