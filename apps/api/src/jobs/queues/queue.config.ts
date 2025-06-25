@@ -138,7 +138,7 @@ export function createRedisConnection(configService: ConfigService): IORedis {
   const connectionUrl = redisUrl;
 
   const baseOptions = {
-    maxRetriesPerRequest: null, // Required by BullMQ
+    maxRetriesPerRequest: null, // Required by BullMQ - disable retries for blocking commands
     enableReadyCheck: false, // Disable for Valkey compatibility
     lazyConnect: true,
     connectTimeout: 10000, // Shorter timeout for faster startup
@@ -146,6 +146,10 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     family: 4, // Force IPv4
     enableOfflineQueue: false,
     showFriendlyErrorStack: true,
+    // BullMQ-specific optimizations
+    retryDelayOnFailover: 100,
+    // Prevent connection drops that cause worker timeouts
+    keepAlive: 30000,
     // Note: maxMemoryPolicy should be configured on the Valkey server, not client
   };
 
@@ -155,6 +159,9 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     retryDelayOnFailover: 1000,
     retryDelayOnClusterDown: 2000,
     keepAlive: 60000,
+    // Improved timeout handling for BullMQ workers
+    connectTimeout: 15000, // Longer timeout for initial connection
+    commandTimeout: 10000, // Longer timeout for commands to prevent worker timeouts
     // SSL/TLS for DigitalOcean managed Valkey service (only if using public endpoint)
     // Private network connections may not need TLS
     ...(process.env.VALKEY_HOST?.includes('private-') ? {} : {
@@ -241,6 +248,15 @@ export function createRedisConnection(configService: ConfigService): IORedis {
 
     redis.on('connect', () => {
       console.log('Valkey connected successfully');
+    });
+
+    // Log timeout-related events in production to help diagnose issues
+    redis.on('close', () => {
+      console.warn('Valkey connection closed');
+    });
+
+    redis.on('reconnecting', (ms: number) => {
+      console.warn(`Valkey reconnecting in ${ms}ms`);
     });
   }
 
