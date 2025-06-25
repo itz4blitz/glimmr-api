@@ -132,11 +132,10 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
 
 export function createRedisConnection(configService: ConfigService): IORedis {
   const redisUrl = configService.get<string>('REDIS_URL');
-  const valkeyUrl = configService.get<string>('VALKEY_URL');
   const isProduction = configService.get('NODE_ENV') === 'production';
 
-  // Production uses Valkey, development uses Redis
-  const connectionUrl = isProduction ? (valkeyUrl ?? redisUrl) : redisUrl;
+  // Use REDIS_* variables for both Redis (dev) and Valkey (prod)
+  const connectionUrl = redisUrl;
 
   const baseOptions = {
     maxRetriesPerRequest: null, // Required by BullMQ
@@ -178,11 +177,25 @@ export function createRedisConnection(configService: ConfigService): IORedis {
   if (connectionUrl) {
     redis = new IORedis(connectionUrl, options);
   } else {
+    // Production uses VALKEY_* variables, development uses REDIS_* variables
+    const host = isProduction
+      ? configService.get<string>('VALKEY_HOST')
+      : configService.get<string>('REDIS_HOST', 'localhost');
+    const port = isProduction
+      ? configService.get<number>('VALKEY_PORT')
+      : configService.get<number>('REDIS_PORT', 6379);
+    const password = isProduction
+      ? configService.get<string>('VALKEY_PASSWORD')
+      : configService.get<string>('REDIS_PASSWORD');
+    const db = isProduction
+      ? configService.get<number>('VALKEY_DB', 0)
+      : configService.get<number>('REDIS_DB', 0);
+
     redis = new IORedis({
-      host: configService.get<string>(isProduction ? 'VALKEY_HOST' : 'REDIS_HOST', 'localhost'),
-      port: configService.get<number>(isProduction ? 'VALKEY_PORT' : 'REDIS_PORT', 6379),
-      password: configService.get<string>(isProduction ? 'VALKEY_PASSWORD' : 'REDIS_PASSWORD'),
-      db: configService.get<number>(isProduction ? 'VALKEY_DB' : 'REDIS_DB', 0),
+      host,
+      port,
+      password,
+      db,
       ...options,
     });
   }
