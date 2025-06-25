@@ -154,8 +154,16 @@ export function createRedisConnection(configService: ConfigService): IORedis {
     retryDelayOnFailover: 500,
     retryDelayOnClusterDown: 1000,
     keepAlive: 60000,
-    // Minimal reconnection for Valkey
-    reconnectOnError: () => false,
+    // SSL/TLS for DigitalOcean managed Valkey service
+    tls: {
+      rejectUnauthorized: false, // DigitalOcean managed databases use self-signed certs
+      checkServerIdentity: () => undefined, // Skip hostname verification
+    },
+    // Better reconnection for managed services
+    reconnectOnError: (err: Error) => {
+      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND'];
+      return targetErrors.some(error => err.message.includes(error));
+    },
   };
 
   const developmentOptions = {
