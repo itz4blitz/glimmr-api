@@ -133,8 +133,11 @@ describe('Error Logging', () => {
     });
 
     it('should handle missing request headers gracefully', () => {
-      mockRequest.headers = {};
-      mockRequest.ip = undefined;
+      mockRequest = {
+        ...mockRequest,
+        headers: {},
+        ip: undefined,
+      };
       
       const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
       
@@ -215,7 +218,6 @@ describe('Error Logging', () => {
           msg: 'Internal server error',
           error: 'External service Test API error: Service unavailable',
           statusCode: 502,
-          error: 'EXTERNAL_SERVICE_ERROR',
         })
       );
     });
@@ -236,7 +238,6 @@ describe('Error Logging', () => {
           msg: 'Internal server error',
           error: 'Connection to database failed',
           statusCode: 500,
-          error: 'DATABASE_QUERY_ERROR',
         })
       );
     });
@@ -255,7 +256,6 @@ describe('Error Logging', () => {
           msg: 'Internal server error',
           error: 'duplicate key value violates unique constraint',
           statusCode: 500,
-          error: 'DATABASE_QUERY_ERROR',
         })
       );
     });
