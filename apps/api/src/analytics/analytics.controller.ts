@@ -4,6 +4,7 @@ import { AnalyticsService } from './analytics.service';
 import { FlexibleAuthGuard } from '../auth/guards/flexible-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { AnalyticsQueryDto, ExportQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('analytics')
 @Controller('analytics')
@@ -33,6 +34,8 @@ export class AnalyticsController {
     @Query('period') period?: string,
   ) {
     return this.analyticsService.getPricingTrends({ service, state, period });
+  async getPricingTrends(@Query() query: AnalyticsQueryDto) {
+    return this.analyticsService.getPricingTrends(query);
   }
 
   @Get('powerbi')
@@ -54,5 +57,7 @@ export class AnalyticsController {
     @Query('dataset') dataset?: string,
   ) {
     return this.analyticsService.exportData({ format, dataset });
+  async exportData(@Query() query: ExportQueryDto) {
+    return this.analyticsService.exportData(query);
   }
 }

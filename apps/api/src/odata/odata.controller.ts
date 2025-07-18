@@ -4,6 +4,8 @@ import { ODataService } from './odata.service';
 import { ApiKeyAuthGuard } from '../auth/guards/api-key-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ODataQueryDto } from '../common/dto/query.dto';
+import { RequestDto, ResponseDto } from '../common/dto/request.dto';
 
 @ApiTags('odata')
 @Controller('odata')
@@ -17,6 +19,7 @@ export class ODataController {
   @ApiResponse({ status: 200, description: 'OData service document retrieved successfully' })
   @Roles('admin', 'api-user')
   async getServiceDocument(@Req() req: any, @Res() res: any) {
+  async getServiceDocument(@Req() req: RequestDto, @Res() res: ResponseDto) {
     const serviceDoc = await this.odataService.getServiceDocument(req);
     res.setHeader('Content-Type', 'application/json;odata.metadata=minimal');
     res.setHeader('OData-Version', '4.0');
@@ -28,6 +31,7 @@ export class ODataController {
   @ApiResponse({ status: 200, description: 'OData metadata document retrieved successfully' })
   @Roles('admin', 'api-user')
   async getMetadata(@Res() res: any) {
+  async getMetadata(@Res() res: ResponseDto) {
     const metadata = await this.odataService.getMetadata();
     res.setHeader('Content-Type', 'application/xml');
     res.setHeader('OData-Version', '4.0');
@@ -61,6 +65,8 @@ export class ODataController {
       skip,
       count,
     });
+  async getHospitals(@Res() res: ResponseDto, @Query() query: ODataQueryDto) {
+    const data = await this.odataService.getHospitals(query);
     res.setHeader('Content-Type', 'application/json;odata.metadata=minimal');
     res.setHeader('OData-Version', '4.0');
     return res.json(data);
@@ -93,6 +99,8 @@ export class ODataController {
       skip,
       count,
     });
+  async getPrices(@Res() res: ResponseDto, @Query() query: ODataQueryDto) {
+    const data = await this.odataService.getPrices(query);
     res.setHeader('Content-Type', 'application/json;odata.metadata=minimal');
     res.setHeader('OData-Version', '4.0');
     return res.json(data);
@@ -125,6 +133,8 @@ export class ODataController {
       skip,
       count,
     });
+  async getAnalytics(@Res() res: ResponseDto, @Query() query: ODataQueryDto) {
+    const data = await this.odataService.getAnalytics(query);
     res.setHeader('Content-Type', 'application/json;odata.metadata=minimal');
     res.setHeader('OData-Version', '4.0');
     return res.json(data);

@@ -7,6 +7,13 @@ import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto } from './dto/hos
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
+import { JobsService } from './jobs.service';
+import { HospitalMonitorService } from './services/hospital-monitor.service';
+import { PRAPipelineService } from './services/pra-pipeline.service';
+import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto, StartHospitalImportDto, StartPriceUpdateDto, TriggerPRAScanDto } from './dto/hospital-import.dto';
+import { JobFilterQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('jobs')
 @Controller('jobs')
@@ -32,6 +39,8 @@ export class JobsController {
     @Query('limit') limit?: number,
   ) {
     return this.jobsService.getJobs({ status, type, limit });
+  async getJobs(@Query() query: JobFilterQueryDto) {
+    return this.jobsService.getJobs(query);
   }
 
   @Get('stats')
@@ -65,6 +74,8 @@ export class JobsController {
     },
   })
   async startHospitalImport(@Body() importData: any) {
+  @ApiBody({ type: StartHospitalImportDto })
+  async startHospitalImport(@Body() importData: StartHospitalImportDto) {
     return this.jobsService.startHospitalImport(importData);
   }
 
@@ -82,6 +93,8 @@ export class JobsController {
     },
   })
   async startPriceUpdate(@Body() updateData: any) {
+  @ApiBody({ type: StartPriceUpdateDto })
+  async startPriceUpdate(@Body() updateData: StartPriceUpdateDto) {
     return this.jobsService.startPriceUpdate(updateData);
   }
 
@@ -152,6 +165,8 @@ export class JobsController {
     },
   })
   async triggerPRAScan(@Body() body: { testMode?: boolean; forceRefresh?: boolean }) {
+  @ApiBody({ type: TriggerPRAScanDto })
+  async triggerPRAScan(@Body() body: TriggerPRAScanDto) {
     const { testMode = false, forceRefresh = false } = body;
     const result = await this.praPipelineService.triggerManualPRAScan(testMode, forceRefresh);
     return { message: 'PRA unified scan triggered', ...result };

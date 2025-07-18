@@ -12,4 +12,20 @@
   "coverageDirectory": "./coverage",
   "testTimeout": 30000,
   "setupFilesAfterEnv": ["<rootDir>/test-setup.ts"]
+  "coverageDirectory": "../coverage-e2e",
+  "collectCoverageFrom": [
+    "../src/**/*.(t|j)s",
+    "!../src/**/*.spec.ts",
+    "!../src/**/*.e2e-spec.ts"
+  ],
+  "coverageReporters": ["text", "lcov", "html"]
+  "collectCoverageFrom": [
+    "../src/**/*.(t|j)s",
+    "!../src/**/*.spec.ts",
+    "!../src/**/*.e2e-spec.ts",
+    "!../src/main.ts"
+  ],
+  "coverageDirectory": "../coverage-e2e",
+  "coverageReporters": ["text", "lcov", "html"],
+  "setupFilesAfterEnv": ["<rootDir>/setup.ts"]
 }
