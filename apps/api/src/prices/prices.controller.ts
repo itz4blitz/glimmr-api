@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Param, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { PricesService } from './prices.service';
+import { PriceFilterQueryDto, PriceComparisonQueryDto, AnalyticsQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('prices')
 @Controller('prices')
@@ -58,6 +59,8 @@ export class PricesController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  async getPrices(@Query() query: PriceFilterQueryDto) {
+    return this.pricesService.getPrices(query);
   }
 
   @Get('compare')
@@ -95,6 +98,8 @@ export class PricesController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  async comparePrices(@Query() query: PriceComparisonQueryDto) {
+    return this.pricesService.comparePrices(query);
   }
 
   @Get('analytics')
@@ -130,6 +135,8 @@ export class PricesController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  async getPricingAnalytics(@Query() query: AnalyticsQueryDto) {
+    return this.pricesService.getPricingAnalytics(query);
   }
 
   @Get(':id')

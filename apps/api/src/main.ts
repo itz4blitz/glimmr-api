@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import compression from 'compression';
 import helmet from 'helmet';
+import { GlobalExceptionFilter } from './common/exceptions';
 
 async function bootstrap() {
   // Create app with buffer logs to capture early logs
@@ -40,6 +41,9 @@ async function bootstrap() {
     transform: true,
   }));
 
+  // Global exception filter
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
   // API prefix - since we're on api.glimmr.health subdomain, no prefix needed
   const apiPrefix = process.env.API_PREFIX || '';
   if (apiPrefix) {
@@ -52,10 +56,21 @@ async function bootstrap() {
     .setDescription('Hospital pricing data aggregation and analytics platform')
     .setVersion('1.0')
     .addBearerAuth()
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+        description: 'API key for programmatic access',
+      },
+      'x-api-key'
+    )
+    .addTag('auth', 'Authentication and authorization')
     .addTag('hospitals', 'Hospital data management')
     .addTag('prices', 'Pricing data operations')
     .addTag('analytics', 'Data analytics and reporting')
     .addTag('jobs', 'Background job management')
+    .addTag('odata', 'OData endpoints')
     .addTag('health', 'System health checks')
     .build();
 
