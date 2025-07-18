@@ -535,6 +535,7 @@ describe('AnalyticsController', () => {
     it('should be defined', () => {
       expect(controller).toBeDefined();
     });
+  });
 
   describe('getDashboardAnalytics', () => {
     it('should call analyticsService.getDashboardAnalytics', async () => {

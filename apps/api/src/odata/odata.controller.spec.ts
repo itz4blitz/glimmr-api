@@ -38,6 +38,11 @@ describe('ODataController', () => {
           },
         ]),
       ],
+    }).compile();
+
+    controller = module.get<ODataController>(ODataController);
+  });
+
   const mockRequest = {
     url: '/odata',
     headers: {

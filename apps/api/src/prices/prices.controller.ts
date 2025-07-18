@@ -59,8 +59,6 @@ export class PricesController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-  async getPrices(@Query() query: PriceFilterQueryDto) {
-    return this.pricesService.getPrices(query);
   }
 
   @Get('compare')
@@ -98,8 +96,6 @@ export class PricesController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-  async comparePrices(@Query() query: PriceComparisonQueryDto) {
-    return this.pricesService.comparePrices(query);
   }
 
   @Get('analytics')
@@ -135,8 +131,6 @@ export class PricesController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-  async getPricingAnalytics(@Query() query: AnalyticsQueryDto) {
-    return this.pricesService.getPricingAnalytics(query);
   }
 
   @Get(':id')

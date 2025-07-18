@@ -304,31 +304,7 @@ describe('AppModule - Rate Limiting Configuration', () => {
       delete process.env.RATE_LIMIT_WINDOW_MS;
       delete process.env.RATE_LIMIT_MAX_REQUESTS;
       delete process.env.RATE_LIMIT_MAX_REQUESTS_EXPENSIVE;
-import { INestApplication } from '@nestjs/common';
-import { AppTestModule } from './app.test.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { HealthModule } from './health/health.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { LoggerModule } from 'nestjs-pino';
-
-describe('AppTestModule', () => {
-  let app: INestApplication;
-  let module: TestingModule;
-
-  beforeEach(async () => {
-    module = await Test.createTestingModule({
-      imports: [AppTestModule],
-    }).compile();
-
-    app = module.createNestApplication();
-    await app.init();
-  });
-
-  afterEach(async () => {
-    if (app) {
-      await app.close();
-    }
+    });
   });
 
   describe('Module Configuration', () => {
