@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import compression from 'compression';
 import helmet from 'helmet';
 
@@ -14,6 +15,9 @@ async function bootstrap() {
 
   // Use Pino logger globally - this replaces the default NestJS logger
   app.useLogger(app.get(Logger));
+
+  // Global exception filter for better error handling and logging
+  app.useGlobalFilters(new GlobalExceptionFilter(app.get(Logger)));
 
   // Security middleware
   app.use(helmet());

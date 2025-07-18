@@ -1,6 +1,6 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
+import { Controller, Get, Query, Param, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
-import { HospitalsService } from './hospitals.service.js';
+import { HospitalsService } from './hospitals.service';
 
 @ApiTags('hospitals')
 @Controller('hospitals')
@@ -10,6 +10,8 @@ export class HospitalsController {
   @Get()
   @ApiOperation({ summary: 'Get all hospitals' })
   @ApiResponse({ status: 200, description: 'List of hospitals retrieved successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
   @ApiQuery({ name: 'city', required: false, description: 'Filter by city' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return' })
@@ -20,28 +22,109 @@ export class HospitalsController {
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ) {
-    return this.hospitalsService.getHospitals({ state, city, limit, offset });
+    try {
+      return await this.hospitalsService.getHospitals({ state, city, limit, offset });
+    } catch (error) {
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while fetching hospitals',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get hospital by ID' })
   @ApiResponse({ status: 200, description: 'Hospital retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Hospital not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiParam({ name: 'id', description: 'Hospital ID' })
   async getHospitalById(@Param('id') id: string) {
-    return this.hospitalsService.getHospitalById(id);
+    try {
+      const result = await this.hospitalsService.getHospitalById(id);
+      if (!result) {
+        throw new HttpException(
+          { 
+            message: 'Hospital not found',
+            statusCode: HttpStatus.NOT_FOUND,
+            error: 'Not Found' 
+          },
+          HttpStatus.NOT_FOUND
+        );
+      }
+      return result;
+    } catch (error) {
+      if (error.status === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while fetching hospital',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Get(':id/prices')
   @ApiOperation({ summary: 'Get pricing data for a hospital' })
   @ApiResponse({ status: 200, description: 'Hospital pricing data retrieved successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiParam({ name: 'id', description: 'Hospital ID' })
   @ApiQuery({ name: 'service', required: false, description: 'Filter by service type' })
   async getHospitalPrices(
     @Param('id') id: string,
     @Query('service') service?: string,
   ) {
-    return this.hospitalsService.getHospitalPrices(id, { service });
+    try {
+      return await this.hospitalsService.getHospitalPrices(id, { service });
+    } catch (error) {
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while fetching hospital prices',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
 
