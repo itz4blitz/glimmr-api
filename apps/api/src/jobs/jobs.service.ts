@@ -438,33 +438,38 @@ export class JobsService {
     }
   }
 
-  async startAnalyticsRefresh(refreshData: {
+  /**
+   * Trigger analytics refresh job (enhanced version)
+   */
+  async triggerAnalyticsRefresh(options: {
     metricTypes?: string[];
     forceRefresh?: boolean;
+    reportingPeriod?: string;
     batchSize?: number;
     priority?: number;
-  }) {
+  } = {}) {
     this.logger.info({
       msg: 'Starting analytics refresh job',
-      refreshData,
+      options,
     });
 
     try {
-      const jobData: AnalyticsRefreshJobData = {
-        metricTypes: refreshData.metricTypes,
-        forceRefresh: refreshData.forceRefresh ?? false,
-        batchSize: refreshData.batchSize ?? 100,
+      const jobData = {
+        metricTypes: options.metricTypes || ['all'],
+        forceRefresh: options.forceRefresh || false,
+        reportingPeriod: options.reportingPeriod || 'monthly',
+        batchSize: options.batchSize || 100,
       };
 
       const job = await this.analyticsRefreshQueue.add(
-        'analytics-refresh',
+        `analytics-refresh-${Date.now()}`,
         jobData,
         {
-          priority: refreshData.priority ?? 5,
+          priority: options.priority || 3,
           attempts: 3,
           backoff: {
             type: 'exponential',
-            delay: 120000, // 2 minutes
+            delay: 60000, // 1 minute
           },
           removeOnComplete: 5,
           removeOnFail: 10,
@@ -472,11 +477,12 @@ export class JobsService {
       );
 
       return {
-        jobId: job.id,
+        id: job.id,
+        jobId: job.id, // Support both for compatibility
         status: 'queued',
         message: 'Analytics refresh job has been queued successfully',
-        estimatedDuration: refreshData.metricTypes ? '5-15 minutes' : '15-30 minutes',
-        priority: refreshData.priority ?? 5,
+        estimatedDuration: options.metricTypes ? '5-15 minutes' : '15-30 minutes',
+        priority: options.priority || 3,
         data: jobData,
         createdAt: new Date().toISOString(),
         trackingUrl: `/jobs/${job.id}`,
@@ -484,11 +490,23 @@ export class JobsService {
     } catch (error) {
       this.logger.error({
         msg: 'Failed to start analytics refresh job',
-        refreshData,
+        options,
         error: error.message,
       });
       throw error;
     }
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   */
+  async startAnalyticsRefresh(refreshData: {
+    metricTypes?: string[];
+    forceRefresh?: boolean;
+    batchSize?: number;
+    priority?: number;
+  }) {
+    return this.triggerAnalyticsRefresh(refreshData);
   }
 
   async getDetailedQueueStats() {
