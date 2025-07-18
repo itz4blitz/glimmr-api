@@ -192,19 +192,21 @@ export class AnalyticsQueryDto {
 
 export class ExportQueryDto {
   @ApiProperty({
-    description: 'Export format (csv, json, excel, parquet)',
-    example: 'json',
+    description: 'Export format - csv: Comma-separated values, json: JSON format, excel: Excel spreadsheet, parquet: Columnar format',
+    example: 'csv',
     required: false,
     enum: ['csv', 'json', 'excel', 'parquet'],
-    default: 'json',
+    default: 'csv',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['csv', 'json', 'excel', 'parquet'])
+  @IsIn(['csv', 'json', 'excel', 'parquet'], {
+    message: 'Format must be one of: csv, json, excel, parquet'
+  })
   format?: string;
 
   @ApiProperty({
-    description: 'Dataset to export (hospitals, prices, analytics, all)',
+    description: 'Dataset to export - hospitals: Hospital information, prices: Price data, analytics: Analytics data, all: All datasets combined',
     example: 'hospitals',
     required: false,
     enum: ['hospitals', 'prices', 'analytics', 'all'],
@@ -212,21 +214,24 @@ export class ExportQueryDto {
   })
   @IsOptional()
   @IsString()
-  @IsIn(['hospitals', 'prices', 'analytics', 'all'])
+  @IsIn(['hospitals', 'prices', 'analytics', 'all'], {
+    message: 'Dataset must be one of: hospitals, prices, analytics, all'
+  })
   dataset?: string;
 
   @ApiProperty({
-    description: 'Maximum number of records to export (for size limiting)',
-    example: 10000,
+    description: 'Maximum number of records to export (1-100000)',
+    example: 1000,
     required: false,
     minimum: 1,
     maximum: 100000,
+    default: 1000,
   })
   @IsOptional()
-  @Type(() => Number)
   @IsNumber()
-  @Min(1)
-  @Max(100000)
+  @Min(1, { message: 'Limit must be at least 1' })
+  @Max(100000, { message: 'Limit cannot exceed 100,000 records' })
+  @Type(() => Number)
   limit?: number;
 }
 

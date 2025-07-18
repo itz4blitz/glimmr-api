@@ -4,14 +4,40 @@ import { eq, and, like, desc, asc, count, sql } from 'drizzle-orm';
 import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { analytics, prices, hospitals } from '../database/schema';
+import { Response } from 'express';
+import { Transform } from 'stream';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { QUEUE_NAMES } from '../jobs/queues/queue.config';
+import type { ExportJobData } from '../jobs/processors/export-data.processor';
+
+interface ExportProgress {
+  exportId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number; // 0-100
+  message: string;
+  createdAt: Date;
+  completedAt?: Date;
+  downloadUrl?: string;
+  errorMessage?: string;
+  totalRecords?: number;
+  processedRecords?: number;
+}
 
 @Injectable()
 export class AnalyticsService {
+  private exportProgress = new Map<string, ExportProgress>();
+
   constructor(
     private readonly databaseService: DatabaseService,
     @InjectPinoLogger(AnalyticsService.name)
     private readonly logger: PinoLogger,
-  ) {}
+    @InjectQueue(QUEUE_NAMES.EXPORT_DATA)
+    private readonly exportQueue: Queue<ExportJobData>,
+  ) {
+    // Clean up old export progress every hour
+    setInterval(() => this.cleanupOldExports(), 60 * 60 * 1000);
+  }
   async getDashboardAnalytics() {
     this.logger.info({
       msg: 'Generating dashboard analytics',
@@ -307,6 +333,7 @@ export class AnalyticsService {
   async exportData(filters: {
     format?: string;
     dataset?: string;
+    limit?: number;
   }) {
     this.logger.info({
       msg: 'Initiating data export',
@@ -317,20 +344,37 @@ export class AnalyticsService {
     try {
       const db = this.databaseService.db;
       const format = filters.format || 'json';
-      const dataset = filters.dataset || 'all';
+      const dataset = filters.dataset || 'hospitals';
+      const requestedLimit = filters.limit || 1000;
       const exportId = `export_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+      // Validate format
+      const allowedFormats = ['csv', 'json', 'excel', 'parquet'];
+      if (!allowedFormats.includes(format)) {
+        throw new Error(`Invalid format: ${format}. Allowed formats: ${allowedFormats.join(', ')}`);
+      }
+
+      // Validate dataset
+      const allowedDatasets = ['hospitals', 'prices', 'analytics', 'all'];
+      if (!allowedDatasets.includes(dataset)) {
+        throw new Error(`Invalid dataset: ${dataset}. Allowed datasets: ${allowedDatasets.join(', ')}`);
+      }
 
       // Calculate actual data sizes based on dataset
       let estimatedRecords = 0;
       let estimatedSizeMB = 0;
+      const maxRecordsPerDataset = Math.min(requestedLimit, 100000); // Hard limit of 100k records
 
       if (dataset === 'hospitals' || dataset === 'all') {
         const [hospitalCount] = await db
           .select({ count: count() })
           .from(hospitals)
           .where(eq(hospitals.isActive, true));
-        estimatedRecords += hospitalCount.count;
-        estimatedSizeMB += hospitalCount.count * 0.002; // ~2KB per hospital record
+        const actualHospitalRecords = dataset === 'all' 
+          ? Math.min(hospitalCount.count, Math.floor(maxRecordsPerDataset / 3))
+          : Math.min(hospitalCount.count, maxRecordsPerDataset);
+        estimatedRecords += actualHospitalRecords;
+        estimatedSizeMB += actualHospitalRecords * 0.002; // ~2KB per hospital record
       }
 
       if (dataset === 'prices' || dataset === 'all') {
@@ -338,16 +382,22 @@ export class AnalyticsService {
           .select({ count: count() })
           .from(prices)
           .where(eq(prices.isActive, true));
-        estimatedRecords += priceCount.count;
-        estimatedSizeMB += priceCount.count * 0.001; // ~1KB per price record
+        const actualPriceRecords = dataset === 'all'
+          ? Math.min(priceCount.count, Math.floor(maxRecordsPerDataset / 3))
+          : Math.min(priceCount.count, maxRecordsPerDataset);
+        estimatedRecords += actualPriceRecords;
+        estimatedSizeMB += actualPriceRecords * 0.001; // ~1KB per price record
       }
 
       if (dataset === 'analytics' || dataset === 'all') {
         const [analyticsCount] = await db
           .select({ count: count() })
           .from(analytics);
-        estimatedRecords += analyticsCount.count;
-        estimatedSizeMB += analyticsCount.count * 0.0005; // ~0.5KB per analytics record
+        const actualAnalyticsRecords = dataset === 'all'
+          ? Math.min(analyticsCount.count, Math.floor(maxRecordsPerDataset / 3))
+          : Math.min(analyticsCount.count, maxRecordsPerDataset);
+        estimatedRecords += actualAnalyticsRecords;
+        estimatedSizeMB += actualAnalyticsRecords * 0.0005; // ~0.5KB per analytics record
       }
 
       // Adjust size based on format
@@ -359,7 +409,17 @@ export class AnalyticsService {
       };
 
       const finalSizeMB = estimatedSizeMB * (formatMultipliers[format] ?? 1.0);
+      
+      // File size limits
+      const maxFileSizeMB = 500; // 500MB limit
+      const maxSyncSizeMB = 10;   // 10MB for immediate processing
+      
+      if (finalSizeMB > maxFileSizeMB) {
+        throw new Error(`Export size (${finalSizeMB.toFixed(1)} MB) exceeds maximum allowed size (${maxFileSizeMB} MB). Please reduce the limit or narrow your dataset selection.`);
+      }
+
       const estimatedTimeMinutes = Math.max(1, Math.ceil(estimatedRecords / 10000)); // ~10k records per minute
+      const requiresAsyncProcessing = finalSizeMB > maxSyncSizeMB || estimatedRecords > 10000;
 
       this.logger.info({
         msg: 'Export initiated successfully',
@@ -371,20 +431,68 @@ export class AnalyticsService {
         operation: 'exportData',
       });
 
-      return {
+
+      const result = {
         exportId,
         format,
         dataset,
-        status: 'preparing',
+        status: requiresAsyncProcessing ? 'preparing' : 'ready',
         estimatedRecords,
         estimatedSize: `${finalSizeMB.toFixed(1)} MB`,
         estimatedTime: `${estimatedTimeMinutes} minute${estimatedTimeMinutes > 1 ? 's' : ''}`,
         downloadUrl: null, // Will be populated when ready
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
         createdAt: new Date().toISOString(),
+        requiresAsyncProcessing,
+        limits: {
+          maxFileSizeMB,
+          maxSyncSizeMB,
+          maxRecords: 100000,
+          appliedRecordLimit: maxRecordsPerDataset,
+        },
         availableFormats: ['json', 'csv', 'excel', 'parquet'],
         availableDatasets: ['hospitals', 'prices', 'analytics', 'all'],
+        message: requiresAsyncProcessing 
+          ? 'Large export request - processing will be handled asynchronously. Check back using the exportId.'
+          : 'Small export - ready for immediate processing.',
       };
+
+      // Initialize progress tracking
+      this.updateExportProgress(exportId, {
+        exportId,
+        status: requiresAsyncProcessing ? 'pending' : 'completed',
+        progress: requiresAsyncProcessing ? 0 : 100,
+        message: requiresAsyncProcessing 
+          ? 'Export queued for processing'
+          : 'Small export ready for download',
+        createdAt: new Date(),
+        totalRecords: estimatedRecords,
+        processedRecords: requiresAsyncProcessing ? 0 : estimatedRecords,
+        completedAt: requiresAsyncProcessing ? undefined : new Date(),
+      });
+
+      // Queue job for large exports
+      if (requiresAsyncProcessing) {
+        await this.exportQueue.add('export-analytics', {
+          exportId,
+          format,
+          dataset,
+          limit: maxRecordsPerDataset,
+          filters,
+        }, {
+          jobId: exportId,
+          removeOnComplete: true,
+          removeOnFail: false,
+        });
+
+        this.logger.info({
+          msg: 'Export job queued successfully',
+          exportId,
+          operation: 'exportData',
+        });
+      }
+
+      return result;
     } catch (error) {
       this.logger.error({
         msg: 'Failed to initiate data export',
@@ -396,237 +504,151 @@ export class AnalyticsService {
     }
   }
 
+  private updateExportProgress(exportId: string, progress: Partial<ExportProgress>) {
+    const existing = this.exportProgress.get(exportId);
+    const updated = { ...existing, ...progress } as ExportProgress;
+    this.exportProgress.set(exportId, updated);
+    
+    this.logger.info({
+      msg: 'Export progress updated',
+      exportId,
+      status: updated.status,
+      progress: updated.progress,
+      operation: 'updateExportProgress',
+    });
+  }
+
+  async getExportProgress(exportId: string): Promise<ExportProgress | null> {
+    const localProgress = this.exportProgress.get(exportId);
+    
+    if (!localProgress) {
+      return null;
+    }
+
+    // If the export is being processed by a job, check the job status
+    if (localProgress.status === 'pending' || localProgress.status === 'processing') {
+      try {
+        const job = await this.exportQueue.getJob(exportId);
+        if (job) {
+          const jobProgress = job.progress;
+          const jobState = await job.getState();
+          
+          // Update local progress based on job status
+          let updatedProgress = { ...localProgress };
+          
+          if (jobState === 'completed') {
+            const jobResult = job.returnvalue;
+            updatedProgress = {
+              ...updatedProgress,
+              status: 'completed',
+              progress: 100,
+              message: 'Export completed successfully',
+              completedAt: new Date(),
+              downloadUrl: jobResult?.downloadUrl,
+              processedRecords: jobResult?.totalRecords || updatedProgress.totalRecords,
+            };
+          } else if (jobState === 'failed') {
+            updatedProgress = {
+              ...updatedProgress,
+              status: 'failed',
+              progress: 0,
+              message: `Export failed: ${job.failedReason || 'Unknown error'}`,
+              errorMessage: job.failedReason,
+            };
+          } else if (jobState === 'active') {
+            updatedProgress = {
+              ...updatedProgress,
+              status: 'processing',
+              progress: typeof jobProgress === 'number' ? jobProgress : 0,
+              message: 'Processing export...',
+            };
+          }
+          
+          // Update the stored progress
+          this.exportProgress.set(exportId, updatedProgress);
+          return updatedProgress;
+        }
+      } catch (error) {
+        this.logger.error({
+          msg: 'Failed to get job status',
+          exportId,
+          error: error.message,
+          operation: 'getExportProgress',
+        });
+      }
+    }
+
+    return localProgress;
+  }
+
+  getAllExportProgress(): ExportProgress[] {
+    return Array.from(this.exportProgress.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  private cleanupOldExports() {
+    const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    let cleanedCount = 0;
+
+    for (const [exportId, progress] of this.exportProgress.entries()) {
+      if (progress.createdAt < cutoffTime) {
+        this.exportProgress.delete(exportId);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      this.logger.info({
+        msg: 'Cleaned up old export progress records',
+        cleanedCount,
+        operation: 'cleanupOldExports',
+      });
+    }
+  }
+
   async streamExportData(
-    filters: { format?: string; dataset?: string; limit?: number },
-    res: Response
+    filters: {
+      format?: string;
+      dataset?: string;
+      limit?: number;
+    },
+    response: Response
   ) {
+    const format = filters.format || 'json';
+    const dataset = filters.dataset || 'hospitals';
+    const limit = Math.min(filters.limit || 1000, 100000);
+
     this.logger.info({
       msg: 'Starting streaming export',
-      filters,
+      format,
+      dataset,
+      limit,
       operation: 'streamExportData',
     });
 
-    const format = filters.format || 'json';
-    const dataset = filters.dataset || 'hospitals';
-    const maxRecords = filters.limit || 50000; // Default limit for streaming
-
-    // Validate format - only support JSON for streaming initially
-    if (format !== 'json') {
-      res.status(400).json({
-        error: 'Only JSON format is supported for streaming exports',
-        supportedFormats: ['json'],
-        message: 'Use /api/v1/analytics/export for other formats (returns job metadata)'
-      });
-      return;
-    }
-
-    // Validate dataset
-    const validDatasets = ['hospitals', 'prices', 'analytics', 'all'];
-    if (!validDatasets.includes(dataset)) {
-      res.status(400).json({
-        error: 'Invalid dataset specified',
-        supportedDatasets: validDatasets,
-      });
-      return;
-    }
-
     try {
-      const db = this.databaseService.db;
+      // Set appropriate headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${dataset}_export_${timestamp}.${format}`;
+      
+      response.setHeader('Content-Type', this.getContentType(format));
+      response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      response.setHeader('Transfer-Encoding', 'chunked');
 
-      // Set appropriate headers for streaming
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Transfer-Encoding', 'chunked');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="glimmr-${dataset}-export-${new Date().toISOString().split('T')[0]}.json"`
-      );
-
-      // Start streaming JSON array
-      res.write('{"data":[');
-
-      let recordCount = 0;
-      const batchSize = 1000;
-      let isFirstRecord = true;
-
-      if (dataset === 'hospitals' || dataset === 'all') {
-        this.logger.info({ msg: 'Streaming hospitals data', batchSize, maxRecords });
-
-        let offset = 0;
-        let hasMoreRecords = true;
-
-        while (hasMoreRecords && recordCount < maxRecords) {
-          const remainingRecords = maxRecords - recordCount;
-          const currentBatchSize = Math.min(batchSize, remainingRecords);
-
-          const batch = await db
-            .select({
-              id: hospitals.id,
-              name: hospitals.name,
-              state: hospitals.state,
-              city: hospitals.city,
-              address: hospitals.address,
-              phone: hospitals.phone,
-              website: hospitals.website,
-              bedCount: hospitals.bedCount,
-              ownership: hospitals.ownership,
-              lastUpdated: hospitals.lastUpdated,
-              createdAt: hospitals.createdAt,
-            })
-            .from(hospitals)
-            .where(eq(hospitals.isActive, true))
-            .limit(currentBatchSize)
-            .offset(offset);
-
-          if (batch.length === 0) {
-            hasMoreRecords = false;
-            break;
-          }
-
-          for (const record of batch) {
-            if (!isFirstRecord) {
-              res.write(',');
-            }
-            res.write(JSON.stringify(record));
-            isFirstRecord = false;
-            recordCount++;
-
-            if (recordCount >= maxRecords) {
-              break;
-            }
-          }
-
-          offset += batchSize;
-          hasMoreRecords = batch.length === batchSize && recordCount < maxRecords;
-
-          // Yield control to allow other operations
-          await new Promise(resolve => setImmediate(resolve));
-        }
+      if (format === 'csv') {
+        await this.streamCSV(dataset, limit, response);
+      } else if (format === 'json') {
+        await this.streamJSON(dataset, limit, response);
+      } else if (format === 'excel') {
+        await this.streamExcel(dataset, limit, response);
+      } else {
+        throw new Error(`Streaming not yet supported for format: ${format}`);
       }
-
-      if ((dataset === 'prices' || dataset === 'all') && recordCount < maxRecords) {
-        if (dataset === 'all' && recordCount > 0) {
-          res.write(',');
-        }
-
-        this.logger.info({ msg: 'Streaming prices data', batchSize, maxRecords, currentCount: recordCount });
-
-        let offset = 0;
-        let hasMoreRecords = true;
-
-        while (hasMoreRecords && recordCount < maxRecords) {
-          const remainingRecords = maxRecords - recordCount;
-          const currentBatchSize = Math.min(batchSize, remainingRecords);
-
-          const batch = await db
-            .select({
-              id: prices.id,
-              hospitalId: prices.hospitalId,
-              serviceName: prices.serviceName,
-              serviceCode: prices.serviceCode,
-              grossCharge: prices.grossCharge,
-              discountedCashPrice: prices.discountedCashPrice,
-              category: prices.category,
-              lastUpdated: prices.lastUpdated,
-              createdAt: prices.createdAt,
-            })
-            .from(prices)
-            .where(eq(prices.isActive, true))
-            .limit(currentBatchSize)
-            .offset(offset);
-
-          if (batch.length === 0) {
-            hasMoreRecords = false;
-            break;
-          }
-
-          for (const record of batch) {
-            if (!isFirstRecord) {
-              res.write(',');
-            }
-            res.write(JSON.stringify(record));
-            isFirstRecord = false;
-            recordCount++;
-
-            if (recordCount >= maxRecords) {
-              break;
-            }
-          }
-
-          offset += batchSize;
-          hasMoreRecords = batch.length === batchSize && recordCount < maxRecords;
-
-          // Yield control to allow other operations
-          await new Promise(resolve => setImmediate(resolve));
-        }
-      }
-
-      if ((dataset === 'analytics' || dataset === 'all') && recordCount < maxRecords) {
-        if (dataset === 'all' && recordCount > 0) {
-          res.write(',');
-        }
-
-        this.logger.info({ msg: 'Streaming analytics data', batchSize, maxRecords, currentCount: recordCount });
-
-        let offset = 0;
-        let hasMoreRecords = true;
-
-        while (hasMoreRecords && recordCount < maxRecords) {
-          const remainingRecords = maxRecords - recordCount;
-          const currentBatchSize = Math.min(batchSize, remainingRecords);
-
-          const batch = await db
-            .select()
-            .from(analytics)
-            .limit(currentBatchSize)
-            .offset(offset);
-
-          if (batch.length === 0) {
-            hasMoreRecords = false;
-            break;
-          }
-
-          for (const record of batch) {
-            if (!isFirstRecord) {
-              res.write(',');
-            }
-            res.write(JSON.stringify(record));
-            isFirstRecord = false;
-            recordCount++;
-
-            if (recordCount >= maxRecords) {
-              break;
-            }
-          }
-
-          offset += batchSize;
-          hasMoreRecords = batch.length === batchSize && recordCount < maxRecords;
-
-          // Yield control to allow other operations
-          await new Promise(resolve => setImmediate(resolve));
-        }
-      }
-
-      // End JSON array and add metadata
-      const metadata = {
-        recordCount,
-        exportedAt: new Date().toISOString(),
-        dataset,
-        format,
-        version: '1.0',
-        truncated: recordCount >= maxRecords,
-        maxRecords,
-        streamingEnabled: true,
-      };
-
-      res.write(`],"metadata":${JSON.stringify(metadata)}}`);
-      res.end();
 
       this.logger.info({
         msg: 'Streaming export completed successfully',
-        recordCount,
-        dataset,
         format,
+        dataset,
         operation: 'streamExportData',
       });
     } catch (error) {
@@ -634,19 +656,175 @@ export class AnalyticsService {
         msg: 'Streaming export failed',
         error: error.message,
         operation: 'streamExportData',
-        filters,
       });
+      if (!response.headersSent) {
+        response.status(500).json({ error: 'Export failed' });
+      }
+      throw error;
+    }
+  }
 
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: 'Internal server error during export',
-          message: error.message,
+  private getContentType(format: string): string {
+    switch (format) {
+      case 'csv': return 'text/csv';
+      case 'json': return 'application/json';
+      case 'excel': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      default: return 'application/octet-stream';
+    }
+  }
+
+  private async streamJSON(dataset: string, limit: number, response: Response) {
+    const db = this.databaseService.db;
+    response.write('[');
+    let isFirst = true;
+
+    if (dataset === 'hospitals' || dataset === 'all') {
+      const hospitalData = await db.select().from(hospitals).where(eq(hospitals.isActive, true)).limit(limit);
+      hospitalData.forEach(hospital => {
+        if (!isFirst) response.write(',');
+        response.write(JSON.stringify({ type: 'hospital', data: hospital }));
+        isFirst = false;
+      });
+    }
+
+    if (dataset === 'prices' || dataset === 'all') {
+      const priceData = await db.select().from(prices).where(eq(prices.isActive, true)).limit(limit);
+      priceData.forEach(price => {
+        if (!isFirst) response.write(',');
+        response.write(JSON.stringify({ type: 'price', data: price }));
+        isFirst = false;
+      });
+    }
+
+    if (dataset === 'analytics' || dataset === 'all') {
+      const analyticsData = await db.select().from(analytics).limit(limit);
+      analyticsData.forEach(analytic => {
+        if (!isFirst) response.write(',');
+        response.write(JSON.stringify({ type: 'analytics', data: analytic }));
+        isFirst = false;
+      });
+    }
+
+    response.write(']');
+    response.end();
+  }
+
+  private async streamCSV(dataset: string, limit: number, response: Response) {
+    const db = this.databaseService.db;
+    let isFirst = true;
+
+    if (dataset === 'hospitals' || dataset === 'all') {
+      const hospitalData = await db.select().from(hospitals).where(eq(hospitals.isActive, true)).limit(limit);
+      if (hospitalData.length > 0) {
+        if (isFirst) {
+          // Write headers
+          const headers = Object.keys(hospitalData[0]).join(',');
+          response.write(`${headers}\n`);
+          isFirst = false;
+        }
+        
+        hospitalData.forEach(row => {
+          const csvRow = Object.values(row).map(val => 
+            typeof val === 'string' && val.includes(',') ? `"${val}"` : val
+          ).join(',');
+          response.write(`${csvRow}\n`);
         });
-      } else {
-        // If headers already sent, try to end the stream gracefully
-        res.write(']}');
-        res.end();
       }
     }
+
+    if (dataset === 'prices' || dataset === 'all') {
+      const priceData = await db.select().from(prices).where(eq(prices.isActive, true)).limit(limit);
+      if (priceData.length > 0) {
+        if (isFirst) {
+          const headers = Object.keys(priceData[0]).join(',');
+          response.write(`${headers}\n`);
+          isFirst = false;
+        }
+        
+        priceData.forEach(row => {
+          const csvRow = Object.values(row).map(val => 
+            typeof val === 'string' && val.includes(',') ? `"${val}"` : val
+          ).join(',');
+          response.write(`${csvRow}\n`);
+        });
+      }
+    }
+
+    if (dataset === 'analytics' || dataset === 'all') {
+      const analyticsData = await db.select().from(analytics).limit(limit);
+      if (analyticsData.length > 0) {
+        if (isFirst) {
+          const headers = Object.keys(analyticsData[0]).join(',');
+          response.write(`${headers}\n`);
+          isFirst = false;
+        }
+        
+        analyticsData.forEach(row => {
+          const csvRow = Object.values(row).map(val => 
+            typeof val === 'string' && val.includes(',') ? `"${val}"` : val
+          ).join(',');
+          response.write(`${csvRow}\n`);
+        });
+      }
+    }
+
+    response.end();
+  }
+
+  private async streamExcel(dataset: string, limit: number, response: Response) {
+    // For Excel, we need to collect all data first, then stream the workbook
+    const db = this.databaseService.db;
+    const workbook = { SheetNames: [], Sheets: {} };
+
+    if (dataset === 'hospitals' || dataset === 'all') {
+      const hospitalData = await db.select().from(hospitals).where(eq(hospitals.isActive, true)).limit(limit);
+      if (hospitalData.length > 0) {
+        const worksheet = this.createWorksheet(hospitalData);
+        workbook.SheetNames.push('Hospitals');
+        workbook.Sheets['Hospitals'] = worksheet;
+      }
+    }
+
+    if (dataset === 'prices' || dataset === 'all') {
+      const priceData = await db.select().from(prices).where(eq(prices.isActive, true)).limit(limit);
+      if (priceData.length > 0) {
+        const worksheet = this.createWorksheet(priceData);
+        workbook.SheetNames.push('Prices');
+        workbook.Sheets['Prices'] = worksheet;
+      }
+    }
+
+    if (dataset === 'analytics' || dataset === 'all') {
+      const analyticsData = await db.select().from(analytics).limit(limit);
+      if (analyticsData.length > 0) {
+        const worksheet = this.createWorksheet(analyticsData);
+        workbook.SheetNames.push('Analytics');
+        workbook.Sheets['Analytics'] = worksheet;
+      }
+    }
+
+    // Write Excel buffer to response
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    response.write(buffer);
+    response.end();
+  }
+
+  private createWorksheet(data: any[]): any {
+    // Create a simple worksheet from array data
+    const headers = Object.keys(data[0]);
+    const wsData = [headers, ...data.map(row => headers.map(h => row[h]))];
+    
+    const ws = {};
+    const range = { s: { c: 0, r: 0 }, e: { c: headers.length - 1, r: wsData.length - 1 } };
+    
+    wsData.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        const cellRef = XLSX.utils.encode_cell({ c: colIndex, r: rowIndex });
+        ws[cellRef] = { v: cell, t: typeof cell === 'number' ? 'n' : 's' };
+      });
+    });
+    
+    ws['!ref'] = XLSX.utils.encode_range(range);
+    return ws;
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Res, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, HttpException, HttpStatus, Res, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -115,8 +115,9 @@ export class AnalyticsController {
 
   @Get('export')
   @Throttle({ expensive: { limit: 5, ttl: 900000 } })
-  @ApiOperation({ summary: 'Export analytics data (initiate export job)' })
-  @ApiResponse({ status: 200, description: 'Analytics data export job initiated successfully' })
+  @ApiOperation({ summary: 'Export analytics data with format validation and size limits' })
+  @ApiResponse({ status: 200, description: 'Analytics data export prepared successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid export parameters' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @Roles('admin', 'api-user')
@@ -134,6 +135,16 @@ export class AnalyticsController {
           HttpStatus.SERVICE_UNAVAILABLE
         );
       }
+      if (error.message?.includes('Invalid format') || error.message?.includes('Invalid dataset') || error.message?.includes('exceeds maximum')) {
+        throw new HttpException(
+          { 
+            message: error.message,
+            statusCode: HttpStatus.BAD_REQUEST,
+            error: 'Bad Request' 
+          },
+          HttpStatus.BAD_REQUEST
+        );
+      }
       throw new HttpException(
         { 
           message: 'Internal server error occurred while exporting data',
@@ -145,18 +156,36 @@ export class AnalyticsController {
     }
   }
 
-  @Get('export/stream')
-  @Throttle({ expensive: { limit: 2, ttl: 900000 } })
-  @ApiOperation({ summary: 'Stream analytics data export' })
+  @Get('export/download')
+  @Throttle({ expensive: { limit: 3, ttl: 1800000 } }) // 3 requests per 30 minutes
+  @ApiOperation({ summary: 'Download analytics data with streaming for small exports' })
   @ApiResponse({ status: 200, description: 'Analytics data streamed successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid format or dataset' })
+  @ApiResponse({ status: 400, description: 'Invalid export parameters' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @Roles('admin', 'api-user')
-  async streamExportData(@Query() query: ExportQueryDto, @Res() res: Response) {
+  async downloadExportData(
+    @Query() query: ExportQueryDto,
+    @Res() response: Response
+  ) {
     try {
-      await this.analyticsService.streamExportData(query, res);
+      // Only allow streaming for small exports (under 10MB/10k records)
+      const limit = query.limit || 1000;
+      if (limit > 10000) {
+        throw new HttpException(
+          { 
+            message: 'Direct download is limited to 10,000 records. Use the /export endpoint for larger datasets.',
+            statusCode: HttpStatus.BAD_REQUEST,
+            error: 'Bad Request' 
+          },
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
+      await this.analyticsService.streamExportData(query, response);
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
         throw new HttpException(
           { 
@@ -165,6 +194,16 @@ export class AnalyticsController {
             error: 'Service Unavailable' 
           },
           HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      if (error.message?.includes('Invalid format') || error.message?.includes('Invalid dataset')) {
+        throw new HttpException(
+          { 
+            message: error.message,
+            statusCode: HttpStatus.BAD_REQUEST,
+            error: 'Bad Request' 
+          },
+          HttpStatus.BAD_REQUEST
         );
       }
       throw new HttpException(
@@ -176,5 +215,33 @@ export class AnalyticsController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+  @Get('export/:exportId/status')
+  @ApiOperation({ summary: 'Get export progress status' })
+  @ApiResponse({ status: 200, description: 'Export status retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Export not found' })
+  @Roles('admin', 'api-user')
+  async getExportStatus(@Param('exportId') exportId: string) {
+    const progress = await this.analyticsService.getExportProgress(exportId);
+    if (!progress) {
+      throw new HttpException(
+        { 
+          message: 'Export not found',
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Not Found' 
+        },
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return progress;
+  }
+
+  @Get('exports')
+  @ApiOperation({ summary: 'Get all export history and status' })
+  @ApiResponse({ status: 200, description: 'Export history retrieved successfully' })
+  @Roles('admin', 'api-user')
+  async getAllExports() {
+    return this.analyticsService.getAllExportProgress();
   }
 }
