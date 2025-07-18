@@ -4,6 +4,7 @@ import { eq, and, like, asc, count } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { hospitals, prices } from '../database/schema';
 import { PatientRightsAdvocateService } from '../external-apis/patient-rights-advocate.service';
+import { HospitalNotFoundException, DatabaseOperationException } from '../common/exceptions';
 
 @Injectable()
 export class HospitalsService {
@@ -104,7 +105,7 @@ export class HospitalsService {
         operation: 'getHospitals',
         filters,
       });
-      throw error;
+      throw new DatabaseOperationException('fetch hospitals', error.message);
     }
   }
 
@@ -130,7 +131,7 @@ export class HospitalsService {
           hospitalId: id,
           operation: 'getHospitalById',
         });
-        return null;
+        throw new HospitalNotFoundException(id);
       }
 
       // Get unique services for this hospital
@@ -156,13 +157,17 @@ export class HospitalsService {
 
       return result;
     } catch (error) {
+      if (error instanceof HospitalNotFoundException) {
+        throw error;
+      }
+      
       this.logger.error({
         msg: 'Failed to fetch hospital',
         hospitalId: id,
         error: error.message,
         operation: 'getHospitalById',
       });
-      throw error;
+      throw new DatabaseOperationException('fetch hospital', error.message);
     }
   }
 
