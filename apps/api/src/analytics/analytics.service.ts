@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { eq, and, like, desc, asc, count, sql } from 'drizzle-orm';
+import { eq, and, like, desc, asc, count, sql, countDistinct } from 'drizzle-orm';
 import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { analytics, prices, hospitals } from '../database/schema';
-import { Response } from 'express';
 import { Transform } from 'stream';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -47,24 +46,47 @@ export class AnalyticsService {
     try {
       const db = this.databaseService.db;
 
-      // Get summary statistics
-      const [summaryStats] = await db
+      // Get summary statistics with optimized queries
+      const [hospitalStats] = await db
         .select({
           totalHospitals: count(hospitals.id),
-          totalPrices: sql<number>`(SELECT COUNT(*) FROM ${prices} WHERE ${prices.isActive} = true)`,
-          totalServices: sql<number>`(SELECT COUNT(DISTINCT ${prices.serviceName}) FROM ${prices} WHERE ${prices.isActive} = true)`,
         })
         .from(hospitals)
         .where(eq(hospitals.isActive, true));
 
-      // Get recent activity (last 24 hours)
+      const [priceStats] = await db
+        .select({
+          totalPrices: count(prices.id),
+          totalServices: countDistinct(prices.serviceName),
+        })
+        .from(prices)
+        .where(eq(prices.isActive, true));
+
+      const summaryStats = {
+        totalHospitals: hospitalStats.totalHospitals,
+        totalPrices: priceStats.totalPrices,
+        totalServices: priceStats.totalServices,
+      };
+
+      // Get recent activity (last 24 hours) with optimized queries
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const [recentActivity] = await db
+      const [hospitalActivity] = await db
         .select({
           newHospitals: sql<number>`COUNT(CASE WHEN ${hospitals.createdAt} > ${twentyFourHoursAgo.toISOString()} THEN 1 END)`,
-          updatedPrices: sql<number>`(SELECT COUNT(*) FROM ${prices} WHERE ${prices.updatedAt} > ${twentyFourHoursAgo.toISOString()})`,
         })
         .from(hospitals);
+
+      const [priceActivity] = await db
+        .select({
+          updatedPrices: count(prices.id),
+        })
+        .from(prices)
+        .where(sql`${prices.updatedAt} > ${twentyFourHoursAgo.toISOString()}`);
+
+      const recentActivity = {
+        newHospitals: hospitalActivity.newHospitals,
+        updatedPrices: priceActivity.updatedPrices,
+      };
 
       // Get most expensive service
       const [mostExpensiveService] = await db
@@ -826,5 +848,521 @@ export class AnalyticsService {
     
     ws['!ref'] = XLSX.utils.encode_range(range);
     return ws;
+  }
+
+  async getComprehensiveMetrics(filters: { period?: string; state?: string }) {
+    this.logger.info({
+      msg: 'Retrieving comprehensive metrics',
+      filters,
+      operation: 'getComprehensiveMetrics',
+    });
+
+    try {
+      const db = this.databaseService.db;
+      const period = filters.period || 'month';
+      const currentPeriod = this.getCurrentPeriod(period);
+
+      // Build base query conditions
+      const conditions = [eq(analytics.periodType, period), eq(analytics.period, currentPeriod)];
+      if (filters.state) {
+        conditions.push(eq(analytics.state, filters.state));
+      }
+
+      // Get all metrics for the specified period
+      const metrics = await db
+        .select()
+        .from(analytics)
+        .where(and(...conditions))
+        .orderBy(analytics.metricName, analytics.calculatedAt);
+
+      // Organize metrics by type
+      const organizedMetrics = {
+        totals: {},
+        averages: {},
+        distributions: {},
+        comparisons: {},
+        insights: {},
+      };
+
+      metrics.forEach(metric => {
+        const category = this.categorizeMetric(metric.metricName);
+        const key = metric.state || metric.serviceName || metric.hospitalId || 'overall';
+        
+        if (!organizedMetrics[category]) {
+          organizedMetrics[category] = {};
+        }
+        
+        if (!organizedMetrics[category][metric.metricName]) {
+          organizedMetrics[category][metric.metricName] = {};
+        }
+        
+        organizedMetrics[category][metric.metricName][key] = {
+          value: Number(metric.value),
+          sampleSize: metric.sampleSize,
+          calculatedAt: metric.calculatedAt,
+          metadata: metric.metadata ? JSON.parse(metric.metadata) : null,
+        };
+      });
+
+      // Calculate summary statistics
+      const summary = {
+        totalMetrics: metrics.length,
+        uniqueMetricTypes: new Set(metrics.map(m => m.metricName)).size,
+        periodCoverage: {
+          period,
+          current: currentPeriod,
+          lastCalculated: metrics.length > 0 ? metrics[metrics.length - 1].calculatedAt : null,
+        },
+        coverage: {
+          states: new Set(metrics.filter(m => m.state).map(m => m.state)).size,
+          services: new Set(metrics.filter(m => m.serviceName).map(m => m.serviceName)).size,
+          hospitals: new Set(metrics.filter(m => m.hospitalId).map(m => m.hospitalId)).size,
+        },
+      };
+
+      return {
+        summary,
+        metrics: organizedMetrics,
+        filters,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to retrieve comprehensive metrics',
+        error: error.message,
+        operation: 'getComprehensiveMetrics',
+        filters,
+      });
+      throw error;
+    }
+  }
+
+  async getPriceVarianceInsights(filters: { service?: string; state?: string }) {
+    this.logger.info({
+      msg: 'Generating price variance insights',
+      filters,
+      operation: 'getPriceVarianceInsights',
+    });
+
+    try {
+      const db = this.databaseService.db;
+
+      // Build conditions
+      const conditions = [eq(prices.isActive, true)];
+      if (filters.service) {
+        conditions.push(like(prices.serviceName, `%${filters.service}%`));
+      }
+      if (filters.state) {
+        conditions.push(eq(hospitals.state, filters.state));
+      }
+
+      const whereClause = and(...conditions);
+
+      // Get price statistics with variance calculations
+      const [varianceStats] = await db
+        .select({
+          count: count(prices.id),
+          avgPrice: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
+          minPrice: sql<number>`MIN(CAST(${prices.grossCharge} AS DECIMAL))`,
+          maxPrice: sql<number>`MAX(CAST(${prices.grossCharge} AS DECIMAL))`,
+          stdDev: sql<number>`STDDEV(CAST(${prices.grossCharge} AS DECIMAL))`,
+          variance: sql<number>`VARIANCE(CAST(${prices.grossCharge} AS DECIMAL))`,
+          p25: sql<number>`PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY CAST(${prices.grossCharge} AS DECIMAL))`,
+          p75: sql<number>`PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY CAST(${prices.grossCharge} AS DECIMAL))`,
+          p90: sql<number>`PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY CAST(${prices.grossCharge} AS DECIMAL))`,
+          p95: sql<number>`PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CAST(${prices.grossCharge} AS DECIMAL))`,
+        })
+        .from(prices)
+        .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
+        .where(whereClause);
+
+      // Get outliers (prices more than 2 standard deviations from mean)
+      const avgPrice = Number(varianceStats.avgPrice);
+      const stdDev = Number(varianceStats.stdDev);
+      const outlierThreshold = avgPrice + (2 * stdDev);
+      const lowOutlierThreshold = avgPrice - (2 * stdDev);
+
+      const outliers = await db
+        .select({
+          id: prices.id,
+          serviceName: prices.serviceName,
+          hospitalName: hospitals.name,
+          state: hospitals.state,
+          price: sql<number>`CAST(${prices.grossCharge} AS DECIMAL)`,
+          deviationFromMean: sql<number>`ABS(CAST(${prices.grossCharge} AS DECIMAL) - ${avgPrice})`,
+        })
+        .from(prices)
+        .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
+        .where(and(
+          whereClause,
+          sql`CAST(${prices.grossCharge} AS DECIMAL) > ${outlierThreshold} OR CAST(${prices.grossCharge} AS DECIMAL) < ${lowOutlierThreshold}`
+        ))
+        .orderBy(desc(sql<number>`ABS(CAST(${prices.grossCharge} AS DECIMAL) - ${avgPrice})`))
+        .limit(20);
+
+      // Calculate coefficient of variation
+      const coefficientOfVariation = avgPrice > 0 ? (stdDev / avgPrice) * 100 : 0;
+      const iqr = Number(varianceStats.p75) - Number(varianceStats.p25);
+
+      return {
+        summary: {
+          totalRecords: varianceStats.count,
+          priceRange: {
+            min: Number(varianceStats.minPrice),
+            max: Number(varianceStats.maxPrice),
+            spread: Number(varianceStats.maxPrice) - Number(varianceStats.minPrice),
+          },
+          centralTendency: {
+            mean: avgPrice,
+            median: (Number(varianceStats.p25) + Number(varianceStats.p75)) / 2, // Approximation
+          },
+          variability: {
+            standardDeviation: stdDev,
+            variance: Number(varianceStats.variance),
+            coefficientOfVariation: Math.round(coefficientOfVariation * 100) / 100,
+            interquartileRange: iqr,
+          },
+        },
+        percentiles: {
+          p25: Number(varianceStats.p25),
+          p75: Number(varianceStats.p75),
+          p90: Number(varianceStats.p90),
+          p95: Number(varianceStats.p95),
+        },
+        outliers: {
+          count: outliers.length,
+          threshold: outlierThreshold,
+          lowThreshold: lowOutlierThreshold,
+          topOutliers: outliers.map(o => ({
+            ...o,
+            price: Number(o.price),
+            deviationFromMean: Number(o.deviationFromMean),
+          })),
+        },
+        interpretation: this.interpretVarianceResults(coefficientOfVariation, outliers.length),
+        filters,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to generate price variance insights',
+        error: error.message,
+        operation: 'getPriceVarianceInsights',
+        filters,
+      });
+      throw error;
+    }
+  }
+
+  async getMarketPositionInsights(filters: { hospitalId?: string; state?: string }) {
+    this.logger.info({
+      msg: 'Generating market position insights',
+      filters,
+      operation: 'getMarketPositionInsights',
+    });
+
+    try {
+      const db = this.databaseService.db;
+
+      if (filters.hospitalId) {
+        // Hospital-specific analysis
+        return this.getHospitalPositionAnalysis(filters.hospitalId);
+      } else {
+        // Market-wide analysis
+        return this.getMarketWideAnalysis(filters.state);
+      }
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to generate market position insights',
+        error: error.message,
+        operation: 'getMarketPositionInsights',
+        filters,
+      });
+      throw error;
+    }
+  }
+
+  async getBenchmarks(filters: { metric?: string; state?: string }) {
+    this.logger.info({
+      msg: 'Generating benchmarks',
+      filters,
+      operation: 'getBenchmarks',
+    });
+
+    try {
+      const db = this.databaseService.db;
+      const currentMonth = this.getCurrentPeriod('month');
+
+      // Get industry benchmarks from analytics table
+      const conditions = [eq(analytics.period, currentMonth), eq(analytics.periodType, 'month')];
+      if (filters.state) {
+        conditions.push(eq(analytics.state, filters.state));
+      }
+      if (filters.metric) {
+        conditions.push(eq(analytics.metricName, filters.metric));
+      }
+
+      const benchmarkMetrics = await db
+        .select()
+        .from(analytics)
+        .where(and(...conditions))
+        .orderBy(analytics.metricName, analytics.state);
+
+      // Organize benchmarks by metric type
+      const benchmarks = {};
+      benchmarkMetrics.forEach(metric => {
+        if (!benchmarks[metric.metricName]) {
+          benchmarks[metric.metricName] = {
+            national: null,
+            states: {},
+            percentiles: {},
+          };
+        }
+
+        if (metric.state) {
+          benchmarks[metric.metricName].states[metric.state] = {
+            value: Number(metric.value),
+            sampleSize: metric.sampleSize,
+            rank: null, // Will be calculated below
+          };
+        } else {
+          benchmarks[metric.metricName].national = {
+            value: Number(metric.value),
+            sampleSize: metric.sampleSize,
+          };
+        }
+      });
+
+      // Calculate percentiles and rankings
+      Object.keys(benchmarks).forEach(metricName => {
+        const stateValues = Object.values(benchmarks[metricName].states).map(s => s.value);
+        if (stateValues.length > 0) {
+          stateValues.sort((a, b) => a - b);
+          benchmarks[metricName].percentiles = {
+            p10: this.calculatePercentile(stateValues, 10),
+            p25: this.calculatePercentile(stateValues, 25),
+            p50: this.calculatePercentile(stateValues, 50),
+            p75: this.calculatePercentile(stateValues, 75),
+            p90: this.calculatePercentile(stateValues, 90),
+          };
+
+          // Assign rankings
+          Object.keys(benchmarks[metricName].states).forEach(state => {
+            const value = benchmarks[metricName].states[state].value;
+            const rank = stateValues.filter(v => v <= value).length;
+            benchmarks[metricName].states[state].rank = rank;
+          });
+        }
+      });
+
+      return {
+        benchmarks,
+        metadata: {
+          period: currentMonth,
+          totalMetrics: Object.keys(benchmarks).length,
+          statesIncluded: filters.state ? 1 : new Set(
+            benchmarkMetrics.filter(m => m.state).map(m => m.state)
+          ).size,
+        },
+        interpretation: this.interpretBenchmarks(benchmarks),
+        filters,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to generate benchmarks',
+        error: error.message,
+        operation: 'getBenchmarks',
+        filters,
+      });
+      throw error;
+    }
+  }
+
+  async getRealTimeMetrics() {
+    this.logger.info({
+      msg: 'Generating real-time metrics',
+      operation: 'getRealTimeMetrics',
+    });
+
+    try {
+      const db = this.databaseService.db;
+
+      // Get current counts (real-time)
+      const [currentCounts] = await db
+        .select({
+          hospitals: count(hospitals.id),
+          activePrices: sql<number>`(SELECT COUNT(*) FROM ${prices} WHERE ${prices.isActive} = true)`,
+          uniqueServices: sql<number>`(SELECT COUNT(DISTINCT ${prices.serviceName}) FROM ${prices} WHERE ${prices.isActive} = true)`,
+        })
+        .from(hospitals)
+        .where(eq(hospitals.isActive, true));
+
+      // Get recent activity (last hour)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const [recentActivity] = await db
+        .select({
+          newHospitals: sql<number>`COUNT(CASE WHEN ${hospitals.createdAt} > ${oneHourAgo.toISOString()} THEN 1 END)`,
+          updatedPrices: sql<number>`(SELECT COUNT(*) FROM ${prices} WHERE ${prices.updatedAt} > ${oneHourAgo.toISOString()})`,
+        })
+        .from(hospitals);
+
+      // Get processing status from latest analytics
+      const [latestAnalytics] = await db
+        .select({
+          lastCalculated: sql<Date>`MAX(${analytics.calculatedAt})`,
+          metricsCount: count(analytics.id),
+        })
+        .from(analytics);
+
+      // Calculate data freshness
+      const dataFreshness = latestAnalytics.lastCalculated ? 
+        Math.round((Date.now() - latestAnalytics.lastCalculated.getTime()) / (60 * 1000)) : null;
+
+      return {
+        currentCounts,
+        recentActivity: {
+          ...recentActivity,
+          timeWindow: '1 hour',
+        },
+        systemStatus: {
+          dataFreshness: dataFreshness ? `${dataFreshness} minutes ago` : 'Unknown',
+          totalAnalytics: latestAnalytics.metricsCount,
+          lastAnalyticsRun: latestAnalytics.lastCalculated,
+        },
+        trends: {
+          hourlyGrowthRate: this.calculateGrowthRate(recentActivity.newHospitals, currentCounts.hospitals),
+          priceUpdateRate: this.calculateUpdateRate(recentActivity.updatedPrices),
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to generate real-time metrics',
+        error: error.message,
+        operation: 'getRealTimeMetrics',
+      });
+      throw error;
+    }
+  }
+
+  // Helper methods
+  private getCurrentPeriod(periodType: string): string {
+    const now = new Date();
+    switch (periodType) {
+      case 'month':
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      case 'quarter':
+        return `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+      case 'year':
+        return `${now.getFullYear()}`;
+      default:
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+  }
+
+  private categorizeMetric(metricName: string): string {
+    if (metricName.startsWith('total_')) return 'totals';
+    if (metricName.includes('avg_') || metricName.includes('average')) return 'averages';
+    if (metricName.includes('count_') || metricName.includes('_by_')) return 'distributions';
+    if (metricName.includes('most_') || metricName.includes('least_')) return 'comparisons';
+    return 'insights';
+  }
+
+  private interpretVarianceResults(coefficientOfVariation: number, outlierCount: number): string[] {
+    const interpretations = [];
+    
+    if (coefficientOfVariation < 15) {
+      interpretations.push('Low price variation - relatively consistent pricing across the market');
+    } else if (coefficientOfVariation < 30) {
+      interpretations.push('Moderate price variation - some pricing differences exist');
+    } else {
+      interpretations.push('High price variation - significant pricing differences across providers');
+    }
+
+    if (outlierCount > 10) {
+      interpretations.push('Multiple outliers detected - consider investigating extreme pricing');
+    } else if (outlierCount > 0) {
+      interpretations.push('Some outliers present - may warrant closer examination');
+    }
+
+    return interpretations;
+  }
+
+  private async getHospitalPositionAnalysis(hospitalId: string) {
+    // Implementation for hospital-specific analysis
+    const db = this.databaseService.db;
+    
+    // Get hospital's pricing compared to market
+    const hospitalPrices = await db
+      .select({
+        serviceName: prices.serviceName,
+        price: sql<number>`CAST(${prices.grossCharge} AS DECIMAL)`,
+      })
+      .from(prices)
+      .where(and(eq(prices.hospitalId, hospitalId), eq(prices.isActive, true)))
+      .limit(100);
+
+    return {
+      hospitalId,
+      analysis: 'Hospital-specific market position analysis',
+      priceCount: hospitalPrices.length,
+      services: hospitalPrices.map(p => ({ service: p.serviceName, price: Number(p.price) })),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private async getMarketWideAnalysis(state?: string) {
+    // Implementation for market-wide analysis
+    const db = this.databaseService.db;
+    
+    const conditions = [eq(hospitals.isActive, true)];
+    if (state) {
+      conditions.push(eq(hospitals.state, state));
+    }
+
+    const [marketStats] = await db
+      .select({
+        hospitalCount: count(hospitals.id),
+        avgPrices: sql<number>`(SELECT AVG(CAST(gross_charge AS DECIMAL)) FROM prices WHERE hospital_id IN (SELECT id FROM hospitals WHERE is_active = true${state ? ` AND state = '${state}'` : ''}))`,
+      })
+      .from(hospitals)
+      .where(and(...conditions));
+
+    return {
+      scope: state ? `State: ${state}` : 'National',
+      marketStats,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private interpretBenchmarks(benchmarks: any): string[] {
+    const interpretations = [];
+    const metricCount = Object.keys(benchmarks).length;
+    
+    interpretations.push(`Analysis covers ${metricCount} key performance metrics`);
+    
+    return interpretations;
+  }
+
+  private calculatePercentile(sortedValues: number[], percentile: number): number {
+    const index = (percentile / 100) * (sortedValues.length - 1);
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    
+    if (lower === upper) {
+      return sortedValues[lower];
+    }
+    
+    const weight = index - lower;
+    return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
+  }
+
+  private calculateGrowthRate(newItems: number, totalItems: number): number {
+    return totalItems > 0 ? Math.round((newItems / totalItems) * 10000) / 100 : 0;
+  }
+
+  private calculateUpdateRate(updates: number): number {
+    return Math.round(updates * 100) / 100;
   }
 }

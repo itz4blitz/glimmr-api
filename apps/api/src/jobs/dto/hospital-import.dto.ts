@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean, IsNumber, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsNumber, Min, Max, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class TriggerHospitalImportDto {
@@ -130,4 +130,42 @@ export class TriggerPRAScanDto {
   @IsOptional()
   @IsBoolean()
   forceRefresh?: boolean;
+}
+
+export class TriggerAnalyticsRefreshDto {
+  @ApiProperty({
+    description: 'Specific metric types to refresh (optional)',
+    example: ['total_hospitals', 'avg_price_by_state'],
+    required: false,
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  metricTypes?: string[];
+
+  @ApiProperty({
+    description: 'Force refresh even if metrics exist',
+    example: false,
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  forceRefresh?: boolean;
+
+  @ApiProperty({
+    description: 'Batch size for processing metrics',
+    example: 100,
+    required: false,
+    minimum: 10,
+    maximum: 1000,
+    default: 100,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(10)
+  @Max(1000)
+  batchSize?: number;
 }

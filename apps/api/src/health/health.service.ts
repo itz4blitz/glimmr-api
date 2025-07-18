@@ -3,12 +3,14 @@ import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { DatabaseService } from '../database/database.service';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from 'redis';
+import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
 export class HealthService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly configService: ConfigService,
+    private readonly jobsService: JobsService,
     @InjectPinoLogger(HealthService.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -18,9 +20,10 @@ export class HealthService {
     const timestamp = new Date().toISOString();
     
     // Run health checks
-    const [databaseHealth, redisHealth] = await Promise.allSettled([
+    const [databaseHealth, redisHealth, queueHealth] = await Promise.allSettled([
       this.checkDatabaseHealth(),
       this.checkRedisHealth(),
+      this.checkQueueHealth(),
     ]);
 
     const checks = {
@@ -28,12 +31,23 @@ export class HealthService {
       memory: this.getMemoryUsage(),
       database: databaseHealth.status === 'fulfilled' ? databaseHealth.value : { status: 'unhealthy', error: databaseHealth.reason?.message },
       redis: redisHealth.status === 'fulfilled' ? redisHealth.value : { status: 'unhealthy', error: redisHealth.reason?.message },
+      queues: queueHealth.status === 'fulfilled' ? queueHealth.value : { status: 'unhealthy', error: queueHealth.reason?.message },
     };
 
     // Determine overall status
-    const overallStatus = Object.values(checks).some(check => 
+    const hasUnhealthy = Object.values(checks).some(check => 
       typeof check === 'object' && check !== null && 'status' in check && check.status === 'unhealthy'
-    ) ? 'unhealthy' : 'healthy';
+    );
+    const hasDegraded = Object.values(checks).some(check => 
+      typeof check === 'object' && check !== null && 'status' in check && check.status === 'degraded'
+    );
+    
+    let overallStatus = 'healthy';
+    if (hasUnhealthy) {
+      overallStatus = 'unhealthy';
+    } else if (hasDegraded) {
+      overallStatus = 'degraded';
+    }
 
     return {
       status: overallStatus,
@@ -104,6 +118,46 @@ export class HealthService {
         }
       }
       
+      return {
+        status: 'unhealthy',
+        error: error.message,
+      };
+    }
+  }
+
+  private async checkQueueHealth() {
+    try {
+      const queueHealthResult = await this.jobsService.getQueueHealth();
+      
+      // Determine overall queue health status
+      const hasErrors = queueHealthResult.summary.error > 0;
+      const hasWarnings = queueHealthResult.summary.warning > 0;
+      
+      let status = 'healthy';
+      if (hasErrors) {
+        status = 'unhealthy';
+      } else if (hasWarnings) {
+        status = 'degraded';
+      }
+
+      return {
+        status,
+        details: {
+          totalQueues: queueHealthResult.summary.total,
+          healthy: queueHealthResult.summary.healthy,
+          warning: queueHealthResult.summary.warning,
+          error: queueHealthResult.summary.error,
+          overallStatus: queueHealthResult.overallStatus,
+        },
+        issues: queueHealthResult.queues
+          .filter(q => q.status !== 'healthy')
+          .map(q => `${q.name}: ${q.issues.join(', ')}`),
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: 'Queue health check failed',
+        error: error.message,
+      });
       return {
         status: 'unhealthy',
         error: error.message,

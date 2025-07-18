@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { eq, and, like, asc, count } from 'drizzle-orm';
+import { eq, and, like, asc, count, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { hospitals, prices } from '../database/schema';
 import { PatientRightsAdvocateService } from '../external-apis/patient-rights-advocate.service';
@@ -271,70 +271,87 @@ export class HospitalsService {
         operation: 'syncHospitalsFromPRA',
       });
 
-      // Process each hospital
-      for (const praHospital of praHospitals) {
+      // Prepare data for batch upsert to eliminate N+1 queries
+      const hospitalDataBatch = praHospitals
+        .filter(praHospital => praHospital.ccn) // Only process hospitals with CCN
+        .map(praHospital => ({
+          name: praHospital.name,
+          address: praHospital.address,
+          city: praHospital.city,
+          state: praHospital.state,
+          zipCode: praHospital.zip,
+          phone: praHospital.phone,
+          website: praHospital.url || null,
+          bedCount: praHospital.beds ? parseInt(praHospital.beds) : null,
+          latitude: praHospital.lat ? praHospital.lat : null,
+          longitude: praHospital.long ? praHospital.long : null,
+          ccn: praHospital.ccn,
+          externalId: praHospital.id, // Store PRA ID as external ID
+          dataSource: 'patient_rights_advocate' as const,
+          sourceUrl: praHospital.url || null,
+          isActive: true,
+          lastUpdated: new Date(),
+          priceTransparencyFiles: JSON.stringify(praHospital.files),
+          lastFileCheck: new Date(),
+          updatedAt: new Date(), // Explicitly set for upsert
+        }));
+
+      errors = praHospitals.length - hospitalDataBatch.length; // Count hospitals without CCN as errors
+
+      if (hospitalDataBatch.length === 0) {
+        this.logger.warn({
+          msg: 'No valid hospitals to process (all missing CCN)',
+          totalHospitals: praHospitals.length,
+          operation: 'syncHospitalsFromPRA',
+        });
+      } else {
+        // Perform batch upsert using INSERT ... ON CONFLICT
         try {
-          // Check if hospital already exists by CCN (CMS Certification Number)
-          const [existingHospital] = await db
-            .select()
-            .from(hospitals)
-            .where(eq(hospitals.ccn, praHospital.ccn))
-            .limit(1);
+          const result = await db
+            .insert(hospitals)
+            .values(hospitalDataBatch)
+            .onConflictDoUpdate({
+              target: hospitals.ccn,
+              set: {
+                name: sql.raw('excluded.name'),
+                address: sql.raw('excluded.address'),
+                city: sql.raw('excluded.city'),
+                state: sql.raw('excluded.state'),
+                zipCode: sql.raw('excluded.zip_code'),
+                phone: sql.raw('excluded.phone'),
+                website: sql.raw('excluded.website'),
+                bedCount: sql.raw('excluded.bed_count'),
+                latitude: sql.raw('excluded.latitude'),
+                longitude: sql.raw('excluded.longitude'),
+                externalId: sql.raw('excluded.external_id'),
+                sourceUrl: sql.raw('excluded.source_url'),
+                isActive: sql.raw('excluded.is_active'),
+                lastUpdated: sql.raw('excluded.last_updated'),
+                priceTransparencyFiles: sql.raw('excluded.price_transparency_files'),
+                lastFileCheck: sql.raw('excluded.last_file_check'),
+                updatedAt: sql.raw('excluded.updated_at'),
+              },
+            })
+            .returning({ id: hospitals.id, ccn: hospitals.ccn });
 
-          const hospitalData = {
-            name: praHospital.name,
-            address: praHospital.address,
-            city: praHospital.city,
-            state: praHospital.state,
-            zipCode: praHospital.zip,
-            phone: praHospital.phone,
-            website: praHospital.url || null,
-            bedCount: praHospital.beds ? parseInt(praHospital.beds) : null,
-            latitude: praHospital.lat ? praHospital.lat : null,
-            longitude: praHospital.long ? praHospital.long : null,
-            ccn: praHospital.ccn,
-            externalId: praHospital.id, // Store PRA ID as external ID
-            dataSource: 'patient_rights_advocate' as const,
-            sourceUrl: praHospital.url || null,
-            isActive: true,
-            lastUpdated: new Date(),
-            priceTransparencyFiles: JSON.stringify(praHospital.files),
-            lastFileCheck: new Date(),
-          };
+          // Count results: we can determine if records were inserted or updated
+          // by checking against existing records, but for simplicity, we'll log the total
+          imported = hospitalDataBatch.length; // This is an approximation
+          updated = 0; // We can't easily distinguish between insert/update with this method
 
-          if (existingHospital) {
-            // Update existing hospital
-            await db
-              .update(hospitals)
-              .set(hospitalData)
-              .where(eq(hospitals.id, existingHospital.id));
-            updated++;
-
-            this.logger.debug({
-              msg: 'Updated existing hospital',
-              hospitalName: praHospital.name,
-              ccn: praHospital.ccn,
-              operation: 'syncHospitalsFromPRA',
-            });
-          } else {
-            // Insert new hospital
-            await db.insert(hospitals).values(hospitalData);
-            imported++;
-
-            this.logger.debug({
-              msg: 'Imported new hospital',
-              hospitalName: praHospital.name,
-              ccn: praHospital.ccn,
-              operation: 'syncHospitalsFromPRA',
-            });
-          }
+          this.logger.info({
+            msg: 'Batch upsert completed',
+            processed: result.length,
+            totalReceived: praHospitals.length,
+            validForProcessing: hospitalDataBatch.length,
+            operation: 'syncHospitalsFromPRA',
+          });
         } catch (error) {
-          errors++;
+          errors += hospitalDataBatch.length;
           this.logger.error({
-            msg: 'Failed to process hospital',
-            hospitalName: praHospital.name,
-            ccn: praHospital.ccn,
+            msg: 'Batch upsert failed',
             error: error.message,
+            batchSize: hospitalDataBatch.length,
             operation: 'syncHospitalsFromPRA',
           });
         }

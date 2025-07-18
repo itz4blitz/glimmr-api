@@ -1,16 +1,21 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { Job } from 'bullmq';
+import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { DatabaseService } from '../../database/database.service';
 import { analytics, prices, hospitals } from '../../database/schema';
-import { sql, eq, and, count, avg, min, max, desc } from 'drizzle-orm';
+import { sql, eq, and, count, avg, min, max, desc, asc, gt, lt, gte, lte, or, ilike, not } from 'drizzle-orm';
 import { QUEUE_NAMES } from '../queues/queue.config';
 
 export interface AnalyticsRefreshJobData {
-  metricTypes?: string[];
+  metricTypes?: string[]; // Specific metrics to refresh, if not provided, refresh all
+  timeRange?: {
+    start: string;
+    end: string;
+  };
   forceRefresh?: boolean;
   reportingPeriod?: string;
+  batchSize?: number;
 }
 
 export interface MetricCalculation {
@@ -42,7 +47,13 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
   }
 
   async process(job: Job<AnalyticsRefreshJobData>): Promise<void> {
-    const { metricTypes = ['all'], forceRefresh = false, reportingPeriod = 'monthly' } = job.data;
+    const { 
+      metricTypes = ['all'], 
+      forceRefresh = false, 
+      reportingPeriod = 'monthly',
+      batchSize = 100,
+      timeRange 
+    } = job.data;
     
     this.logger.info({
       msg: 'Starting analytics refresh',
@@ -50,6 +61,8 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       metricTypes,
       forceRefresh,
       reportingPeriod,
+      batchSize,
+      timeRange,
     });
 
     try {
@@ -60,42 +73,42 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
 
       // Calculate summary metrics
       if (metricTypes.includes('all') || metricTypes.includes('summary')) {
-        const summaryMetrics = await this.calculateSummaryMetrics();
+        const summaryMetrics = await this.calculateSummaryMetrics(timeRange);
         metrics.push(...summaryMetrics);
         await job.updateProgress(25);
       }
 
       // Calculate price variance metrics
       if (metricTypes.includes('all') || metricTypes.includes('variance')) {
-        const varianceMetrics = await this.calculatePriceVarianceMetrics();
+        const varianceMetrics = await this.calculatePriceVarianceMetrics(timeRange);
         metrics.push(...varianceMetrics);
         await job.updateProgress(40);
       }
 
       // Calculate geographic metrics
       if (metricTypes.includes('all') || metricTypes.includes('geographic')) {
-        const geoMetrics = await this.calculateGeographicMetrics();
+        const geoMetrics = await this.calculateGeographicMetrics(timeRange);
         metrics.push(...geoMetrics);
         await job.updateProgress(60);
       }
 
       // Calculate service-level metrics
       if (metricTypes.includes('all') || metricTypes.includes('service')) {
-        const serviceMetrics = await this.calculateServiceMetrics();
+        const serviceMetrics = await this.calculateServiceMetrics(timeRange);
         metrics.push(...serviceMetrics);
         await job.updateProgress(80);
       }
 
       // Calculate trend metrics
       if (metricTypes.includes('all') || metricTypes.includes('trend')) {
-        const trendMetrics = await this.calculateTrendMetrics();
+        const trendMetrics = await this.calculateTrendMetrics(timeRange);
         metrics.push(...trendMetrics);
         await job.updateProgress(90);
       }
 
       // Store metrics in database
       if (metrics.length > 0) {
-        await this.storeMetrics(metrics, forceRefresh);
+        await this.storeMetrics(metrics, forceRefresh, batchSize);
       }
 
       await job.updateProgress(100);
@@ -116,7 +129,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     }
   }
 
-  private async calculateSummaryMetrics(): Promise<MetricCalculation[]> {
+  private async calculateSummaryMetrics(timeRange?: { start: string; end: string }): Promise<MetricCalculation[]> {
     const db = this.databaseService.db;
     const metrics: MetricCalculation[] = [];
     const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -138,11 +151,22 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       sourceQuery: 'SELECT COUNT(*) FROM hospitals WHERE is_active = true',
     });
 
-    // Total active prices
-    const [priceCount] = await db
+    // Total active prices with optional time range
+    let pricesQuery = db
       .select({ count: count() })
       .from(prices)
       .where(eq(prices.isActive, true));
+
+    if (timeRange) {
+      pricesQuery = pricesQuery.where(
+        and(
+          gte(prices.lastUpdated, new Date(timeRange.start)),
+          lte(prices.lastUpdated, new Date(timeRange.end))
+        )
+      );
+    }
+
+    const [priceCount] = await pricesQuery;
 
     metrics.push({
       metricName: 'total_prices',
@@ -153,16 +177,28 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       confidence: 1.0,
       sampleSize: priceCount.count,
       sourceQuery: 'SELECT COUNT(*) FROM prices WHERE is_active = true',
+      metadata: timeRange ? { timeRange } : undefined,
     });
 
     // Average price per service
-    const [avgPrice] = await db
+    let avgPriceQuery = db
       .select({ 
         avg: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
         count: count()
       })
       .from(prices)
       .where(eq(prices.isActive, true));
+
+    if (timeRange) {
+      avgPriceQuery = avgPriceQuery.where(
+        and(
+          gte(prices.lastUpdated, new Date(timeRange.start)),
+          lte(prices.lastUpdated, new Date(timeRange.end))
+        )
+      );
+    }
+
+    const [avgPrice] = await avgPriceQuery;
 
     if (avgPrice.avg) {
       metrics.push({
@@ -174,19 +210,20 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         confidence: 0.95,
         sampleSize: avgPrice.count,
         sourceQuery: 'SELECT AVG(gross_charge) FROM prices WHERE is_active = true',
+        metadata: timeRange ? { timeRange } : undefined,
       });
     }
 
     return metrics;
   }
 
-  private async calculatePriceVarianceMetrics(): Promise<MetricCalculation[]> {
+  private async calculatePriceVarianceMetrics(timeRange?: { start: string; end: string }): Promise<MetricCalculation[]> {
     const db = this.databaseService.db;
     const metrics: MetricCalculation[] = [];
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
     // Price variance by service (coefficient of variation)
-    const serviceVariance = await db
+    let serviceVarianceQuery = db
       .select({
         serviceName: prices.serviceName,
         serviceCategory: prices.category,
@@ -197,7 +234,18 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         sampleSize: count(),
       })
       .from(prices)
-      .where(eq(prices.isActive, true))
+      .where(eq(prices.isActive, true));
+
+    if (timeRange) {
+      serviceVarianceQuery = serviceVarianceQuery.where(
+        and(
+          gte(prices.lastUpdated, new Date(timeRange.start)),
+          lte(prices.lastUpdated, new Date(timeRange.end))
+        )
+      );
+    }
+
+    const serviceVariance = await serviceVarianceQuery
       .groupBy(prices.serviceName, prices.category)
       .having(sql`COUNT(*) >= 5`) // Only include services with sufficient data
       .orderBy(desc(sql<number>`STDDEV(CAST(${prices.grossCharge} AS DECIMAL)) / AVG(CAST(${prices.grossCharge} AS DECIMAL))`))
@@ -223,6 +271,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
             minPrice: service.minPrice,
             maxPrice: service.maxPrice,
             priceRange: service.maxPrice - service.minPrice,
+            ...(timeRange && { timeRange }),
           },
           sourceQuery: `SELECT service variance metrics for ${service.serviceName}`,
         });
@@ -232,13 +281,13 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     return metrics;
   }
 
-  private async calculateGeographicMetrics(): Promise<MetricCalculation[]> {
+  private async calculateGeographicMetrics(timeRange?: { start: string; end: string }): Promise<MetricCalculation[]> {
     const db = this.databaseService.db;
     const metrics: MetricCalculation[] = [];
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
     // Average prices by state
-    const stateMetrics = await db
+    let stateMetricsQuery = db
       .select({
         state: hospitals.state,
         avgPrice: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
@@ -247,7 +296,18 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       })
       .from(prices)
       .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
-      .where(and(eq(prices.isActive, true), eq(hospitals.isActive, true)))
+      .where(and(eq(prices.isActive, true), eq(hospitals.isActive, true)));
+
+    if (timeRange) {
+      stateMetricsQuery = stateMetricsQuery.where(
+        and(
+          gte(prices.lastUpdated, new Date(timeRange.start)),
+          lte(prices.lastUpdated, new Date(timeRange.end))
+        )
+      );
+    }
+
+    const stateMetrics = await stateMetricsQuery
       .groupBy(hospitals.state)
       .having(sql`COUNT(*) >= 10`)
       .orderBy(desc(sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`));
@@ -265,6 +325,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
           sampleSize: state.priceCount,
           metadata: {
             hospitalCount: state.hospitalCount,
+            ...(timeRange && { timeRange }),
           },
           sourceQuery: `SELECT state-level price metrics for ${state.state}`,
         });
@@ -274,13 +335,13 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     return metrics;
   }
 
-  private async calculateServiceMetrics(): Promise<MetricCalculation[]> {
+  private async calculateServiceMetrics(timeRange?: { start: string; end: string }): Promise<MetricCalculation[]> {
     const db = this.databaseService.db;
     const metrics: MetricCalculation[] = [];
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
     // Most expensive services
-    const expensiveServices = await db
+    let expensiveServicesQuery = db
       .select({
         serviceName: prices.serviceName,
         serviceCategory: prices.category,
@@ -289,7 +350,18 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         sampleSize: count(),
       })
       .from(prices)
-      .where(eq(prices.isActive, true))
+      .where(eq(prices.isActive, true));
+
+    if (timeRange) {
+      expensiveServicesQuery = expensiveServicesQuery.where(
+        and(
+          gte(prices.lastUpdated, new Date(timeRange.start)),
+          lte(prices.lastUpdated, new Date(timeRange.end))
+        )
+      );
+    }
+
+    const expensiveServices = await expensiveServicesQuery
       .groupBy(prices.serviceName, prices.category)
       .having(sql`COUNT(*) >= 5`)
       .orderBy(desc(sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`))
@@ -310,6 +382,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
           metadata: {
             medianPrice: service.medianPrice,
             rank: 'top_25_expensive',
+            ...(timeRange && { timeRange }),
           },
           sourceQuery: `SELECT service-level metrics for ${service.serviceName}`,
         });
@@ -319,14 +392,17 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     return metrics;
   }
 
-  private async calculateTrendMetrics(): Promise<MetricCalculation[]> {
+  private async calculateTrendMetrics(timeRange?: { start: string; end: string }): Promise<MetricCalculation[]> {
     const db = this.databaseService.db;
     const metrics: MetricCalculation[] = [];
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
-    // Price trends over last 6 months
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    // Price trends over specified time range or default 6 months
+    const endDate = timeRange?.end ? new Date(timeRange.end) : new Date();
+    const startDate = timeRange?.start ? new Date(timeRange.start) : new Date();
+    if (!timeRange?.start) {
+      startDate.setMonth(startDate.getMonth() - 6);
+    }
 
     const trendData = await db
       .select({
@@ -337,7 +413,8 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       .from(prices)
       .where(and(
         eq(prices.isActive, true),
-        sql`${prices.lastUpdated} >= ${sixMonthsAgo.toISOString()}`
+        gte(prices.lastUpdated, startDate.toISOString()),
+        lte(prices.lastUpdated, endDate.toISOString())
       ))
       .groupBy(sql`DATE_TRUNC('month', ${prices.lastUpdated})`)
       .orderBy(sql`DATE_TRUNC('month', ${prices.lastUpdated})`);
@@ -350,7 +427,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         const priceChangePercent = ((lastMonth.avgPrice - firstMonth.avgPrice) / firstMonth.avgPrice) * 100;
         
         metrics.push({
-          metricName: 'price_trend_6_month',
+          metricName: 'price_trend_period',
           metricType: 'trend',
           value: Math.round(priceChangePercent * 100) / 100,
           period: currentPeriod,
@@ -361,9 +438,12 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
             firstMonthPrice: firstMonth.avgPrice,
             lastMonthPrice: lastMonth.avgPrice,
             dataPoints: trendData.length,
-            timeRange: '6_months',
+            timeRange: timeRange || {
+              start: startDate.toISOString(),
+              end: endDate.toISOString(),
+            },
           },
-          sourceQuery: 'SELECT 6-month price trend analysis',
+          sourceQuery: 'SELECT price trend analysis',
         });
       }
     }
@@ -371,7 +451,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     return metrics;
   }
 
-  private async storeMetrics(metrics: MetricCalculation[], forceRefresh: boolean): Promise<void> {
+  private async storeMetrics(metrics: MetricCalculation[], forceRefresh: boolean, batchSize: number = 100): Promise<void> {
     const db = this.databaseService.db;
     
     if (forceRefresh) {
@@ -404,7 +484,6 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     }));
 
     // Insert in batches to avoid overwhelming the database
-    const batchSize = 100;
     for (let i = 0; i < analyticsRecords.length; i += batchSize) {
       const batch = analyticsRecords.slice(i, i + batchSize);
       await db.insert(analytics).values(batch).onConflictDoNothing();
