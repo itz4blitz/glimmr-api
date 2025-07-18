@@ -1,9 +1,7 @@
 import { Controller, Get, Query, Param, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { HospitalsService } from './hospitals.service';
-import { HospitalsService } from './hospitals.service.js';
 import { ErrorResponseDto } from '../common/exceptions';
-import { HospitalsService } from './hospitals.service';
 import { HospitalFilterQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('hospitals')
@@ -21,14 +19,9 @@ export class HospitalsController {
   @ApiQuery({ name: 'city', required: false, description: 'Filter by city' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return' })
   @ApiQuery({ name: 'offset', required: false, description: 'Number of results to skip' })
-  async getHospitals(
-    @Query('state') state?: string,
-    @Query('city') city?: string,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
+  async getHospitals(@Query() query: HospitalFilterQueryDto) {
     try {
-      return await this.hospitalsService.getHospitals({ state, city, limit, offset });
+      return await this.hospitalsService.getHospitals(query);
     } catch (error) {
       if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
         throw new HttpException(
@@ -49,9 +42,6 @@ export class HospitalsController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-    return this.hospitalsService.getHospitals({ state, city, limit, offset });
-  async getHospitals(@Query() query: HospitalFilterQueryDto) {
-    return this.hospitalsService.getHospitals(query);
   }
 
   @Get(':id')
