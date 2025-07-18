@@ -12,7 +12,9 @@ import { JobsBullBoardModule } from './jobs/bull-board.module';
 import { ODataModule } from './odata/odata.module';
 import { DatabaseModule } from './database/database.module';
 import { ExternalApisModule } from './external-apis/external-apis.module';
+import { AuthModule } from './auth/auth.module';
 import { RequestContextMiddleware } from './common/middleware';
+import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middleware';
 
 @Module({
   imports: [
@@ -106,6 +108,7 @@ import { RequestContextMiddleware } from './common/middleware';
     ODataModule,
     DatabaseModule,
     ExternalApisModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -121,5 +124,10 @@ export class AppModule implements NestModule {
         { path: '/metrics', method: RequestMethod.GET },
       )
       .forRoutes('*');
+    
+    // Apply Bull Board authentication middleware
+    consumer
+      .apply(BullBoardAuthMiddleware)
+      .forRoutes('/admin/queues*');
   }
 }

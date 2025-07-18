@@ -15,6 +15,13 @@
       "when": 1750623892510,
       "tag": "0001_striped_fabian_cortez",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752871581486,
+      "tag": "0002_fantastic_ken_ellis",
+      "breakpoints": true
     }
   ]
 }
