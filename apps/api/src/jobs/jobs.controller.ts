@@ -164,6 +164,50 @@ export class JobsController {
     return this.jobCleanupService.getCleanupStats();
   }
 
+  // Analytics Refresh Endpoints
+  @Post('analytics/refresh')
+  @Throttle({ expensive: { limit: 3, ttl: 900000 } })
+  @ApiOperation({ summary: 'Trigger analytics refresh job' })
+  @ApiResponse({ status: 201, description: 'Analytics refresh job queued' })
+  @Roles('admin')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        metricTypes: {
+          type: 'array',
+          items: { type: 'string', enum: ['all', 'summary', 'variance', 'geographic', 'service', 'trend'] },
+          description: 'Types of metrics to calculate',
+          default: ['all']
+        },
+        forceRefresh: {
+          type: 'boolean',
+          description: 'Force refresh of existing metrics',
+          default: false
+        },
+        reportingPeriod: {
+          type: 'string',
+          enum: ['daily', 'weekly', 'monthly', 'quarterly'],
+          description: 'Reporting period for metrics',
+          default: 'monthly'
+        }
+      }
+    },
+    required: false
+  })
+  async triggerAnalyticsRefresh(@Body() body: { 
+    metricTypes?: string[]; 
+    forceRefresh?: boolean; 
+    reportingPeriod?: string 
+  } = {}) {
+    const result = await this.jobsService.triggerAnalyticsRefresh(body);
+    return { 
+      message: 'Analytics refresh job queued',
+      jobId: result.id,
+      ...body
+    };
+  }
+
   @Post('cleanup/all')
   @Throttle({ expensive: { limit: 2, ttl: 3600000 } })
   @ApiOperation({ summary: 'Trigger comprehensive cleanup of all job queues' })

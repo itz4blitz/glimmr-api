@@ -14,6 +14,7 @@ import { createRedisConnection, QUEUE_NAMES } from './queues/queue.config.js';
 import { PRAFileDownloadProcessor } from './processors/pra-file-download.processor.js';
 import { PRAUnifiedScannerProcessor } from './processors/pra-unified-scanner.processor.js';
 import { ExportDataProcessor } from './processors/export-data.processor.js';
+import { AnalyticsRefreshProcessor } from './processors/analytics-refresh.processor.js';
 import { HospitalMonitorService } from './services/hospital-monitor.service.js';
 import { PRAPipelineService } from './services/pra-pipeline.service.js';
 import { JobCleanupService } from './services/job-cleanup.service.js';
@@ -61,7 +62,10 @@ import { JobsService } from './jobs.service.js';
       },
       {
         name: QUEUE_NAMES.ANALYTICS_REFRESH,
-        // No processor needed for this queue
+        processors: [{
+          path: join(__dirname, 'processors', 'analytics-refresh.processor.js'),
+          concurrency: 1
+        }]
       },
       {
         name: QUEUE_NAMES.DATA_VALIDATION,
@@ -94,6 +98,7 @@ import { JobsService } from './jobs.service.js';
     PRAFileDownloadProcessor,
     PRAUnifiedScannerProcessor,
     ExportDataProcessor,
+    AnalyticsRefreshProcessor,
     HospitalMonitorService,
     PRAPipelineService,
     JobCleanupService,

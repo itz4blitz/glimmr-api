@@ -436,4 +436,58 @@ export class JobsService {
       throw error;
     }
   }
+
+  /**
+   * Trigger analytics refresh job
+   */
+  async triggerAnalyticsRefresh(options: {
+    metricTypes?: string[];
+    forceRefresh?: boolean;
+    reportingPeriod?: string;
+  } = {}) {
+    this.logger.info({
+      msg: 'Starting analytics refresh job',
+      options,
+    });
+
+    try {
+      const jobData = {
+        metricTypes: options.metricTypes || ['all'],
+        forceRefresh: options.forceRefresh || false,
+        reportingPeriod: options.reportingPeriod || 'monthly',
+      };
+
+      const job = await this.analyticsRefreshQueue.add(
+        `analytics-refresh-${Date.now()}`,
+        jobData,
+        {
+          priority: 3,
+          attempts: 2,
+          backoff: {
+            type: 'fixed',
+            delay: 5000,
+          },
+          removeOnComplete: 3,
+          removeOnFail: 5,
+        },
+      );
+
+      return {
+        id: job.id,
+        status: 'queued',
+        message: 'Analytics refresh job has been queued successfully',
+        estimatedDuration: '2-10 minutes',
+        data: jobData,
+        createdAt: new Date().toISOString(),
+        trackingUrl: `/jobs/${job.id}`,
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to start analytics refresh job',
+        options,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 }
