@@ -6,6 +6,13 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "coverageDirectory": "../coverage-e2e",
+  "collectCoverageFrom": [
+    "../src/**/*.(t|j)s",
+    "!../src/**/*.spec.ts",
+    "!../src/**/*.e2e-spec.ts"
+  ],
+  "coverageReporters": ["text", "lcov", "html"]
   "collectCoverageFrom": [
     "../src/**/*.(t|j)s",
     "!../src/**/*.spec.ts",
