@@ -2,6 +2,11 @@ import { Injectable, HttpException, HttpStatus, OnModuleDestroy } from '@nestjs/
 import { ConfigService } from '@nestjs/config';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { request, APIRequestContext } from 'playwright';
+import { 
+  ExternalServiceException, 
+  RateLimitExceededException, 
+  ValidationException 
+} from '../common/exceptions';
 
 export interface PRAHospitalFile {
   fileid: string;
@@ -471,9 +476,9 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
           responseData: response.data,
           responseType: typeof response.data,
         }, 'Invalid response format from PRA API');
-        throw new HttpException(
-          'Invalid response format from PRA API',
-          HttpStatus.BAD_GATEWAY
+        throw new ExternalServiceException(
+          'Patient Rights Advocate API',
+          'Invalid response format'
         );
       }
 
@@ -493,22 +498,19 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
       }, 'Failed to search hospitals via PRA API');
 
       if (error.response?.status === 429) {
-        throw new HttpException(
-          'Rate limit exceeded for Patient Rights Advocate API',
-          HttpStatus.TOO_MANY_REQUESTS
-        );
+        throw new RateLimitExceededException('Patient Rights Advocate API');
       }
 
       if (error.response?.status >= 500) {
-        throw new HttpException(
-          'Patient Rights Advocate API is currently unavailable',
-          HttpStatus.BAD_GATEWAY
+        throw new ExternalServiceException(
+          'Patient Rights Advocate API',
+          'Service currently unavailable'
         );
       }
 
-      throw new HttpException(
-        'Failed to fetch hospital data from Patient Rights Advocate API',
-        HttpStatus.INTERNAL_SERVER_ERROR
+      throw new ExternalServiceException(
+        'Patient Rights Advocate API',
+        'Failed to fetch hospital data'
       );
     }
   }
@@ -518,9 +520,10 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
    */
   async getHospitalsByState(state: string): Promise<PRAHospital[]> {
     if (!state || state.length !== 2) {
-      throw new HttpException(
-        'State must be a valid 2-letter state code',
-        HttpStatus.BAD_REQUEST
+      throw new ValidationException(
+        'state', 
+        state, 
+        'must be a valid 2-letter state code'
       );
     }
 

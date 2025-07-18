@@ -16,6 +16,9 @@
   "collectCoverageFrom": [
     "../src/**/*.(t|j)s",
     "!../src/**/*.spec.ts",
+    "!../src/**/*.e2e-spec.ts",
+    "!../src/main.ts"
+  ]
     "!../src/**/*.e2e-spec.ts"
   ],
   "coverageReporters": ["text", "lcov", "html"]
