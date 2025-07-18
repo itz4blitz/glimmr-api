@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { eq, and, like, desc, asc, count, sql } from 'drizzle-orm';
+import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { analytics, prices, hospitals } from '../database/schema';
 
@@ -392,6 +393,260 @@ export class AnalyticsService {
         filters,
       });
       throw error;
+    }
+  }
+
+  async streamExportData(
+    filters: { format?: string; dataset?: string; limit?: number },
+    res: Response
+  ) {
+    this.logger.info({
+      msg: 'Starting streaming export',
+      filters,
+      operation: 'streamExportData',
+    });
+
+    const format = filters.format || 'json';
+    const dataset = filters.dataset || 'hospitals';
+    const maxRecords = filters.limit || 50000; // Default limit for streaming
+
+    // Validate format - only support JSON for streaming initially
+    if (format !== 'json') {
+      res.status(400).json({
+        error: 'Only JSON format is supported for streaming exports',
+        supportedFormats: ['json'],
+        message: 'Use /api/v1/analytics/export for other formats (returns job metadata)'
+      });
+      return;
+    }
+
+    // Validate dataset
+    const validDatasets = ['hospitals', 'prices', 'analytics', 'all'];
+    if (!validDatasets.includes(dataset)) {
+      res.status(400).json({
+        error: 'Invalid dataset specified',
+        supportedDatasets: validDatasets,
+      });
+      return;
+    }
+
+    try {
+      const db = this.databaseService.db;
+
+      // Set appropriate headers for streaming
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="glimmr-${dataset}-export-${new Date().toISOString().split('T')[0]}.json"`
+      );
+
+      // Start streaming JSON array
+      res.write('{"data":[');
+
+      let recordCount = 0;
+      const batchSize = 1000;
+      let isFirstRecord = true;
+
+      if (dataset === 'hospitals' || dataset === 'all') {
+        this.logger.info({ msg: 'Streaming hospitals data', batchSize, maxRecords });
+
+        let offset = 0;
+        let hasMoreRecords = true;
+
+        while (hasMoreRecords && recordCount < maxRecords) {
+          const remainingRecords = maxRecords - recordCount;
+          const currentBatchSize = Math.min(batchSize, remainingRecords);
+
+          const batch = await db
+            .select({
+              id: hospitals.id,
+              name: hospitals.name,
+              state: hospitals.state,
+              city: hospitals.city,
+              address: hospitals.address,
+              phone: hospitals.phone,
+              website: hospitals.website,
+              bedCount: hospitals.bedCount,
+              ownership: hospitals.ownership,
+              lastUpdated: hospitals.lastUpdated,
+              createdAt: hospitals.createdAt,
+            })
+            .from(hospitals)
+            .where(eq(hospitals.isActive, true))
+            .limit(currentBatchSize)
+            .offset(offset);
+
+          if (batch.length === 0) {
+            hasMoreRecords = false;
+            break;
+          }
+
+          for (const record of batch) {
+            if (!isFirstRecord) {
+              res.write(',');
+            }
+            res.write(JSON.stringify(record));
+            isFirstRecord = false;
+            recordCount++;
+
+            if (recordCount >= maxRecords) {
+              break;
+            }
+          }
+
+          offset += batchSize;
+          hasMoreRecords = batch.length === batchSize && recordCount < maxRecords;
+
+          // Yield control to allow other operations
+          await new Promise(resolve => setImmediate(resolve));
+        }
+      }
+
+      if ((dataset === 'prices' || dataset === 'all') && recordCount < maxRecords) {
+        if (dataset === 'all' && recordCount > 0) {
+          res.write(',');
+        }
+
+        this.logger.info({ msg: 'Streaming prices data', batchSize, maxRecords, currentCount: recordCount });
+
+        let offset = 0;
+        let hasMoreRecords = true;
+
+        while (hasMoreRecords && recordCount < maxRecords) {
+          const remainingRecords = maxRecords - recordCount;
+          const currentBatchSize = Math.min(batchSize, remainingRecords);
+
+          const batch = await db
+            .select({
+              id: prices.id,
+              hospitalId: prices.hospitalId,
+              serviceName: prices.serviceName,
+              serviceCode: prices.serviceCode,
+              grossCharge: prices.grossCharge,
+              discountedCashPrice: prices.discountedCashPrice,
+              category: prices.category,
+              lastUpdated: prices.lastUpdated,
+              createdAt: prices.createdAt,
+            })
+            .from(prices)
+            .where(eq(prices.isActive, true))
+            .limit(currentBatchSize)
+            .offset(offset);
+
+          if (batch.length === 0) {
+            hasMoreRecords = false;
+            break;
+          }
+
+          for (const record of batch) {
+            if (!isFirstRecord) {
+              res.write(',');
+            }
+            res.write(JSON.stringify(record));
+            isFirstRecord = false;
+            recordCount++;
+
+            if (recordCount >= maxRecords) {
+              break;
+            }
+          }
+
+          offset += batchSize;
+          hasMoreRecords = batch.length === batchSize && recordCount < maxRecords;
+
+          // Yield control to allow other operations
+          await new Promise(resolve => setImmediate(resolve));
+        }
+      }
+
+      if ((dataset === 'analytics' || dataset === 'all') && recordCount < maxRecords) {
+        if (dataset === 'all' && recordCount > 0) {
+          res.write(',');
+        }
+
+        this.logger.info({ msg: 'Streaming analytics data', batchSize, maxRecords, currentCount: recordCount });
+
+        let offset = 0;
+        let hasMoreRecords = true;
+
+        while (hasMoreRecords && recordCount < maxRecords) {
+          const remainingRecords = maxRecords - recordCount;
+          const currentBatchSize = Math.min(batchSize, remainingRecords);
+
+          const batch = await db
+            .select()
+            .from(analytics)
+            .limit(currentBatchSize)
+            .offset(offset);
+
+          if (batch.length === 0) {
+            hasMoreRecords = false;
+            break;
+          }
+
+          for (const record of batch) {
+            if (!isFirstRecord) {
+              res.write(',');
+            }
+            res.write(JSON.stringify(record));
+            isFirstRecord = false;
+            recordCount++;
+
+            if (recordCount >= maxRecords) {
+              break;
+            }
+          }
+
+          offset += batchSize;
+          hasMoreRecords = batch.length === batchSize && recordCount < maxRecords;
+
+          // Yield control to allow other operations
+          await new Promise(resolve => setImmediate(resolve));
+        }
+      }
+
+      // End JSON array and add metadata
+      const metadata = {
+        recordCount,
+        exportedAt: new Date().toISOString(),
+        dataset,
+        format,
+        version: '1.0',
+        truncated: recordCount >= maxRecords,
+        maxRecords,
+        streamingEnabled: true,
+      };
+
+      res.write(`],"metadata":${JSON.stringify(metadata)}}`);
+      res.end();
+
+      this.logger.info({
+        msg: 'Streaming export completed successfully',
+        recordCount,
+        dataset,
+        format,
+        operation: 'streamExportData',
+      });
+    } catch (error) {
+      this.logger.error({
+        msg: 'Streaming export failed',
+        error: error.message,
+        operation: 'streamExportData',
+        filters,
+      });
+
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal server error during export',
+          message: error.message,
+        });
+      } else {
+        // If headers already sent, try to end the stream gracefully
+        res.write(']}');
+        res.end();
+      }
     }
   }
 }

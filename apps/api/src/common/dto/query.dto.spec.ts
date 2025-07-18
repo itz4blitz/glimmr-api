@@ -416,10 +416,11 @@ describe('Query DTOs', () => {
   });
 
   describe('ExportQueryDto', () => {
-    it('should validate with all valid data', async () => {
+    it('should validate with all valid data including limit', async () => {
       const dto = plainToInstance(ExportQueryDto, {
-        format: 'csv',
+        format: 'json',
         dataset: 'hospitals',
+        limit: 1000,
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
@@ -431,8 +432,8 @@ describe('Query DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with valid format values', async () => {
-      const validFormats = ['csv', 'json', 'excel'];
+    it('should validate with all supported format values', async () => {
+      const validFormats = ['csv', 'json', 'excel', 'parquet'];
       
       for (const format of validFormats) {
         const dto = plainToInstance(ExportQueryDto, { format });
@@ -441,14 +442,49 @@ describe('Query DTOs', () => {
       }
     });
 
-    it('should validate with valid dataset values', async () => {
-      const validDatasets = ['hospitals', 'prices', 'analytics'];
+    it('should validate with all supported dataset values', async () => {
+      const validDatasets = ['hospitals', 'prices', 'analytics', 'all'];
       
       for (const dataset of validDatasets) {
         const dto = plainToInstance(ExportQueryDto, { dataset });
         const errors = await validate(dto);
         expect(errors.length).toBe(0);
       }
+    });
+
+    it('should validate boundary limit values', async () => {
+      const boundaryLimits = [1, 100000];
+      
+      for (const limit of boundaryLimits) {
+        const dto = plainToInstance(ExportQueryDto, {
+          format: 'json',
+          dataset: 'hospitals',
+          limit,
+        });
+        const errors = await validate(dto);
+        expect(errors.length).toBe(0);
+      }
+    });
+
+    it('should transform string limit to number', async () => {
+      const dto = plainToInstance(ExportQueryDto, {
+        format: 'json',
+        dataset: 'hospitals',
+        limit: '5000',
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
+      expect(dto.limit).toBe(5000);
+    });
+
+    it('should validate complex parameter combinations', async () => {
+      const dto = plainToInstance(ExportQueryDto, {
+        format: 'parquet',
+        dataset: 'all',
+        limit: 50000,
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
     });
 
     it('should fail validation with invalid format', async () => {
@@ -469,6 +505,28 @@ describe('Query DTOs', () => {
       expect(errors[0].constraints).toHaveProperty('isIn');
     });
 
+    it('should fail validation with limit below minimum', async () => {
+      const dto = plainToInstance(ExportQueryDto, {
+        format: 'json',
+        dataset: 'hospitals',
+        limit: 0,
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].constraints).toHaveProperty('min');
+    });
+
+    it('should fail validation with limit above maximum', async () => {
+      const dto = plainToInstance(ExportQueryDto, {
+        format: 'json',
+        dataset: 'hospitals',
+        limit: 100001,
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].constraints).toHaveProperty('max');
+    });
+
     it('should fail validation with non-string format', async () => {
       const dto = plainToInstance(ExportQueryDto, {
         format: 123,
@@ -485,6 +543,40 @@ describe('Query DTOs', () => {
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0].constraints).toHaveProperty('isString');
+    });
+
+    it('should fail validation with non-numeric limit', async () => {
+      const dto = plainToInstance(ExportQueryDto, {
+        format: 'json',
+        dataset: 'hospitals',
+        limit: 'not-a-number',
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].constraints).toHaveProperty('isNumber');
+    });
+
+    it('should validate with all format and dataset combinations', async () => {
+      const formats = ['csv', 'json', 'excel', 'parquet'];
+      const datasets = ['hospitals', 'prices', 'analytics', 'all'];
+      
+      for (const format of formats) {
+        for (const dataset of datasets) {
+          const dto = plainToInstance(ExportQueryDto, { format, dataset });
+          const errors = await validate(dto);
+          expect(errors.length).toBe(0);
+        }
+      }
+    });
+
+    it('should validate with typical streaming parameters', async () => {
+      const dto = plainToInstance(ExportQueryDto, {
+        format: 'json',
+        dataset: 'all',
+        limit: 10000,
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
     });
   });
 

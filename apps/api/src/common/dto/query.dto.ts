@@ -192,28 +192,42 @@ export class AnalyticsQueryDto {
 
 export class ExportQueryDto {
   @ApiProperty({
-    description: 'Export format (csv, json, excel)',
-    example: 'csv',
+    description: 'Export format (csv, json, excel, parquet)',
+    example: 'json',
     required: false,
-    enum: ['csv', 'json', 'excel'],
-    default: 'csv',
+    enum: ['csv', 'json', 'excel', 'parquet'],
+    default: 'json',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['csv', 'json', 'excel'])
+  @IsIn(['csv', 'json', 'excel', 'parquet'])
   format?: string;
 
   @ApiProperty({
-    description: 'Dataset to export (hospitals, prices, analytics)',
+    description: 'Dataset to export (hospitals, prices, analytics, all)',
     example: 'hospitals',
     required: false,
-    enum: ['hospitals', 'prices', 'analytics'],
+    enum: ['hospitals', 'prices', 'analytics', 'all'],
     default: 'hospitals',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['hospitals', 'prices', 'analytics'])
+  @IsIn(['hospitals', 'prices', 'analytics', 'all'])
   dataset?: string;
+
+  @ApiProperty({
+    description: 'Maximum number of records to export (for size limiting)',
+    example: 10000,
+    required: false,
+    minimum: 1,
+    maximum: 100000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(100000)
+  limit?: number;
 }
 
 export class ODataQueryDto {
