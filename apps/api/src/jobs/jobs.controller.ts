@@ -1,25 +1,13 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
 import { HospitalMonitorService } from './services/hospital-monitor.service';
 import { PRAPipelineService } from './services/pra-pipeline.service';
-import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto } from './dto/hospital-import.dto';
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
-import { JobsService } from './jobs.service.js';
-import { HospitalMonitorService } from './services/hospital-monitor.service.js';
-import { PRAPipelineService } from './services/pra-pipeline.service.js';
-import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto } from './dto/hospital-import.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
-import { JobsService } from './jobs.service';
-import { HospitalMonitorService } from './services/hospital-monitor.service';
-import { PRAPipelineService } from './services/pra-pipeline.service';
 import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto, StartHospitalImportDto, StartPriceUpdateDto, TriggerPRAScanDto } from './dto/hospital-import.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JobFilterQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('jobs')
@@ -40,12 +28,6 @@ export class JobsController {
   @ApiQuery({ name: 'type', required: false, description: 'Filter by job type' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return' })
   @Roles('admin', 'api-user')
-  async getJobs(
-    @Query('status') status?: string,
-    @Query('type') type?: string,
-    @Query('limit') limit?: number,
-  ) {
-    return this.jobsService.getJobs({ status, type, limit });
   async getJobs(@Query() query: JobFilterQueryDto) {
     return this.jobsService.getJobs(query);
   }
@@ -71,17 +53,6 @@ export class JobsController {
   @ApiOperation({ summary: 'Start hospital data import job' })
   @ApiResponse({ status: 201, description: 'Hospital import job started successfully' })
   @Roles('admin')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        source: { type: 'string', description: 'Data source (url, file, manual)' },
-        url: { type: 'string', description: 'URL for data import' },
-        priority: { type: 'number', description: 'Job priority (1-10)' },
-      },
-    },
-  })
-  async startHospitalImport(@Body() importData: any) {
   @ApiBody({ type: StartHospitalImportDto })
   async startHospitalImport(@Body() importData: StartHospitalImportDto) {
     return this.jobsService.startHospitalImport(importData);
@@ -92,16 +63,6 @@ export class JobsController {
   @ApiOperation({ summary: 'Start price data update job' })
   @ApiResponse({ status: 201, description: 'Price update job started successfully' })
   @Roles('admin')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        hospitalId: { type: 'string', description: 'Specific hospital ID (optional)' },
-        priority: { type: 'number', description: 'Job priority (1-10)' },
-      },
-    },
-  })
-  async startPriceUpdate(@Body() updateData: any) {
   @ApiBody({ type: StartPriceUpdateDto })
   async startPriceUpdate(@Body() updateData: StartPriceUpdateDto) {
     return this.jobsService.startPriceUpdate(updateData);
@@ -167,16 +128,6 @@ export class JobsController {
   @ApiOperation({ summary: 'Trigger PRA unified scan' })
   @ApiResponse({ status: 201, description: 'PRA scan job queued' })
   @Roles('admin')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        testMode: { type: 'boolean', description: 'Test mode (only scan a few states)' },
-        forceRefresh: { type: 'boolean', description: 'Force refresh even if recently updated' },
-      },
-    },
-  })
-  async triggerPRAScan(@Body() body: { testMode?: boolean; forceRefresh?: boolean }) {
   @ApiBody({ type: TriggerPRAScanDto })
   async triggerPRAScan(@Body() body: TriggerPRAScanDto) {
     const { testMode = false, forceRefresh = false } = body;

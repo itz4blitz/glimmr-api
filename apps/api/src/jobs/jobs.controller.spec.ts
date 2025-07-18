@@ -1,15 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
-import { Reflector } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 import { HospitalMonitorService } from './services/hospital-monitor.service';
 import { PRAPipelineService } from './services/pra-pipeline.service';
-import { CustomThrottlerGuard } from '../common/guards/custom-throttler.guard';
-
-describe('JobsController - Rate Limiting Integration', () => {
+import { JobFilterQueryDto } from '../common/dto/query.dto';
+import {
+  TriggerHospitalImportDto,
+  TriggerPriceFileDownloadDto,
+  StartHospitalImportDto,
+  StartPriceUpdateDto,
+  TriggerPRAScanDto,
+} from './dto/hospital-import.dto';
 
 describe('JobsController', () => {
   let controller: JobsController;
@@ -33,7 +34,6 @@ describe('JobsController', () => {
     getMonitoringStats: jest.fn(),
   };
 
-  const mockPRAPipelineService = {
   const mockPraPipelineService = {
     triggerManualPRAScan: jest.fn(),
     getPipelineStatus: jest.fn(),
@@ -42,20 +42,6 @@ describe('JobsController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        ThrottlerModule.forRoot([
-          {
-            name: 'default',
-            ttl: 900000,
-            limit: 100,
-          },
-          {
-            name: 'expensive',
-            ttl: 900000,
-            limit: 10,
-          },
-        ]),
-      ],
       controllers: [JobsController],
       providers: [
         {
@@ -68,13 +54,6 @@ describe('JobsController', () => {
         },
         {
           provide: PRAPipelineService,
-          useValue: mockPRAPipelineService,
-        },
-        {
-          provide: APP_GUARD,
-          useClass: CustomThrottlerGuard,
-        },
-        Reflector,
           useValue: mockPraPipelineService,
         },
       ],
@@ -95,6 +74,10 @@ describe('JobsController', () => {
       expect(controller).toBeDefined();
     });
 
+    it('should be an instance of JobsController', () => {
+      expect(controller).toBeInstanceOf(JobsController);
+    });
+
     it('should have all services injected', () => {
       expect(jobsService).toBeDefined();
       expect(hospitalMonitorService).toBeDefined();
@@ -102,457 +85,391 @@ describe('JobsController', () => {
     });
   });
 
-  describe('Read-only Endpoints (Default Rate Limiting)', () => {
-    describe('GET /jobs', () => {
-      it('should get jobs with query filters', async () => {
-        const mockJobs = [{ id: '1', status: 'completed', type: 'import' }];
-        mockJobsService.getJobs.mockResolvedValue(mockJobs);
-
-        const result = await controller.getJobs('completed', 'import', 10);
-
-        expect(jobsService.getJobs).toHaveBeenCalledWith({
-          status: 'completed',
-          type: 'import',
-          limit: 10,
-        });
-        expect(result).toEqual(mockJobs);
-      });
-
-      it('should handle undefined query parameters', async () => {
-        const mockJobs = [];
-        mockJobsService.getJobs.mockResolvedValue(mockJobs);
-
-        const result = await controller.getJobs();
-
-        expect(jobsService.getJobs).toHaveBeenCalledWith({
-          status: undefined,
-          type: undefined,
-          limit: undefined,
-        });
-        expect(result).toEqual(mockJobs);
-      });
-    });
-
-    describe('GET /jobs/stats', () => {
-      it('should get job statistics', async () => {
-        const mockStats = { active: 5, waiting: 2, completed: 100, failed: 3 };
-        mockJobsService.getJobStats.mockResolvedValue(mockStats);
-
-        const result = await controller.getJobStats();
-
-        expect(jobsService.getJobStats).toHaveBeenCalledTimes(1);
-        expect(result).toEqual(mockStats);
-      });
-    });
-
-    describe('GET /jobs/board', () => {
-      it('should get Bull Board info', async () => {
-        const mockBoardInfo = { url: '/admin/queues', enabled: true };
-        mockJobsService.getBullBoardInfo.mockResolvedValue(mockBoardInfo);
-
-        const result = await controller.getBullBoard();
-
-        expect(jobsService.getBullBoardInfo).toHaveBeenCalledTimes(1);
-        expect(result).toEqual(mockBoardInfo);
-      });
-    });
-
-    describe('GET /jobs/:id', () => {
-      it('should get job by ID', async () => {
-        const mockJob = { id: 'job123', status: 'processing', progress: 50 };
-        mockJobsService.getJobById.mockResolvedValue(mockJob);
-
-        const result = await controller.getJobById('job123');
-
-        expect(jobsService.getJobById).toHaveBeenCalledWith('job123');
-        expect(result).toEqual(mockJob);
-      });
-    });
-  });
-
-  describe('Expensive POST Endpoints (Rate Limited)', () => {
-    describe('POST /jobs/hospital-import (5 req/15min)', () => {
-      it('should start hospital import job', async () => {
-        const importData = { source: 'url', url: 'https://example.com/data.csv', priority: 5 };
-        const mockJobResult = { jobId: 'import123', status: 'queued' };
-        mockJobsService.startHospitalImport.mockResolvedValue(mockJobResult);
-
-        const result = await controller.startHospitalImport(importData);
-
-        expect(jobsService.startHospitalImport).toHaveBeenCalledWith(importData);
-        expect(result).toEqual(mockJobResult);
-      });
-
-      it('should handle import with minimal data', async () => {
-        const importData = {};
-        const mockJobResult = { jobId: 'import456', status: 'queued' };
-        mockJobsService.startHospitalImport.mockResolvedValue(mockJobResult);
-
-        const result = await controller.startHospitalImport(importData);
-
-        expect(jobsService.startHospitalImport).toHaveBeenCalledWith(importData);
-        expect(result).toEqual(mockJobResult);
-      });
-    });
-
-    describe('POST /jobs/price-update (5 req/15min)', () => {
-      it('should start price update job', async () => {
-        const updateData = { hospitalId: 'hospital123', priority: 8 };
-        const mockJobResult = { jobId: 'update123', status: 'queued' };
-        mockJobsService.startPriceUpdate.mockResolvedValue(mockJobResult);
-
-        const result = await controller.startPriceUpdate(updateData);
-
-        expect(jobsService.startPriceUpdate).toHaveBeenCalledWith(updateData);
-        expect(result).toEqual(mockJobResult);
-      });
-    });
-
-    describe('POST /jobs/hospitals/import (3 req/15min)', () => {
-      it('should trigger hospital import for specific state', async () => {
-        const dto = { state: 'CA', forceRefresh: true };
-        mockHospitalMonitorService.triggerHospitalImportByState.mockResolvedValue();
-
-        const result = await controller.triggerHospitalImport(dto);
-
-        expect(hospitalMonitorService.triggerHospitalImportByState).toHaveBeenCalledWith('CA', true);
-        expect(result).toEqual({ message: 'Hospital import job queued for state: CA' });
-      });
-
-      it('should trigger full hospital import when no state specified', async () => {
-        const dto = {};
-        mockHospitalMonitorService.scheduleDailyHospitalRefresh.mockResolvedValue();
-
-        const result = await controller.triggerHospitalImport(dto);
-
-        expect(hospitalMonitorService.scheduleDailyHospitalRefresh).toHaveBeenCalledTimes(1);
-        expect(result).toEqual({ message: 'Full hospital import job queued' });
-      });
-
-      it('should use default empty object when no DTO provided', async () => {
-        mockHospitalMonitorService.scheduleDailyHospitalRefresh.mockResolvedValue();
-
-        const result = await controller.triggerHospitalImport();
-
-        expect(hospitalMonitorService.scheduleDailyHospitalRefresh).toHaveBeenCalledTimes(1);
-        expect(result).toEqual({ message: 'Full hospital import job queued' });
-      });
-    });
-
-    describe('POST /jobs/hospitals/:hospitalId/files/:fileId/download (10 req/15min)', () => {
-      it('should trigger price file download', async () => {
-        const dto = { forceReprocess: true };
-        mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue();
-
-        const result = await controller.triggerPriceFileDownload('hospital123', 'file456', dto);
-
-        expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
-          'hospital123',
-          'file456',
-          true
-        );
-        expect(result).toEqual({
-          message: 'Price file download job queued for hospital hospital123, file file456',
-        });
-      });
-
-      it('should use default DTO when none provided', async () => {
-        mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue();
-
-        const result = await controller.triggerPriceFileDownload('hospital123', 'file456');
-
-        expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
-          'hospital123',
-          'file456',
-          undefined
-        );
-        expect(result).toEqual({
-          message: 'Price file download job queued for hospital hospital123, file file456',
-        });
-      });
-    });
-  });
-
-  describe('PRA Pipeline Endpoints (Most Restricted)', () => {
-    describe('POST /jobs/pra/scan (2 req/15min)', () => {
-      it('should trigger PRA scan with test mode', async () => {
-        const body = { testMode: true, forceRefresh: false };
-        const mockResult = { jobId: 'pra123', estimatedTime: '30 minutes' };
-        mockPRAPipelineService.triggerManualPRAScan.mockResolvedValue(mockResult);
-
-        const result = await controller.triggerPRAScan(body);
-
-        expect(praPipelineService.triggerManualPRAScan).toHaveBeenCalledWith(true, false);
-        expect(result).toEqual({
-          message: 'PRA unified scan triggered',
-          jobId: 'pra123',
-          estimatedTime: '30 minutes',
-        });
-      });
-
-      it('should use default values when body is empty', async () => {
-        const body = {};
-        const mockResult = { jobId: 'pra456' };
-        mockPRAPipelineService.triggerManualPRAScan.mockResolvedValue(mockResult);
-
-        const result = await controller.triggerPRAScan(body);
-
-        expect(praPipelineService.triggerManualPRAScan).toHaveBeenCalledWith(false, false);
-        expect(result).toEqual({
-          message: 'PRA unified scan triggered',
-          jobId: 'pra456',
-        });
-      });
-    });
-
-    describe('GET /jobs/pra/status', () => {
-      it('should get PRA pipeline status', async () => {
-        const mockStatus = { 
-          running: true, 
-          lastRun: '2024-01-01T12:00:00Z',
-          nextRun: '2024-01-02T12:00:00Z',
-          stats: { processed: 1000, errors: 5 }
-        };
-        mockPRAPipelineService.getPipelineStatus.mockResolvedValue(mockStatus);
-
-        const result = await controller.getPRAPipelineStatus();
-
-        expect(praPipelineService.getPipelineStatus).toHaveBeenCalledTimes(1);
-        expect(result).toEqual(mockStatus);
-      });
-    });
-
-    describe('POST /jobs/pra/full-refresh (1 req/15min)', () => {
-      it('should trigger full PRA refresh', async () => {
-        const mockResult = { 
-          jobId: 'full-refresh123', 
-          estimatedTime: '2 hours',
-          warning: 'This will process all hospitals'
-        };
-        mockPRAPipelineService.triggerFullPipelineRefresh.mockResolvedValue(mockResult);
-
-        const result = await controller.triggerFullPRARefresh();
-
-        expect(praPipelineService.triggerFullPipelineRefresh).toHaveBeenCalledTimes(1);
-        expect(result).toEqual({
-          message: 'Full PRA refresh triggered',
-          jobId: 'full-refresh123',
-          estimatedTime: '2 hours',
-          warning: 'This will process all hospitals',
-        });
-      });
-    });
-  });
-
-  describe('Monitoring Endpoint', () => {
-    describe('GET /jobs/monitoring/stats', () => {
-      it('should get monitoring statistics', async () => {
-        const mockStats = {
-          queues: { active: 3, waiting: 10, completed: 500 },
-          workers: { running: 5, idle: 2 },
-          performance: { avgProcessingTime: 30, errorRate: 0.02 }
-        };
-        mockHospitalMonitorService.getMonitoringStats.mockResolvedValue(mockStats);
-
-        const result = await controller.getMonitoringStats();
-
-        expect(hospitalMonitorService.getMonitoringStats).toHaveBeenCalledTimes(1);
-        expect(result).toEqual(mockStats);
-      });
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should propagate service errors for hospital import', async () => {
-      mockJobsService.startHospitalImport.mockRejectedValue(new Error('Queue is full'));
-
-      await expect(controller.startHospitalImport({})).rejects.toThrow('Queue is full');
-    });
-
-    it('should propagate service errors for PRA scan', async () => {
-      mockPRAPipelineService.triggerManualPRAScan.mockRejectedValue(
-        new Error('PRA API is unavailable')
-      );
-
-      await expect(controller.triggerPRAScan({})).rejects.toThrow('PRA API is unavailable');
-    });
-
-    it('should handle malformed request bodies', async () => {
-      const malformedData = { invalidField: 'value', anotherField: 123 };
-      const mockResult = { jobId: 'job123' };
-      mockJobsService.startHospitalImport.mockResolvedValue(mockResult);
-
-      const result = await controller.startHospitalImport(malformedData);
-
-      expect(jobsService.startHospitalImport).toHaveBeenCalledWith(malformedData);
-      expect(result).toEqual(mockResult);
-    });
-  });
-
-  describe('Rate Limiting Scenarios', () => {
-    it('should handle different rate limits for different endpoints', () => {
-      // This test verifies that different endpoints have different throttle decorators
-      // The actual rate limiting behavior is tested in the CustomThrottlerGuard tests
-      expect(controller.triggerFullPRARefresh).toBeDefined(); // 1 req/15min
-      expect(controller.triggerPRAScan).toBeDefined(); // 2 req/15min
-      expect(controller.triggerHospitalImport).toBeDefined(); // 3 req/15min
-      expect(controller.startHospitalImport).toBeDefined(); // 5 req/15min
-      expect(controller.triggerPriceFileDownload).toBeDefined(); // 10 req/15min
-    });
-
-    it('should allow read operations with higher limits', () => {
-      // Read operations should use default throttling (100 req/15min)
-      expect(controller.getJobs).toBeDefined();
-      expect(controller.getJobStats).toBeDefined();
-      expect(controller.getJobById).toBeDefined();
-      expect(controller.getPRAPipelineStatus).toBeDefined();
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-
   describe('getJobs', () => {
-    it('should call jobsService.getJobs with query parameters', async () => {
-      const query = { status: 'completed', type: 'import', limit: 10, offset: 0 };
-      const expectedResult = { jobs: [], total: 0 };
-      
-      mockJobsService.getJobs.mockResolvedValue(expectedResult);
+    const mockJobsResponse = {
+      data: [
+        {
+          id: 'job-1',
+          type: 'hospital-import',
+          status: 'completed',
+          progress: 100,
+          createdAt: new Date('2024-01-01'),
+          completedAt: new Date('2024-01-01'),
+        },
+        {
+          id: 'job-2',
+          type: 'price-update',
+          status: 'active',
+          progress: 50,
+          createdAt: new Date('2024-01-02'),
+        },
+      ],
+      total: 2,
+      limit: 50,
+      offset: 0,
+    };
+
+    it('should return jobs with all filters', async () => {
+      const query: JobFilterQueryDto = {
+        status: 'completed',
+        type: 'hospital-import',
+        limit: 10,
+        offset: 0,
+      };
+
+      mockJobsService.getJobs.mockResolvedValue(mockJobsResponse);
 
       const result = await controller.getJobs(query);
 
       expect(jobsService.getJobs).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(mockJobsResponse);
     });
 
-    it('should handle empty query parameters', async () => {
-      const query = {};
-      const expectedResult = { jobs: [], total: 0 };
-      
-      mockJobsService.getJobs.mockResolvedValue(expectedResult);
+    it('should return jobs with partial filters', async () => {
+      const query: JobFilterQueryDto = { status: 'active' };
+
+      mockJobsService.getJobs.mockResolvedValue(mockJobsResponse);
 
       const result = await controller.getJobs(query);
 
       expect(jobsService.getJobs).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(mockJobsResponse);
     });
 
-    it('should handle partial query parameters', async () => {
-      const query = { limit: 5 };
-      const expectedResult = { jobs: [], total: 0 };
-      
-      mockJobsService.getJobs.mockResolvedValue(expectedResult);
+    it('should return all jobs when no filters provided', async () => {
+      const query: JobFilterQueryDto = {};
+
+      mockJobsService.getJobs.mockResolvedValue(mockJobsResponse);
 
       const result = await controller.getJobs(query);
 
       expect(jobsService.getJobs).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(mockJobsResponse);
+    });
+
+    it('should handle empty results', async () => {
+      const query: JobFilterQueryDto = { status: 'nonexistent' };
+      const emptyResponse = {
+        data: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      };
+
+      mockJobsService.getJobs.mockResolvedValue(emptyResponse);
+
+      const result = await controller.getJobs(query);
+
+      expect(result).toEqual(emptyResponse);
+    });
+
+    it('should handle type filter only', async () => {
+      const query: JobFilterQueryDto = { type: 'price-update' };
+
+      mockJobsService.getJobs.mockResolvedValue(mockJobsResponse);
+
+      const result = await controller.getJobs(query);
+
+      expect(jobsService.getJobs).toHaveBeenCalledWith(query);
+    });
+
+    it('should handle pagination parameters', async () => {
+      const query: JobFilterQueryDto = { limit: 25, offset: 50 };
+
+      mockJobsService.getJobs.mockResolvedValue({
+        ...mockJobsResponse,
+        limit: 25,
+        offset: 50,
+      });
+
+      const result = await controller.getJobs(query);
+
+      expect(result.limit).toBe(25);
+      expect(result.offset).toBe(50);
+    });
+
+    it('should propagate service errors', async () => {
+      const query: JobFilterQueryDto = {};
+      const error = new Error('Database connection failed');
+      mockJobsService.getJobs.mockRejectedValue(error);
+
+      await expect(controller.getJobs(query)).rejects.toThrow(error);
     });
   });
 
   describe('getJobStats', () => {
-    it('should call jobsService.getJobStats', async () => {
-      const expectedResult = { completed: 10, running: 2, failed: 1 };
-      
-      mockJobsService.getJobStats.mockResolvedValue(expectedResult);
+    const mockStats = {
+      active: 5,
+      waiting: 10,
+      completed: 100,
+      failed: 3,
+      delayed: 2,
+      totalProcessed: 120,
+      avgProcessingTime: 30000,
+    };
+
+    it('should return job statistics', async () => {
+      mockJobsService.getJobStats.mockResolvedValue(mockStats);
 
       const result = await controller.getJobStats();
 
-      expect(jobsService.getJobStats).toHaveBeenCalled();
-      expect(result).toEqual(expectedResult);
+      expect(jobsService.getJobStats).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockStats);
+    });
+
+    it('should handle empty statistics', async () => {
+      const emptyStats = {
+        active: 0,
+        waiting: 0,
+        completed: 0,
+        failed: 0,
+        delayed: 0,
+        totalProcessed: 0,
+        avgProcessingTime: 0,
+      };
+      mockJobsService.getJobStats.mockResolvedValue(emptyStats);
+
+      const result = await controller.getJobStats();
+
+      expect(result).toEqual(emptyStats);
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('Queue connection failed');
+      mockJobsService.getJobStats.mockRejectedValue(error);
+
+      await expect(controller.getJobStats()).rejects.toThrow(error);
     });
   });
 
   describe('getBullBoard', () => {
-    it('should call jobsService.getBullBoardInfo', async () => {
-      const expectedResult = { url: 'http://localhost:3000/api/v1/admin/queues' };
-      
-      mockJobsService.getBullBoardInfo.mockResolvedValue(expectedResult);
+    const mockBoardInfo = {
+      url: '/api/v1/admin/queues',
+      enabled: true,
+      queues: ['hospital-import', 'price-update', 'pra-scan'],
+    };
+
+    it('should return Bull Board information', async () => {
+      mockJobsService.getBullBoardInfo.mockResolvedValue(mockBoardInfo);
 
       const result = await controller.getBullBoard();
 
-      expect(jobsService.getBullBoardInfo).toHaveBeenCalled();
-      expect(result).toEqual(expectedResult);
+      expect(jobsService.getBullBoardInfo).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockBoardInfo);
+    });
+
+    it('should handle disabled Bull Board', async () => {
+      const disabledBoardInfo = {
+        url: null,
+        enabled: false,
+        queues: [],
+      };
+      mockJobsService.getBullBoardInfo.mockResolvedValue(disabledBoardInfo);
+
+      const result = await controller.getBullBoard();
+
+      expect(result.enabled).toBe(false);
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('Bull Board not configured');
+      mockJobsService.getBullBoardInfo.mockRejectedValue(error);
+
+      await expect(controller.getBullBoard()).rejects.toThrow(error);
     });
   });
 
   describe('startHospitalImport', () => {
-    it('should call jobsService.startHospitalImport with valid data', async () => {
-      const importData = {
+    const mockJobResult = {
+      jobId: 'job-123',
+      status: 'queued',
+      priority: 5,
+      estimatedDuration: '30 minutes',
+    };
+
+    it('should start hospital import with full data', async () => {
+      const importData: StartHospitalImportDto = {
         source: 'url',
-        url: 'https://example.com/data.csv',
-        priority: 5,
+        url: 'https://example.com/hospitals.csv',
+        priority: 7,
       };
-      const expectedResult = { jobId: 'job-123', status: 'queued' };
-      
-      mockJobsService.startHospitalImport.mockResolvedValue(expectedResult);
+
+      mockJobsService.startHospitalImport.mockResolvedValue(mockJobResult);
 
       const result = await controller.startHospitalImport(importData);
 
       expect(jobsService.startHospitalImport).toHaveBeenCalledWith(importData);
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(mockJobResult);
     });
 
-    it('should handle minimal data', async () => {
-      const importData = {
+    it('should start hospital import with minimal data', async () => {
+      const importData: StartHospitalImportDto = {
         source: 'manual',
       };
-      const expectedResult = { jobId: 'job-124', status: 'queued' };
-      
-      mockJobsService.startHospitalImport.mockResolvedValue(expectedResult);
+
+      mockJobsService.startHospitalImport.mockResolvedValue(mockJobResult);
 
       const result = await controller.startHospitalImport(importData);
 
       expect(jobsService.startHospitalImport).toHaveBeenCalledWith(importData);
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(mockJobResult);
+    });
+
+    it('should handle file-based import', async () => {
+      const importData: StartHospitalImportDto = {
+        source: 'file',
+        priority: 1,
+      };
+
+      mockJobsService.startHospitalImport.mockResolvedValue(mockJobResult);
+
+      const result = await controller.startHospitalImport(importData);
+
+      expect(jobsService.startHospitalImport).toHaveBeenCalledWith(importData);
+    });
+
+    it('should propagate service errors', async () => {
+      const importData: StartHospitalImportDto = { source: 'url' };
+      const error = new Error('Queue is full');
+      mockJobsService.startHospitalImport.mockRejectedValue(error);
+
+      await expect(controller.startHospitalImport(importData)).rejects.toThrow(error);
     });
   });
 
   describe('startPriceUpdate', () => {
-    it('should call jobsService.startPriceUpdate with valid data', async () => {
-      const updateData = {
-        hospitalId: '123e4567-e89b-12d3-a456-426614174000',
-        priority: 7,
+    const mockJobResult = {
+      jobId: 'price-job-123',
+      status: 'queued',
+      hospitalId: '456',
+    };
+
+    it('should start price update for specific hospital', async () => {
+      const updateData: StartPriceUpdateDto = {
+        hospitalId: '456',
+        priority: 8,
       };
-      const expectedResult = { jobId: 'job-125', status: 'queued' };
-      
-      mockJobsService.startPriceUpdate.mockResolvedValue(expectedResult);
+
+      mockJobsService.startPriceUpdate.mockResolvedValue(mockJobResult);
 
       const result = await controller.startPriceUpdate(updateData);
 
       expect(jobsService.startPriceUpdate).toHaveBeenCalledWith(updateData);
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(mockJobResult);
     });
 
-    it('should handle empty data', async () => {
-      const updateData = {};
-      const expectedResult = { jobId: 'job-126', status: 'queued' };
-      
-      mockJobsService.startPriceUpdate.mockResolvedValue(expectedResult);
+    it('should start price update for all hospitals', async () => {
+      const updateData: StartPriceUpdateDto = {
+        priority: 5,
+      };
+
+      mockJobsService.startPriceUpdate.mockResolvedValue({
+        ...mockJobResult,
+        hospitalId: undefined,
+      });
 
       const result = await controller.startPriceUpdate(updateData);
 
       expect(jobsService.startPriceUpdate).toHaveBeenCalledWith(updateData);
-      expect(result).toEqual(expectedResult);
+    });
+
+    it('should handle empty update data', async () => {
+      const updateData: StartPriceUpdateDto = {};
+
+      mockJobsService.startPriceUpdate.mockResolvedValue(mockJobResult);
+
+      const result = await controller.startPriceUpdate(updateData);
+
+      expect(jobsService.startPriceUpdate).toHaveBeenCalledWith(updateData);
+    });
+
+    it('should propagate service errors', async () => {
+      const updateData: StartPriceUpdateDto = { hospitalId: '456' };
+      const error = new Error('Hospital not found');
+      mockJobsService.startPriceUpdate.mockRejectedValue(error);
+
+      await expect(controller.startPriceUpdate(updateData)).rejects.toThrow(error);
     });
   });
 
   describe('getJobById', () => {
-    it('should call jobsService.getJobById with job ID', async () => {
-      const jobId = 'job-123';
-      const expectedResult = { id: jobId, status: 'completed', type: 'import' };
-      
-      mockJobsService.getJobById.mockResolvedValue(expectedResult);
+    const mockJob = {
+      id: 'job-123',
+      type: 'hospital-import',
+      status: 'processing',
+      progress: 75,
+      data: { source: 'url', url: 'https://example.com' },
+      result: null,
+      error: null,
+      createdAt: new Date('2024-01-01'),
+      startedAt: new Date('2024-01-01'),
+    };
 
-      const result = await controller.getJobById(jobId);
+    it('should return job by ID', async () => {
+      mockJobsService.getJobById.mockResolvedValue(mockJob);
 
-      expect(jobsService.getJobById).toHaveBeenCalledWith(jobId);
-      expect(result).toEqual(expectedResult);
+      const result = await controller.getJobById('job-123');
+
+      expect(jobsService.getJobById).toHaveBeenCalledWith('job-123');
+      expect(result).toEqual(mockJob);
+    });
+
+    it('should handle different job ID formats', async () => {
+      const jobIds = ['123', 'job-456', 'uuid-789-abc', 'complex_job_id_123'];
+
+      for (const id of jobIds) {
+        mockJobsService.getJobById.mockResolvedValue({ ...mockJob, id });
+
+        const result = await controller.getJobById(id);
+
+        expect(jobsService.getJobById).toHaveBeenCalledWith(id);
+        expect(result.id).toBe(id);
+      }
+    });
+
+    it('should handle completed job', async () => {
+      const completedJob = {
+        ...mockJob,
+        status: 'completed',
+        progress: 100,
+        result: { processed: 150, errors: 0 },
+        completedAt: new Date('2024-01-01'),
+      };
+      mockJobsService.getJobById.mockResolvedValue(completedJob);
+
+      const result = await controller.getJobById('job-123');
+
+      expect(result.status).toBe('completed');
+      expect(result.progress).toBe(100);
+    });
+
+    it('should handle failed job', async () => {
+      const failedJob = {
+        ...mockJob,
+        status: 'failed',
+        progress: 50,
+        error: 'Connection timeout',
+        failedAt: new Date('2024-01-01'),
+      };
+      mockJobsService.getJobById.mockResolvedValue(failedJob);
+
+      const result = await controller.getJobById('job-123');
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toBe('Connection timeout');
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('Job not found');
+      mockJobsService.getJobById.mockRejectedValue(error);
+
+      await expect(controller.getJobById('nonexistent')).rejects.toThrow(error);
     });
   });
 
   describe('triggerHospitalImport', () => {
-    it('should call hospitalMonitorService.triggerHospitalImportByState when state is provided', async () => {
-      const dto = { state: 'CA', forceRefresh: true };
-      
+    it('should trigger import for specific state', async () => {
+      const dto: TriggerHospitalImportDto = { state: 'CA', forceRefresh: true };
       mockHospitalMonitorService.triggerHospitalImportByState.mockResolvedValue(undefined);
 
       const result = await controller.triggerHospitalImport(dto);
@@ -561,116 +478,421 @@ describe('JobsController', () => {
       expect(result).toEqual({ message: 'Hospital import job queued for state: CA' });
     });
 
-    it('should call hospitalMonitorService.scheduleDailyHospitalRefresh when no state is provided', async () => {
-      const dto = {};
-      
+    it('should trigger import for state without force refresh', async () => {
+      const dto: TriggerHospitalImportDto = { state: 'TX', forceRefresh: false };
+      mockHospitalMonitorService.triggerHospitalImportByState.mockResolvedValue(undefined);
+
+      const result = await controller.triggerHospitalImport(dto);
+
+      expect(hospitalMonitorService.triggerHospitalImportByState).toHaveBeenCalledWith('TX', false);
+    });
+
+    it('should trigger import for state with undefined forceRefresh', async () => {
+      const dto: TriggerHospitalImportDto = { state: 'FL' };
+      mockHospitalMonitorService.triggerHospitalImportByState.mockResolvedValue(undefined);
+
+      const result = await controller.triggerHospitalImport(dto);
+
+      expect(hospitalMonitorService.triggerHospitalImportByState).toHaveBeenCalledWith(
+        'FL',
+        undefined,
+      );
+    });
+
+    it('should trigger full import when no state provided', async () => {
+      const dto: TriggerHospitalImportDto = {};
       mockHospitalMonitorService.scheduleDailyHospitalRefresh.mockResolvedValue(undefined);
 
       const result = await controller.triggerHospitalImport(dto);
 
-      expect(hospitalMonitorService.scheduleDailyHospitalRefresh).toHaveBeenCalled();
+      expect(hospitalMonitorService.scheduleDailyHospitalRefresh).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ message: 'Full hospital import job queued' });
     });
 
-    it('should handle default empty DTO', async () => {
+    it('should use default empty DTO when none provided', async () => {
       mockHospitalMonitorService.scheduleDailyHospitalRefresh.mockResolvedValue(undefined);
 
       const result = await controller.triggerHospitalImport();
 
-      expect(hospitalMonitorService.scheduleDailyHospitalRefresh).toHaveBeenCalled();
+      expect(hospitalMonitorService.scheduleDailyHospitalRefresh).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ message: 'Full hospital import job queued' });
+    });
+
+    it('should propagate service errors', async () => {
+      const dto: TriggerHospitalImportDto = { state: 'CA' };
+      const error = new Error('State import already in progress');
+      mockHospitalMonitorService.triggerHospitalImportByState.mockRejectedValue(error);
+
+      await expect(controller.triggerHospitalImport(dto)).rejects.toThrow(error);
     });
   });
 
   describe('triggerPriceFileDownload', () => {
-    it('should call hospitalMonitorService.triggerPriceFileDownload with parameters', async () => {
-      const hospitalId = 'hospital-123';
-      const fileId = 'file-456';
-      const dto = { forceReprocess: true };
-      
+    it('should trigger download with force reprocess', async () => {
+      const dto: TriggerPriceFileDownloadDto = { forceReprocess: true };
       mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue(undefined);
 
-      const result = await controller.triggerPriceFileDownload(hospitalId, fileId, dto);
+      const result = await controller.triggerPriceFileDownload('hospital-123', 'file-456', dto);
 
-      expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(hospitalId, fileId, true);
-      expect(result).toEqual({ message: 'Price file download job queued for hospital hospital-123, file file-456' });
+      expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
+        'hospital-123',
+        'file-456',
+        true,
+      );
+      expect(result).toEqual({
+        message: 'Price file download job queued for hospital hospital-123, file file-456',
+      });
     });
 
-    it('should handle default empty DTO', async () => {
-      const hospitalId = 'hospital-123';
-      const fileId = 'file-456';
-      
+    it('should trigger download without force reprocess', async () => {
+      const dto: TriggerPriceFileDownloadDto = { forceReprocess: false };
       mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue(undefined);
 
-      const result = await controller.triggerPriceFileDownload(hospitalId, fileId);
+      const result = await controller.triggerPriceFileDownload('hospital-123', 'file-456', dto);
 
-      expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(hospitalId, fileId, undefined);
-      expect(result).toEqual({ message: 'Price file download job queued for hospital hospital-123, file file-456' });
+      expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
+        'hospital-123',
+        'file-456',
+        false,
+      );
+    });
+
+    it('should use default DTO when none provided', async () => {
+      mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue(undefined);
+
+      const result = await controller.triggerPriceFileDownload('hospital-123', 'file-456');
+
+      expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
+        'hospital-123',
+        'file-456',
+        undefined,
+      );
+    });
+
+    it('should handle different ID formats', async () => {
+      const hospitalIds = ['123', 'hosp-abc-456', 'uuid-789'];
+      const fileIds = ['file1', 'f-123-xyz', 'document.csv'];
+
+      for (const hospitalId of hospitalIds) {
+        for (const fileId of fileIds) {
+          mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue(undefined);
+
+          await controller.triggerPriceFileDownload(hospitalId, fileId);
+
+          expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
+            hospitalId,
+            fileId,
+            undefined,
+          );
+        }
+      }
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('File not found');
+      mockHospitalMonitorService.triggerPriceFileDownload.mockRejectedValue(error);
+
+      await expect(
+        controller.triggerPriceFileDownload('hospital-123', 'nonexistent'),
+      ).rejects.toThrow(error);
     });
   });
 
   describe('getMonitoringStats', () => {
-    it('should call hospitalMonitorService.getMonitoringStats', async () => {
-      const expectedResult = { totalHospitals: 100, activeFiles: 50 };
-      
-      mockHospitalMonitorService.getMonitoringStats.mockResolvedValue(expectedResult);
+    const mockStats = {
+      totalHospitals: 1500,
+      activeFiles: 800,
+      queueStatus: {
+        'hospital-import': { active: 2, waiting: 5 },
+        'price-update': { active: 1, waiting: 3 },
+        'pra-scan': { active: 0, waiting: 1 },
+      },
+      lastUpdate: new Date('2024-01-01'),
+    };
+
+    it('should return monitoring statistics', async () => {
+      mockHospitalMonitorService.getMonitoringStats.mockResolvedValue(mockStats);
 
       const result = await controller.getMonitoringStats();
 
-      expect(hospitalMonitorService.getMonitoringStats).toHaveBeenCalled();
-      expect(result).toEqual(expectedResult);
+      expect(hospitalMonitorService.getMonitoringStats).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockStats);
+    });
+
+    it('should handle empty monitoring stats', async () => {
+      const emptyStats = {
+        totalHospitals: 0,
+        activeFiles: 0,
+        queueStatus: {},
+        lastUpdate: null,
+      };
+      mockHospitalMonitorService.getMonitoringStats.mockResolvedValue(emptyStats);
+
+      const result = await controller.getMonitoringStats();
+
+      expect(result.totalHospitals).toBe(0);
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('Monitoring service unavailable');
+      mockHospitalMonitorService.getMonitoringStats.mockRejectedValue(error);
+
+      await expect(controller.getMonitoringStats()).rejects.toThrow(error);
     });
   });
 
   describe('triggerPRAScan', () => {
-    it('should call praPipelineService.triggerManualPRAScan with parameters', async () => {
-      const body = { testMode: true, forceRefresh: false };
-      const expectedResult = { jobId: 'pra-job-123' };
-      
-      mockPraPipelineService.triggerManualPRAScan.mockResolvedValue(expectedResult);
+    const mockScanResult = {
+      jobId: 'pra-scan-123',
+      estimatedTime: '45 minutes',
+      testMode: false,
+    };
+
+    it('should trigger PRA scan with test mode', async () => {
+      const body: TriggerPRAScanDto = { testMode: true, forceRefresh: false };
+      mockPraPipelineService.triggerManualPRAScan.mockResolvedValue(mockScanResult);
 
       const result = await controller.triggerPRAScan(body);
 
       expect(praPipelineService.triggerManualPRAScan).toHaveBeenCalledWith(true, false);
-      expect(result).toEqual({ message: 'PRA unified scan triggered', jobId: 'pra-job-123' });
+      expect(result).toEqual({
+        message: 'PRA unified scan triggered',
+        ...mockScanResult,
+      });
     });
 
-    it('should handle default values when not provided', async () => {
-      const body = {};
-      const expectedResult = { jobId: 'pra-job-124' };
-      
-      mockPraPipelineService.triggerManualPRAScan.mockResolvedValue(expectedResult);
+    it('should trigger PRA scan with force refresh', async () => {
+      const body: TriggerPRAScanDto = { testMode: false, forceRefresh: true };
+      mockPraPipelineService.triggerManualPRAScan.mockResolvedValue(mockScanResult);
+
+      const result = await controller.triggerPRAScan(body);
+
+      expect(praPipelineService.triggerManualPRAScan).toHaveBeenCalledWith(false, true);
+    });
+
+    it('should use default values when body is empty', async () => {
+      const body: TriggerPRAScanDto = {};
+      mockPraPipelineService.triggerManualPRAScan.mockResolvedValue(mockScanResult);
 
       const result = await controller.triggerPRAScan(body);
 
       expect(praPipelineService.triggerManualPRAScan).toHaveBeenCalledWith(false, false);
-      expect(result).toEqual({ message: 'PRA unified scan triggered', jobId: 'pra-job-124' });
+    });
+
+    it('should handle partial body parameters', async () => {
+      const body: TriggerPRAScanDto = { testMode: true };
+      mockPraPipelineService.triggerManualPRAScan.mockResolvedValue(mockScanResult);
+
+      const result = await controller.triggerPRAScan(body);
+
+      expect(praPipelineService.triggerManualPRAScan).toHaveBeenCalledWith(true, false);
+    });
+
+    it('should propagate service errors', async () => {
+      const body: TriggerPRAScanDto = { testMode: true };
+      const error = new Error('PRA API is unavailable');
+      mockPraPipelineService.triggerManualPRAScan.mockRejectedValue(error);
+
+      await expect(controller.triggerPRAScan(body)).rejects.toThrow(error);
     });
   });
 
   describe('getPRAPipelineStatus', () => {
-    it('should call praPipelineService.getPipelineStatus', async () => {
-      const expectedResult = { status: 'running', lastRun: new Date() };
-      
-      mockPraPipelineService.getPipelineStatus.mockResolvedValue(expectedResult);
+    const mockPipelineStatus = {
+      isRunning: true,
+      lastRun: new Date('2024-01-01T10:00:00Z'),
+      nextScheduledRun: new Date('2024-01-02T10:00:00Z'),
+      statistics: {
+        hospitalsProcesed: 1200,
+        filesProcessed: 800,
+        errors: 5,
+        lastRunDuration: 3600000, // 1 hour in ms
+      },
+      currentJob: {
+        id: 'pra-current-job',
+        progress: 65,
+        startedAt: new Date('2024-01-01T09:30:00Z'),
+      },
+    };
+
+    it('should return pipeline status', async () => {
+      mockPraPipelineService.getPipelineStatus.mockResolvedValue(mockPipelineStatus);
 
       const result = await controller.getPRAPipelineStatus();
 
-      expect(praPipelineService.getPipelineStatus).toHaveBeenCalled();
-      expect(result).toEqual(expectedResult);
+      expect(praPipelineService.getPipelineStatus).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockPipelineStatus);
+    });
+
+    it('should handle idle pipeline status', async () => {
+      const idleStatus = {
+        ...mockPipelineStatus,
+        isRunning: false,
+        currentJob: null,
+      };
+      mockPraPipelineService.getPipelineStatus.mockResolvedValue(idleStatus);
+
+      const result = await controller.getPRAPipelineStatus();
+
+      expect(result.isRunning).toBe(false);
+      expect(result.currentJob).toBeNull();
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('Pipeline status service error');
+      mockPraPipelineService.getPipelineStatus.mockRejectedValue(error);
+
+      await expect(controller.getPRAPipelineStatus()).rejects.toThrow(error);
     });
   });
 
   describe('triggerFullPRARefresh', () => {
-    it('should call praPipelineService.triggerFullPipelineRefresh', async () => {
-      const expectedResult = { jobId: 'full-refresh-123' };
-      
-      mockPraPipelineService.triggerFullPipelineRefresh.mockResolvedValue(expectedResult);
+    const mockRefreshResult = {
+      jobId: 'full-refresh-123',
+      estimatedTime: '2 hours',
+      warning: 'This will process all hospitals and may take significant time',
+      affectedHospitals: 1500,
+    };
+
+    it('should trigger full PRA refresh', async () => {
+      mockPraPipelineService.triggerFullPipelineRefresh.mockResolvedValue(mockRefreshResult);
 
       const result = await controller.triggerFullPRARefresh();
 
-      expect(praPipelineService.triggerFullPipelineRefresh).toHaveBeenCalled();
-      expect(result).toEqual({ message: 'Full PRA refresh triggered', jobId: 'full-refresh-123' });
+      expect(praPipelineService.triggerFullPipelineRefresh).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        message: 'Full PRA refresh triggered',
+        ...mockRefreshResult,
+      });
+    });
+
+    it('should handle refresh with warnings', async () => {
+      const warningResult = {
+        ...mockRefreshResult,
+        warning: 'Previous refresh is still running, queued for later execution',
+      };
+      mockPraPipelineService.triggerFullPipelineRefresh.mockResolvedValue(warningResult);
+
+      const result = await controller.triggerFullPRARefresh();
+
+      expect(result.warning).toContain('Previous refresh is still running');
+    });
+
+    it('should propagate service errors', async () => {
+      const error = new Error('Full refresh not allowed during maintenance');
+      mockPraPipelineService.triggerFullPipelineRefresh.mockRejectedValue(error);
+
+      await expect(controller.triggerFullPRARefresh()).rejects.toThrow(error);
+    });
+  });
+
+  describe('Error Handling and Edge Cases', () => {
+    it('should handle concurrent job requests', async () => {
+      const importData1: StartHospitalImportDto = { source: 'url', priority: 1 };
+      const importData2: StartHospitalImportDto = { source: 'file', priority: 2 };
+      const importData3: StartHospitalImportDto = { source: 'manual', priority: 3 };
+
+      const mockResults = [
+        { jobId: 'job-1', status: 'queued' },
+        { jobId: 'job-2', status: 'queued' },
+        { jobId: 'job-3', status: 'queued' },
+      ];
+
+      mockJobsService.startHospitalImport
+        .mockResolvedValueOnce(mockResults[0])
+        .mockResolvedValueOnce(mockResults[1])
+        .mockResolvedValueOnce(mockResults[2]);
+
+      const promises = [
+        controller.startHospitalImport(importData1),
+        controller.startHospitalImport(importData2),
+        controller.startHospitalImport(importData3),
+      ];
+
+      const results = await Promise.all(promises);
+
+      expect(results).toEqual(mockResults);
+      expect(jobsService.startHospitalImport).toHaveBeenCalledTimes(3);
+    });
+
+    it('should handle malformed request bodies gracefully', async () => {
+      // TypeScript should prevent this, but testing runtime behavior
+      const malformedData = { invalidField: 'value', randomData: 123 } as any;
+      const mockResult = { jobId: 'job-123', status: 'queued' };
+      mockJobsService.startHospitalImport.mockResolvedValue(mockResult);
+
+      const result = await controller.startHospitalImport(malformedData);
+
+      expect(jobsService.startHospitalImport).toHaveBeenCalledWith(malformedData);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should handle service timeouts', async () => {
+      const timeoutError = new Error('Service timeout');
+      timeoutError.name = 'TimeoutError';
+      mockJobsService.getJobStats.mockRejectedValue(timeoutError);
+
+      await expect(controller.getJobStats()).rejects.toThrow('Service timeout');
+    });
+
+    it('should preserve error details for debugging', async () => {
+      const detailedError = new Error('Database connection pool exhausted');
+      detailedError.stack =
+        'Error: Database connection pool exhausted\n    at Connection.js:123:45';
+      mockJobsService.getJobs.mockRejectedValue(detailedError);
+
+      await expect(controller.getJobs({})).rejects.toThrow(detailedError);
+    });
+  });
+
+  describe('Input Validation Edge Cases', () => {
+    it('should handle very long job IDs', async () => {
+      const longJobId = 'a'.repeat(1000);
+      const mockJob = { id: longJobId, status: 'completed' };
+      mockJobsService.getJobById.mockResolvedValue(mockJob);
+
+      const result = await controller.getJobById(longJobId);
+
+      expect(jobsService.getJobById).toHaveBeenCalledWith(longJobId);
+    });
+
+    it('should handle special characters in state codes', async () => {
+      const dto: TriggerHospitalImportDto = { state: 'Québec' }; // International state
+      mockHospitalMonitorService.triggerHospitalImportByState.mockResolvedValue(undefined);
+
+      const result = await controller.triggerHospitalImport(dto);
+
+      expect(hospitalMonitorService.triggerHospitalImportByState).toHaveBeenCalledWith(
+        'Québec',
+        undefined,
+      );
+    });
+
+    it('should handle extreme priority values', async () => {
+      const extremeData: StartHospitalImportDto = {
+        source: 'url',
+        priority: Number.MAX_SAFE_INTEGER,
+      };
+      const mockResult = { jobId: 'extreme-job', status: 'queued' };
+      mockJobsService.startHospitalImport.mockResolvedValue(mockResult);
+
+      const result = await controller.startHospitalImport(extremeData);
+
+      expect(jobsService.startHospitalImport).toHaveBeenCalledWith(extremeData);
+    });
+
+    it('should handle Unicode characters in hospital and file IDs', async () => {
+      const unicodeHospitalId = 'hôpital-123';
+      const unicodeFileId = 'fichier-données.csv';
+      mockHospitalMonitorService.triggerPriceFileDownload.mockResolvedValue(undefined);
+
+      await controller.triggerPriceFileDownload(unicodeHospitalId, unicodeFileId);
+
+      expect(hospitalMonitorService.triggerPriceFileDownload).toHaveBeenCalledWith(
+        unicodeHospitalId,
+        unicodeFileId,
+        undefined,
+      );
     });
   });
 });
