@@ -432,6 +432,368 @@ describe('AnalyticsService', () => {
     });
   });
 
+  describe('streamExportData', () => {
+    let mockResponse: any;
+    let mockDb: any;
+
+    beforeEach(() => {
+      mockResponse = {
+        setHeader: jest.fn(),
+        write: jest.fn(),
+        end: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+        headersSent: false,
+      };
+
+      mockDb = {
+        select: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        leftJoin: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+      };
+
+      mockDatabaseService.db = mockDb;
+    });
+
+    it('should stream hospitals data successfully', async () => {
+      const filters = { format: 'json', dataset: 'hospitals', limit: 10 };
+      const mockHospitalData = [
+        {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          name: 'Test Hospital',
+          state: 'CA',
+          city: 'Los Angeles',
+          address: '123 Main St',
+          phone: '555-0123',
+          website: 'https://test.com',
+          bedCount: 100,
+          ownership: 'private',
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+        },
+      ];
+
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue(mockHospitalData);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json');
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Transfer-Encoding', 'chunked');
+      expect(mockResponse.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache');
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        expect.stringContaining('attachment; filename="glimmr-hospitals-export-')
+      );
+      expect(mockResponse.write).toHaveBeenCalledWith('{"data":[');
+      expect(mockResponse.write).toHaveBeenCalledWith(JSON.stringify(mockHospitalData[0]));
+      expect(mockResponse.write).toHaveBeenCalledWith(expect.stringContaining('],"metadata":'));
+      expect(mockResponse.end).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        msg: 'Starting streaming export',
+        filters,
+        operation: 'streamExportData',
+      });
+    });
+
+    it('should stream prices data successfully', async () => {
+      const filters = { format: 'json', dataset: 'prices', limit: 5 };
+      const mockPriceData = [
+        {
+          id: '123e4567-e89b-12d3-a456-426614174001',
+          hospitalId: '123e4567-e89b-12d3-a456-426614174000',
+          serviceName: 'MRI Scan',
+          serviceCode: 'MRI001',
+          grossCharge: '1500.00',
+          discountedCashPrice: '1200.00',
+          category: 'imaging',
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+        },
+      ];
+
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue(mockPriceData);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.write).toHaveBeenCalledWith('{"data":[');
+      expect(mockResponse.write).toHaveBeenCalledWith(JSON.stringify(mockPriceData[0]));
+      expect(mockResponse.end).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        msg: 'Streaming prices data',
+        batchSize: 1000,
+        maxRecords: 5,
+        currentCount: 0,
+      });
+    });
+
+    it('should stream analytics data successfully', async () => {
+      const filters = { format: 'json', dataset: 'analytics', limit: 3 };
+      const mockAnalyticsData = [
+        {
+          id: '123e4567-e89b-12d3-a456-426614174002',
+          metric: 'average_price',
+          value: '1250.00',
+          dimension: 'state',
+          period: '2024-Q1',
+          state: 'CA',
+          service: 'MRI',
+          calculatedAt: new Date(),
+        },
+      ];
+
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue(mockAnalyticsData);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.write).toHaveBeenCalledWith('{"data":[');
+      expect(mockResponse.write).toHaveBeenCalledWith(JSON.stringify(mockAnalyticsData[0]));
+      expect(mockResponse.end).toHaveBeenCalled();
+    });
+
+    it('should stream all data types when dataset is "all"', async () => {
+      const filters = { format: 'json', dataset: 'all', limit: 100 };
+      
+      // Mock empty results to avoid complex setup
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue([]);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.write).toHaveBeenCalledWith('{"data":[');
+      expect(mockResponse.end).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        msg: 'Streaming hospitals data',
+        batchSize: 1000,
+        maxRecords: 100,
+      });
+    });
+
+    it('should reject non-JSON formats with 400 error', async () => {
+      const filters = { format: 'csv', dataset: 'hospitals' };
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Only JSON format is supported for streaming exports',
+        supportedFormats: ['json'],
+        message: 'Use /api/v1/analytics/export for other formats (returns job metadata)'
+      });
+    });
+
+    it('should reject invalid dataset with 400 error', async () => {
+      const filters = { format: 'json', dataset: 'invalid' };
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Invalid dataset specified',
+        supportedDatasets: ['hospitals', 'prices', 'analytics', 'all'],
+      });
+    });
+
+    it('should use default values for missing parameters', async () => {
+      const filters = {};
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue([]);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(logger.info).toHaveBeenCalledWith({
+        msg: 'Starting streaming export',
+        filters,
+        operation: 'streamExportData',
+      });
+      expect(mockResponse.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        expect.stringContaining('glimmr-hospitals-export-')
+      );
+    });
+
+    it('should handle large datasets with batching', async () => {
+      const filters = { format: 'json', dataset: 'hospitals', limit: 2500 };
+      
+      // Mock three batches: 1000, 1000, 500 records
+      const batch1 = Array(1000).fill(null).map((_, i) => ({ id: `id-${i}`, name: `Hospital ${i}` }));
+      const batch2 = Array(1000).fill(null).map((_, i) => ({ id: `id-${i + 1000}`, name: `Hospital ${i + 1000}` }));
+      const batch3 = Array(500).fill(null).map((_, i) => ({ id: `id-${i + 2000}`, name: `Hospital ${i + 2000}` }));
+
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset
+        .mockResolvedValueOnce(batch1)
+        .mockResolvedValueOnce(batch2)
+        .mockResolvedValueOnce(batch3)
+        .mockResolvedValue([]);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockDb.offset).toHaveBeenCalledTimes(3);
+      expect(mockResponse.write).toHaveBeenCalledWith('{"data":[');
+      expect(mockResponse.end).toHaveBeenCalled();
+    });
+
+    it('should respect the limit parameter', async () => {
+      const filters = { format: 'json', dataset: 'hospitals', limit: 5 };
+      
+      // Mock data with more records than the limit
+      const mockData = Array(10).fill(null).map((_, i) => ({ id: `id-${i}`, name: `Hospital ${i}` }));
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue(mockData);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockDb.limit).toHaveBeenCalledWith(5); // Should limit to 5 records
+      expect(mockResponse.write).toHaveBeenCalledWith(expect.stringContaining('"truncated":true'));
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const filters = { format: 'json', dataset: 'hospitals' };
+      const dbError = new Error('Database connection failed');
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockRejectedValue(dbError);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(logger.error).toHaveBeenCalledWith({
+        msg: 'Streaming export failed',
+        error: dbError.message,
+        operation: 'streamExportData',
+        filters,
+      });
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Internal server error during export',
+        message: dbError.message,
+      });
+    });
+
+    it('should handle errors after headers are sent', async () => {
+      const filters = { format: 'json', dataset: 'hospitals' };
+      const dbError = new Error('Connection lost during streaming');
+      
+      // Simulate headers already sent
+      mockResponse.headersSent = true;
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockRejectedValue(dbError);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(mockResponse.write).toHaveBeenCalledWith(']}');
+      expect(mockResponse.end).toHaveBeenCalled();
+    });
+
+    it('should include correct metadata in response', async () => {
+      const filters = { format: 'json', dataset: 'hospitals', limit: 100 };
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue([]);
+
+      await service.streamExportData(filters, mockResponse);
+
+      const metadataCall = mockResponse.write.mock.calls.find(call => 
+        call[0].includes('"metadata":')
+      );
+      expect(metadataCall).toBeDefined();
+      
+      const metadataString = metadataCall[0];
+      expect(metadataString).toContain('"recordCount":0');
+      expect(metadataString).toContain('"dataset":"hospitals"');
+      expect(metadataString).toContain('"format":"json"');
+      expect(metadataString).toContain('"streamingEnabled":true');
+      expect(metadataString).toContain('"maxRecords":100');
+      expect(metadataString).toContain('"truncated":false');
+    });
+
+    it('should handle multiple batches correctly', async () => {
+      const filters = { format: 'json', dataset: 'prices', limit: 2000 };
+      
+      // First batch with 1000 records
+      const batch1 = Array(1000).fill(null).map((_, i) => ({ id: `price-${i}` }));
+      // Second batch with 1000 records  
+      const batch2 = Array(1000).fill(null).map((_, i) => ({ id: `price-${i + 1000}` }));
+      // Third batch empty (end of data)
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset
+        .mockResolvedValueOnce(batch1)
+        .mockResolvedValueOnce(batch2)
+        .mockResolvedValue([]);
+
+      await service.streamExportData(filters, mockResponse);
+
+      // Verify correct number of write calls for commas between records
+      const writeCallsWithCommas = mockResponse.write.mock.calls.filter(call => 
+        call[0] === ','
+      );
+      expect(writeCallsWithCommas).toHaveLength(1999); // 2000 records - 1 = 1999 commas
+    });
+
+    it('should log streaming completion successfully', async () => {
+      const filters = { format: 'json', dataset: 'hospitals' };
+      
+      mockDb.select.mockReturnValue(mockDb);
+      mockDb.from.mockReturnValue(mockDb);
+      mockDb.where.mockReturnValue(mockDb);
+      mockDb.limit.mockReturnValue(mockDb);
+      mockDb.offset.mockResolvedValue([]);
+
+      await service.streamExportData(filters, mockResponse);
+
+      expect(logger.info).toHaveBeenCalledWith({
+        msg: 'Streaming export completed successfully',
+        recordCount: 0,
+        dataset: 'hospitals',
+        format: 'json',
+        operation: 'streamExportData',
+      });
+    });
+  });
+
   describe('private helper methods', () => {
     it('should calculate trend correctly', () => {
       // Since these are private methods, we can test them indirectly through public methods

@@ -1,8 +1,7 @@
-import { Controller, Get, Query, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Res, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { Response } from 'express';
 import { AnalyticsService } from './analytics.service';
 import { FlexibleAuthGuard } from '../auth/guards/flexible-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -58,13 +57,9 @@ export class AnalyticsController {
   @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
   @ApiQuery({ name: 'period', required: false, description: 'Time period (30d, 90d, 1y)' })
   @Roles('admin', 'api-user')
-  async getPricingTrends(
-    @Query('service') service?: string,
-    @Query('state') state?: string,
-    @Query('period') period?: string,
-  ) {
+  async getPricingTrends(@Query() query: AnalyticsQueryDto) {
     try {
-      return await this.analyticsService.getPricingTrends({ service, state, period });
+      return await this.analyticsService.getPricingTrends(query);
     } catch (error) {
       if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
         throw new HttpException(
@@ -85,9 +80,6 @@ export class AnalyticsController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-    return this.analyticsService.getPricingTrends({ service, state, period });
-  async getPricingTrends(@Query() query: AnalyticsQueryDto) {
-    return this.analyticsService.getPricingTrends(query);
   }
 
   @Get('powerbi')
@@ -123,19 +115,14 @@ export class AnalyticsController {
 
   @Get('export')
   @Throttle({ expensive: { limit: 5, ttl: 900000 } })
-  @ApiOperation({ summary: 'Export analytics data' })
-  @ApiResponse({ status: 200, description: 'Analytics data export prepared successfully' })
+  @ApiOperation({ summary: 'Export analytics data (initiate export job)' })
+  @ApiResponse({ status: 200, description: 'Analytics data export job initiated successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
-  @ApiQuery({ name: 'format', required: false, description: 'Export format (csv, json, excel)' })
-  @ApiQuery({ name: 'dataset', required: false, description: 'Dataset to export (hospitals, prices, analytics)' })
   @Roles('admin', 'api-user')
-  async exportData(
-    @Query('format') format?: string,
-    @Query('dataset') dataset?: string,
-  ) {
+  async exportData(@Query() query: ExportQueryDto) {
     try {
-      return await this.analyticsService.exportData({ format, dataset });
+      return await this.analyticsService.exportData(query);
     } catch (error) {
       if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
         throw new HttpException(
@@ -156,8 +143,38 @@ export class AnalyticsController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-    return this.analyticsService.exportData({ format, dataset });
-  async exportData(@Query() query: ExportQueryDto) {
-    return this.analyticsService.exportData(query);
+  }
+
+  @Get('export/stream')
+  @Throttle({ expensive: { limit: 2, ttl: 900000 } })
+  @ApiOperation({ summary: 'Stream analytics data export' })
+  @ApiResponse({ status: 200, description: 'Analytics data streamed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid format or dataset' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
+  @Roles('admin', 'api-user')
+  async streamExportData(@Query() query: ExportQueryDto, @Res() res: Response) {
+    try {
+      await this.analyticsService.streamExportData(query, res);
+    } catch (error) {
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while streaming export data',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 }
