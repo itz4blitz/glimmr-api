@@ -1,3 +1,6 @@
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
@@ -14,6 +17,7 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get('dashboard')
+  @Throttle({ expensive: { limit: 10, ttl: 900000 } })
   @ApiOperation({ summary: 'Get dashboard analytics' })
   @ApiResponse({ status: 200, description: 'Dashboard analytics retrieved successfully' })
   @Roles('admin', 'api-user')
@@ -22,6 +26,7 @@ export class AnalyticsController {
   }
 
   @Get('trends')
+  @Throttle({ expensive: { limit: 10, ttl: 900000 } })
   @ApiOperation({ summary: 'Get pricing trends' })
   @ApiResponse({ status: 200, description: 'Pricing trends retrieved successfully' })
   @ApiQuery({ name: 'service', required: false, description: 'Filter by service type' })
@@ -47,6 +52,7 @@ export class AnalyticsController {
   }
 
   @Get('export')
+  @Throttle({ expensive: { limit: 5, ttl: 900000 } })
   @ApiOperation({ summary: 'Export analytics data' })
   @ApiResponse({ status: 200, description: 'Analytics data export prepared successfully' })
   @ApiQuery({ name: 'format', required: false, description: 'Export format (csv, json, excel)' })

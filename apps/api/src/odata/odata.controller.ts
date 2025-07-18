@@ -1,3 +1,6 @@
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { ODataService } from './odata.service';
@@ -39,6 +42,7 @@ export class ODataController {
   }
 
   @Get('hospitals')
+  @Throttle({ expensive: { limit: 20, ttl: 900000 } })
   @ApiOperation({ summary: 'OData hospitals entity set' })
   @ApiResponse({ status: 200, description: 'Hospitals data retrieved successfully' })
   @Roles('admin', 'api-user')
@@ -73,6 +77,7 @@ export class ODataController {
   }
 
   @Get('prices')
+  @Throttle({ expensive: { limit: 10, ttl: 900000 } })
   @ApiOperation({ summary: 'OData prices entity set' })
   @ApiResponse({ status: 200, description: 'Prices data retrieved successfully' })
   @Roles('admin', 'api-user')
@@ -107,6 +112,7 @@ export class ODataController {
   }
 
   @Get('analytics')
+  @Throttle({ expensive: { limit: 15, ttl: 900000 } })
   @ApiOperation({ summary: 'OData analytics entity set' })
   @ApiResponse({ status: 200, description: 'Analytics data retrieved successfully' })
   @Roles('admin', 'api-user')
