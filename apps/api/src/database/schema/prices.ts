@@ -63,6 +63,16 @@ export const prices = pgTable(
     index('prices_last_updated_idx').on(table.lastUpdated),
     index('prices_reporting_period_idx').on(table.reportingPeriod),
     index('prices_file_id_idx').on(table.fileId),
+    // Critical composite indexes for performance optimization
+    index('prices_hospital_active_idx').on(table.hospitalId, table.isActive),
+    index('prices_active_updated_idx').on(table.isActive, table.lastUpdated),
+    index('prices_hospital_active_updated_idx').on(table.hospitalId, table.isActive, table.lastUpdated),
+    index('prices_active_service_idx').on(table.isActive, table.serviceName),
+    index('prices_active_category_idx').on(table.isActive, table.category),
+    index('prices_active_gross_charge_idx').on(table.isActive, table.grossCharge),
+    // For analytics queries
+    index('prices_active_hospital_service_idx').on(table.isActive, table.hospitalId, table.serviceName),
+    index('prices_hospital_reporting_period_idx').on(table.hospitalId, table.reportingPeriod),
   ],
 );
 

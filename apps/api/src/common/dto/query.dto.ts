@@ -19,7 +19,7 @@ export class PaginationQueryDto {
   limit?: number;
 
   @ApiProperty({
-    description: 'Number of results to skip',
+    description: 'Number of results to skip (offset-based pagination)',
     example: 0,
     required: false,
     minimum: 0,
@@ -30,6 +30,27 @@ export class PaginationQueryDto {
   @IsNumber()
   @Min(0)
   offset?: number;
+
+  @ApiProperty({
+    description: 'Cursor for cursor-based pagination (more efficient for large datasets)',
+    example: '2023-01-01T00:00:00Z',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @ApiProperty({
+    description: 'Pagination strategy: offset (default) or cursor',
+    example: 'offset',
+    required: false,
+    enum: ['offset', 'cursor'],
+    default: 'offset',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['offset', 'cursor'])
+  paginationType?: 'offset' | 'cursor';
 }
 
 export class HospitalFilterQueryDto extends PaginationQueryDto {

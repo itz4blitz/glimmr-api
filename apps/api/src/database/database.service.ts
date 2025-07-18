@@ -37,7 +37,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         maxConnections: config.maxConnections,
       });
 
-      // Create postgres client with connection pooling
+      // Create postgres client with connection pooling and monitoring
       this.client = postgres({
         host: config.host,
         port: config.port,
@@ -48,6 +48,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         max: config.maxConnections,
         idle_timeout: config.idleTimeoutMillis,
         connect_timeout: config.connectionTimeoutMillis,
+        // Performance optimization: prepare statements for better performance
+        prepare: true,
+        // Transform configuration for better type safety
+        transform: {
+          undefined: null,
+        },
         onnotice: (notice) => {
           this.logger.debug({
             msg: 'Database notice',
@@ -59,6 +65,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             msg: 'Database parameter',
             key,
             value,
+          });
+        },
+        // Connection pool monitoring
+        onclose: (connectionId) => {
+          this.logger.debug({
+            msg: 'Database connection closed',
+            connectionId,
+          });
+        },
+        onconnect: (connection) => {
+          this.logger.debug({
+            msg: 'Database connection established',
+            connectionId: connection.processID,
           });
         },
       });
@@ -166,11 +185,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       const result = await query();
       const duration = Date.now() - startTime;
       
-      this.logger.info({
+      // Log slow queries (>1 second) as warnings
+      const logLevel = duration > 1000 ? 'warn' : 'info';
+      this.logger[logLevel]({
         msg: 'Database query completed',
         operation,
         duration,
         success: true,
+        ...(duration > 1000 && { slowQuery: true }),
       });
       
       return result;
@@ -187,5 +209,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       
       throw error;
     }
+  }
+
+  // Get connection pool metrics for monitoring
+  getConnectionPoolMetrics() {
+    if (!this.client) {
+      return { status: 'not_connected' };
+    }
+
+    // Note: postgres.js doesn't expose detailed pool metrics,
+    // but we can provide basic connection info
+    return {
+      status: 'connected',
+      configuredMaxConnections: this.configService.get('DATABASE_MAX_CONNECTIONS', 20),
+      idleTimeout: this.configService.get('DATABASE_IDLE_TIMEOUT', 30000),
+      connectionTimeout: this.configService.get('DATABASE_CONNECTION_TIMEOUT', 2000),
+    };
   }
 }
