@@ -23,7 +23,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/database/seeds/initial-data.ts"
+    "db:seed": "tsx src/database/seeds/initial-data.ts",
+    "db:seed:admin": "tsx src/database/seeds/admin-user.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.832.0",
@@ -63,6 +64,7 @@
     "nestjs-pino": "^4.4.0",
     "papaparse": "^5.5.3",
     "passport": "^0.6.0",
+    "passport-headerapikey": "^1.2.2",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.11.0",
