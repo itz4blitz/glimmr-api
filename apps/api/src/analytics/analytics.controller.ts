@@ -57,13 +57,9 @@ export class AnalyticsController {
   @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
   @ApiQuery({ name: 'period', required: false, description: 'Time period (30d, 90d, 1y)' })
   @Roles('admin', 'api-user')
-  async getPricingTrends(
-    @Query('service') service?: string,
-    @Query('state') state?: string,
-    @Query('period') period?: string,
-  ) {
+  async getPricingTrends(@Query() query: AnalyticsQueryDto) {
     try {
-      return await this.analyticsService.getPricingTrends({ service, state, period });
+      return await this.analyticsService.getPricingTrends(query);
     } catch (error) {
       if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
         throw new HttpException(

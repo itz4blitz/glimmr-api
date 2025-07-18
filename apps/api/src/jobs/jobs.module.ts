@@ -16,6 +16,7 @@ import { PRAUnifiedScannerProcessor } from './processors/pra-unified-scanner.pro
 import { ExportDataProcessor } from './processors/export-data.processor.js';
 import { HospitalMonitorService } from './services/hospital-monitor.service.js';
 import { PRAPipelineService } from './services/pra-pipeline.service.js';
+import { JobCleanupService } from './services/job-cleanup.service.js';
 import { JobsController } from './jobs.controller.js';
 import { JobsService } from './jobs.service.js';
 
@@ -95,7 +96,8 @@ import { JobsService } from './jobs.service.js';
     ExportDataProcessor,
     HospitalMonitorService,
     PRAPipelineService,
+    JobCleanupService,
   ],
-  exports: [JobsService, HospitalMonitorService, PRAPipelineService],
+  exports: [JobsService, HospitalMonitorService, PRAPipelineService, JobCleanupService],
 })
 export class JobsModule {}
