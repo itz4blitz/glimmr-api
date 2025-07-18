@@ -2,6 +2,8 @@ import { Controller, Get, Query, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { HospitalsService } from './hospitals.service.js';
 import { ErrorResponseDto } from '../common/exceptions';
+import { HospitalsService } from './hospitals.service';
+import { HospitalFilterQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('hospitals')
 @Controller('hospitals')
@@ -23,6 +25,8 @@ export class HospitalsController {
     @Query('offset') offset?: number,
   ) {
     return this.hospitalsService.getHospitals({ state, city, limit, offset });
+  async getHospitals(@Query() query: HospitalFilterQueryDto) {
+    return this.hospitalsService.getHospitals(query);
   }
 
   @Get(':id')
