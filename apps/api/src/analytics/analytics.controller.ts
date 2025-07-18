@@ -244,4 +244,113 @@ export class AnalyticsController {
   async getAllExports() {
     return this.analyticsService.getAllExportProgress();
   }
+
+  // Enhanced Analytics Endpoints
+  @Get('metrics/comprehensive')
+  @Throttle({ expensive: { limit: 5, ttl: 600000 } }) // 5 requests per 10 minutes
+  @ApiOperation({ summary: 'Get comprehensive pre-computed analytics metrics' })
+  @ApiResponse({ status: 200, description: 'Comprehensive metrics retrieved successfully' })
+  @ApiQuery({ name: 'period', required: false, description: 'Time period (month, quarter, year)' })
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
+  @Roles('admin', 'api-user')
+  async getComprehensiveMetrics(@Query() query: { period?: string; state?: string }) {
+    try {
+      return await this.analyticsService.getComprehensiveMetrics(query);
+    } catch (error) {
+      throw new HttpException(
+        {
+          message: 'Failed to retrieve comprehensive metrics',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get('insights/price-variance')
+  @Throttle({ expensive: { limit: 10, ttl: 900000 } })
+  @ApiOperation({ summary: 'Get price variance and outlier analysis' })
+  @ApiResponse({ status: 200, description: 'Price variance insights retrieved successfully' })
+  @ApiQuery({ name: 'service', required: false, description: 'Filter by service name' })
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
+  @Roles('admin', 'api-user')
+  async getPriceVarianceInsights(@Query() query: { service?: string; state?: string }) {
+    try {
+      return await this.analyticsService.getPriceVarianceInsights(query);
+    } catch (error) {
+      throw new HttpException(
+        {
+          message: 'Failed to retrieve price variance insights',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get('insights/market-position')
+  @Throttle({ expensive: { limit: 10, ttl: 900000 } })
+  @ApiOperation({ summary: 'Get hospital market position analysis' })
+  @ApiResponse({ status: 200, description: 'Market position insights retrieved successfully' })
+  @ApiQuery({ name: 'hospitalId', required: false, description: 'Specific hospital ID' })
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
+  @Roles('admin', 'api-user')
+  async getMarketPositionInsights(@Query() query: { hospitalId?: string; state?: string }) {
+    try {
+      return await this.analyticsService.getMarketPositionInsights(query);
+    } catch (error) {
+      throw new HttpException(
+        {
+          message: 'Failed to retrieve market position insights',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get('benchmarks')
+  @Throttle({ expensive: { limit: 10, ttl: 900000 } })
+  @ApiOperation({ summary: 'Get industry benchmarks and comparisons' })
+  @ApiResponse({ status: 200, description: 'Benchmarks retrieved successfully' })
+  @ApiQuery({ name: 'metric', required: false, description: 'Specific metric to benchmark' })
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
+  @Roles('admin', 'api-user')
+  async getBenchmarks(@Query() query: { metric?: string; state?: string }) {
+    try {
+      return await this.analyticsService.getBenchmarks(query);
+    } catch (error) {
+      throw new HttpException(
+        {
+          message: 'Failed to retrieve benchmarks',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get('real-time-metrics')
+  @Throttle({ expensive: { limit: 20, ttl: 300000 } }) // 20 requests per 5 minutes
+  @ApiOperation({ summary: 'Get real-time dashboard metrics' })
+  @ApiResponse({ status: 200, description: 'Real-time metrics retrieved successfully' })
+  @Roles('admin', 'api-user')
+  async getRealTimeMetrics() {
+    try {
+      return await this.analyticsService.getRealTimeMetrics();
+    } catch (error) {
+      throw new HttpException(
+        {
+          message: 'Failed to retrieve real-time metrics',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error'
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }

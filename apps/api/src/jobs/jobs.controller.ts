@@ -5,7 +5,7 @@ import { JobsService } from './jobs.service.js';
 import { HospitalMonitorService } from './services/hospital-monitor.service.js';
 import { PRAPipelineService } from './services/pra-pipeline.service.js';
 import { JobCleanupService } from './services/job-cleanup.service.js';
-import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto, StartHospitalImportDto, StartPriceUpdateDto, TriggerPRAScanDto } from './dto/hospital-import.dto.js';
+import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto, StartHospitalImportDto, StartPriceUpdateDto, TriggerPRAScanDto, TriggerAnalyticsRefreshDto } from './dto/hospital-import.dto.js';
 import { JobFilterQueryDto } from '../common/dto/query.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -332,5 +332,63 @@ export class JobsController {
       policies,
       description: 'Default cleanup policies for each queue',
     };
+  }
+
+  // Analytics Refresh Endpoints
+  @Post('analytics/refresh')
+  @Throttle({ expensive: { limit: 2, ttl: 1800000 } }) // 30 minutes
+  @ApiOperation({ summary: 'Trigger analytics refresh job' })
+  @ApiResponse({ status: 201, description: 'Analytics refresh job queued successfully' })
+  @Roles('admin')
+  @ApiBody({ type: TriggerAnalyticsRefreshDto })
+  async triggerAnalyticsRefresh(@Body() dto: TriggerAnalyticsRefreshDto = {}) {
+    const { metricTypes, forceRefresh = false, batchSize = 100 } = dto;
+    
+    const result = await this.jobsService.startAnalyticsRefresh({
+      metricTypes,
+      forceRefresh,
+      batchSize,
+    });
+    
+    return { 
+      message: 'Analytics refresh job queued successfully',
+      ...result 
+    };
+  }
+
+  // Enhanced Queue Monitoring Endpoints
+  @Get('monitoring/detailed-stats')
+  @ApiOperation({ summary: 'Get detailed queue monitoring statistics' })
+  @ApiResponse({ status: 200, description: 'Detailed monitoring statistics' })
+  @Roles('admin', 'api-user')
+  async getDetailedMonitoringStats() {
+    return this.jobsService.getDetailedQueueStats();
+  }
+
+  @Get('monitoring/queue/:queueName/performance')
+  @ApiOperation({ summary: 'Get performance metrics for specific queue' })
+  @ApiResponse({ status: 200, description: 'Queue performance metrics' })
+  @ApiParam({ name: 'queueName', description: 'Name of the queue' })
+  @Roles('admin', 'api-user')
+  async getQueuePerformance(@Param('queueName') queueName: string) {
+    return this.jobsService.getQueuePerformanceMetrics(queueName);
+  }
+
+  @Get('monitoring/health')
+  @ApiOperation({ summary: 'Get queue health status' })
+  @ApiResponse({ status: 200, description: 'Queue health status' })
+  @Roles('admin', 'api-user')
+  async getQueueHealth() {
+    return this.jobsService.getQueueHealth();
+  }
+
+  @Get('monitoring/trends')
+  @ApiOperation({ summary: 'Get queue processing trends' })
+  @ApiResponse({ status: 200, description: 'Queue processing trends' })
+  @ApiQuery({ name: 'hours', required: false, description: 'Hours of history to include (default: 24)' })
+  @Roles('admin', 'api-user')
+  async getQueueTrends(@Query('hours') hours?: string) {
+    const hoursNumber = hours ? parseInt(hours, 10) : 24;
+    return this.jobsService.getQueueTrends(hoursNumber);
   }
 }
