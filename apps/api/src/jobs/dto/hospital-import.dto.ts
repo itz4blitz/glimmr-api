@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsBoolean, IsNumber, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class TriggerHospitalImportDto {
   @ApiProperty({
@@ -30,6 +31,7 @@ export class TriggerHospitalImportDto {
     default: 50,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(100)
@@ -46,4 +48,86 @@ export class TriggerPriceFileDownloadDto {
   @IsOptional()
   @IsBoolean()
   forceReprocess?: boolean;
+}
+
+export class StartHospitalImportDto {
+  @ApiProperty({
+    description: 'Data source (url, file, manual)',
+    example: 'url',
+    required: true,
+  })
+  @IsString()
+  source: string;
+
+  @ApiProperty({
+    description: 'URL for data import',
+    example: 'https://example.com/data.csv',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  url?: string;
+
+  @ApiProperty({
+    description: 'Job priority (1-10)',
+    example: 5,
+    required: false,
+    minimum: 1,
+    maximum: 10,
+    default: 5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  priority?: number;
+}
+
+export class StartPriceUpdateDto {
+  @ApiProperty({
+    description: 'Specific hospital ID (optional)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  hospitalId?: string;
+
+  @ApiProperty({
+    description: 'Job priority (1-10)',
+    example: 5,
+    required: false,
+    minimum: 1,
+    maximum: 10,
+    default: 5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  priority?: number;
+}
+
+export class TriggerPRAScanDto {
+  @ApiProperty({
+    description: 'Test mode (only scan a few states)',
+    example: false,
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  testMode?: boolean;
+
+  @ApiProperty({
+    description: 'Force refresh even if recently updated',
+    example: false,
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  forceRefresh?: boolean;
 }

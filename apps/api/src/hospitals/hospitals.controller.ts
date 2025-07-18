@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
-import { HospitalsService } from './hospitals.service.js';
+import { HospitalsService } from './hospitals.service';
+import { HospitalFilterQueryDto } from '../common/dto/query.dto';
 
 @ApiTags('hospitals')
 @Controller('hospitals')
@@ -10,17 +11,8 @@ export class HospitalsController {
   @Get()
   @ApiOperation({ summary: 'Get all hospitals' })
   @ApiResponse({ status: 200, description: 'List of hospitals retrieved successfully' })
-  @ApiQuery({ name: 'state', required: false, description: 'Filter by state' })
-  @ApiQuery({ name: 'city', required: false, description: 'Filter by city' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return' })
-  @ApiQuery({ name: 'offset', required: false, description: 'Number of results to skip' })
-  async getHospitals(
-    @Query('state') state?: string,
-    @Query('city') city?: string,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
-    return this.hospitalsService.getHospitals({ state, city, limit, offset });
+  async getHospitals(@Query() query: HospitalFilterQueryDto) {
+    return this.hospitalsService.getHospitals(query);
   }
 
   @Get(':id')
