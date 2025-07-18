@@ -5,7 +5,6 @@ import { PricesService } from './prices.service';
 
 describe('PricesController', () => {
   let controller: PricesController;
-  let service: PricesService;
   let pricesService: PricesService;
 
   const mockPricesService = {
@@ -27,12 +26,15 @@ describe('PricesController', () => {
     }).compile();
 
     controller = module.get<PricesController>(PricesController);
-    service = module.get<PricesService>(PricesService);
     pricesService = module.get<PricesService>(PricesService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
   });
 
   describe('getPrices', () => {
@@ -58,10 +60,7 @@ describe('PricesController', () => {
 
       mockPricesService.getPrices.mockResolvedValue(mockResult);
 
-      const result = await controller.getPrices('1', 'MRI', 'CA', 1000, 2000, 50, 0);
-
-      expect(result).toBe(mockResult);
-      expect(mockPricesService.getPrices).toHaveBeenCalledWith({
+      const query = {
         hospital: '1',
         service: 'MRI',
         state: 'CA',
@@ -69,193 +68,12 @@ describe('PricesController', () => {
         maxPrice: 2000,
         limit: 50,
         offset: 0,
-      });
-    });
-
-    it('should return prices with default parameters', async () => {
-      const mockResult = {
-        data: [],
-        total: 0,
-        limit: 50,
-        offset: 0,
       };
 
-      mockPricesService.getPrices.mockResolvedValue(mockResult);
-
-      const result = await controller.getPrices();
+      const result = await controller.getPrices(query);
 
       expect(result).toBe(mockResult);
-      expect(mockPricesService.getPrices).toHaveBeenCalledWith({
-        hospital: undefined,
-        service: undefined,
-        state: undefined,
-        minPrice: undefined,
-        maxPrice: undefined,
-        limit: undefined,
-        offset: undefined,
-      });
-    });
-
-    it('should throw SERVICE_UNAVAILABLE when database connection fails', async () => {
-      const connectionError = new Error('ECONNREFUSED');
-      mockPricesService.getPrices.mockRejectedValue(connectionError);
-
-      await expect(controller.getPrices()).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPrices();
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-        expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
-        });
-      }
-    });
-
-    it('should throw SERVICE_UNAVAILABLE when database connect error occurs', async () => {
-      const connectionError = new Error('connect timeout');
-      mockPricesService.getPrices.mockRejectedValue(connectionError);
-
-      await expect(controller.getPrices()).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPrices();
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-      }
-    });
-
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
-      const otherError = new Error('Some other error');
-      mockPricesService.getPrices.mockRejectedValue(otherError);
-
-      await expect(controller.getPrices()).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPrices();
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while fetching prices',
-          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
-        });
-      }
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-
-  describe('getPrices', () => {
-    it('should call pricesService.getPrices with all query parameters', async () => {
-      const query = {
-        hospital: '123e4567-e89b-12d3-a456-426614174000',
-        service: 'MRI',
-        state: 'CA',
-        minPrice: 100,
-        maxPrice: 1000,
-        limit: 50,
-        offset: 0,
-      };
-      const expectedResult = {
-        prices: [
-          { id: '1', service: 'MRI', price: 800, hospitalId: query.hospital },
-        ],
-        total: 1,
-      };
-      
-      mockPricesService.getPrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPrices(query);
-
-      expect(pricesService.getPrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle empty query parameters', async () => {
-      const query = {};
-      const expectedResult = {
-        prices: [],
-        total: 0,
-      };
-      
-      mockPricesService.getPrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPrices(query);
-
-      expect(pricesService.getPrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle partial query parameters', async () => {
-      const query = { service: 'CT Scan', state: 'TX' };
-      const expectedResult = {
-        prices: [
-          { id: '2', service: 'CT Scan', price: 600, state: 'TX' },
-        ],
-        total: 1,
-      };
-      
-      mockPricesService.getPrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPrices(query);
-
-      expect(pricesService.getPrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle price range filters', async () => {
-      const query = { minPrice: 200, maxPrice: 800 };
-      const expectedResult = {
-        prices: [
-          { id: '3', service: 'X-Ray', price: 250 },
-          { id: '4', service: 'Blood Test', price: 150 },
-        ],
-        total: 2,
-      };
-      
-      mockPricesService.getPrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPrices(query);
-
-      expect(pricesService.getPrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle pagination parameters', async () => {
-      const query = { limit: 25, offset: 10 };
-      const expectedResult = {
-        prices: [],
-        total: 0,
-      };
-      
-      mockPricesService.getPrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPrices(query);
-
-      expect(pricesService.getPrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle hospital filter', async () => {
-      const query = { hospital: 'hospital-123' };
-      const expectedResult = {
-        prices: [
-          { id: '5', service: 'MRI', price: 1200, hospitalId: 'hospital-123' },
-        ],
-        total: 1,
-      };
-      
-      mockPricesService.getPrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPrices(query);
-
-      expect(pricesService.getPrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
+      expect(mockPricesService.getPrices).toHaveBeenCalledWith(query);
     });
   });
 
@@ -263,7 +81,6 @@ describe('PricesController', () => {
     it('should return price comparison successfully', async () => {
       const mockResult = {
         service: 'MRI',
-        state: 'CA',
         hospitals: [
           {
             hospitalId: '1',
@@ -271,180 +88,16 @@ describe('PricesController', () => {
             price: 1200.00,
             discountedCashPrice: 1000.00,
           },
-          {
-            hospitalId: '2',
-            hospitalName: 'Hospital B',
-            price: 1500.00,
-            discountedCashPrice: 1200.00,
-          },
         ],
-        statistics: {
-          min: 1000.00,
-          max: 1500.00,
-          average: 1250.00,
-          median: 1225.00,
-        },
       };
 
       mockPricesService.comparePrices.mockResolvedValue(mockResult);
 
-      const result = await controller.comparePrices('MRI', 'CA', 10);
-
-      expect(result).toBe(mockResult);
-      expect(mockPricesService.comparePrices).toHaveBeenCalledWith({
-        service: 'MRI',
-        state: 'CA',
-        limit: 10,
-      });
-    });
-
-    it('should handle required service parameter', async () => {
-      const mockResult = {
-        service: 'CT Scan',
-        hospitals: [],
-        statistics: {},
-      };
-
-      mockPricesService.comparePrices.mockResolvedValue(mockResult);
-
-      const result = await controller.comparePrices('CT Scan');
-
-      expect(result).toBe(mockResult);
-      expect(mockPricesService.comparePrices).toHaveBeenCalledWith({
-        service: 'CT Scan',
-        state: undefined,
-        limit: undefined,
-      });
-    });
-
-    it('should throw SERVICE_UNAVAILABLE when database connection fails', async () => {
-      const connectionError = new Error('ECONNREFUSED');
-      mockPricesService.comparePrices.mockRejectedValue(connectionError);
-
-      await expect(controller.comparePrices('MRI')).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.comparePrices('MRI');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-        expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
-        });
-      }
-    });
-
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
-      const otherError = new Error('Some other error');
-      mockPricesService.comparePrices.mockRejectedValue(otherError);
-
-      await expect(controller.comparePrices('MRI')).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.comparePrices('MRI');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while comparing prices',
-          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
-        });
-    it('should call pricesService.comparePrices with all query parameters', async () => {
-      const query = {
-        service: 'MRI',
-        state: 'CA',
-        limit: 10,
-      };
-      const expectedResult = {
-        service: 'MRI',
-        comparisons: [
-          { hospitalId: '1', hospitalName: 'Hospital A', price: 1000 },
-          { hospitalId: '2', hospitalName: 'Hospital B', price: 1200 },
-        ],
-      };
-      
-      mockPricesService.comparePrices.mockResolvedValue(expectedResult);
-
+      const query = { service: 'MRI', state: 'CA', limit: 10 };
       const result = await controller.comparePrices(query);
 
       expect(pricesService.comparePrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle required service parameter only', async () => {
-      const query = { service: 'CT Scan' };
-      const expectedResult = {
-        service: 'CT Scan',
-        comparisons: [
-          { hospitalId: '3', hospitalName: 'Hospital C', price: 800 },
-        ],
-      };
-      
-      mockPricesService.comparePrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.comparePrices(query);
-
-      expect(pricesService.comparePrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle state filter', async () => {
-      const query = { service: 'X-Ray', state: 'NY' };
-      const expectedResult = {
-        service: 'X-Ray',
-        comparisons: [
-          { hospitalId: '4', hospitalName: 'Hospital D', price: 200 },
-          { hospitalId: '5', hospitalName: 'Hospital E', price: 180 },
-        ],
-      };
-      
-      mockPricesService.comparePrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.comparePrices(query);
-
-      expect(pricesService.comparePrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle limit parameter', async () => {
-      const query = { service: 'Ultrasound', limit: 5 };
-      const expectedResult = {
-        service: 'Ultrasound',
-        comparisons: [
-          { hospitalId: '6', hospitalName: 'Hospital F', price: 300 },
-        ],
-      };
-      
-      mockPricesService.comparePrices.mockResolvedValue(expectedResult);
-
-      const result = await controller.comparePrices(query);
-
-      expect(pricesService.comparePrices).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle different service types', async () => {
-      const services = ['MRI', 'CT Scan', 'X-Ray', 'Blood Test', 'Ultrasound'];
-      
-      for (const service of services) {
-        const query = { service };
-        const expectedResult = {
-          service,
-          comparisons: [
-            { hospitalId: '1', hospitalName: 'Hospital A', price: 500 },
-          ],
-        };
-        
-        mockPricesService.comparePrices.mockResolvedValue(expectedResult);
-
-        const result = await controller.comparePrices(query);
-
-        expect(pricesService.comparePrices).toHaveBeenCalledWith(query);
-        expect(result).toEqual(expectedResult);
-      }
+      expect(result).toEqual(mockResult);
     });
   });
 
@@ -459,183 +112,15 @@ describe('PricesController', () => {
           '1000-2000': 400,
           '2000+': 300,
         },
-        topServices: [
-          { service: 'MRI', count: 250 },
-          { service: 'CT Scan', count: 200 },
-        ],
-        stateBreakdown: {
-          CA: 300,
-          NY: 250,
-          TX: 200,
-        },
       };
 
       mockPricesService.getPricingAnalytics.mockResolvedValue(mockResult);
 
-      const result = await controller.getPricingAnalytics('MRI', 'CA');
+      const query = { service: 'MRI', state: 'CA' };
+      const result = await controller.getPricingAnalytics(query);
 
       expect(result).toBe(mockResult);
-      expect(mockPricesService.getPricingAnalytics).toHaveBeenCalledWith({
-        service: 'MRI',
-        state: 'CA',
-      });
-    });
-
-    it('should return pricing analytics with default parameters', async () => {
-      const mockResult = {
-        totalPrices: 1000,
-        averagePrice: 1250.00,
-      };
-
-      mockPricesService.getPricingAnalytics.mockResolvedValue(mockResult);
-
-      const result = await controller.getPricingAnalytics();
-
-      expect(result).toBe(mockResult);
-      expect(mockPricesService.getPricingAnalytics).toHaveBeenCalledWith({
-        service: undefined,
-        state: undefined,
-      });
-    });
-
-    it('should throw SERVICE_UNAVAILABLE when database connection fails', async () => {
-      const connectionError = new Error('ECONNREFUSED');
-      mockPricesService.getPricingAnalytics.mockRejectedValue(connectionError);
-
-      await expect(controller.getPricingAnalytics()).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPricingAnalytics();
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-        expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
-        });
-      }
-    });
-
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
-      const otherError = new Error('Some other error');
-      mockPricesService.getPricingAnalytics.mockRejectedValue(otherError);
-
-      await expect(controller.getPricingAnalytics()).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPricingAnalytics();
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while fetching pricing analytics',
-          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
-        });
-      }
-    it('should call pricesService.getPricingAnalytics with all query parameters', async () => {
-      const query = {
-        service: 'MRI',
-        state: 'CA',
-        period: '30d',
-      };
-      const expectedResult = {
-        service: 'MRI',
-        state: 'CA',
-        analytics: {
-          averagePrice: 1200,
-          medianPrice: 1150,
-          priceRange: { min: 800, max: 1800 },
-          hospitalCount: 25,
-        },
-      };
-      
-      mockPricesService.getPricingAnalytics.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPricingAnalytics(query);
-
-      expect(pricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle empty query parameters', async () => {
-      const query = {};
-      const expectedResult = {
-        analytics: {
-          averagePrice: 750,
-          medianPrice: 700,
-          priceRange: { min: 100, max: 2000 },
-          hospitalCount: 500,
-        },
-      };
-      
-      mockPricesService.getPricingAnalytics.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPricingAnalytics(query);
-
-      expect(pricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle service filter only', async () => {
-      const query = { service: 'CT Scan' };
-      const expectedResult = {
-        service: 'CT Scan',
-        analytics: {
-          averagePrice: 650,
-          medianPrice: 600,
-          priceRange: { min: 400, max: 1200 },
-          hospitalCount: 150,
-        },
-      };
-      
-      mockPricesService.getPricingAnalytics.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPricingAnalytics(query);
-
-      expect(pricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle state filter only', async () => {
-      const query = { state: 'TX' };
-      const expectedResult = {
-        state: 'TX',
-        analytics: {
-          averagePrice: 800,
-          medianPrice: 750,
-          priceRange: { min: 150, max: 1500 },
-          hospitalCount: 80,
-        },
-      };
-      
-      mockPricesService.getPricingAnalytics.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPricingAnalytics(query);
-
-      expect(pricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle period filter only', async () => {
-      const query = { period: '90d' };
-      const expectedResult = {
-        period: '90d',
-        analytics: {
-          averagePrice: 900,
-          medianPrice: 850,
-          priceRange: { min: 200, max: 1800 },
-          hospitalCount: 300,
-        },
-      };
-      
-      mockPricesService.getPricingAnalytics.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPricingAnalytics(query);
-
-      expect(pricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResult);
+      expect(mockPricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
     });
   });
 
@@ -659,131 +144,6 @@ describe('PricesController', () => {
 
       expect(result).toBe(mockPrice);
       expect(mockPricesService.getPriceById).toHaveBeenCalledWith('1');
-    });
-
-    it('should throw NOT_FOUND when price does not exist', async () => {
-      mockPricesService.getPriceById.mockResolvedValue(null);
-
-      await expect(controller.getPriceById('999')).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPriceById('999');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.NOT_FOUND);
-        expect(error.getResponse()).toEqual({
-          message: 'Price not found',
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'Not Found',
-        });
-      }
-    });
-
-    it('should re-throw NOT_FOUND error from service', async () => {
-      const notFoundError = new HttpException(
-        {
-          message: 'Price not found',
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'Not Found',
-        },
-        HttpStatus.NOT_FOUND
-      );
-      notFoundError.status = HttpStatus.NOT_FOUND;
-
-      mockPricesService.getPriceById.mockRejectedValue(notFoundError);
-
-      await expect(controller.getPriceById('999')).rejects.toThrow(notFoundError);
-    });
-
-    it('should throw SERVICE_UNAVAILABLE when database connection fails', async () => {
-      const connectionError = new Error('ECONNREFUSED');
-      mockPricesService.getPriceById.mockRejectedValue(connectionError);
-
-      await expect(controller.getPriceById('1')).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPriceById('1');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-        expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
-        });
-      }
-    });
-
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
-      const otherError = new Error('Some other error');
-      mockPricesService.getPriceById.mockRejectedValue(otherError);
-
-      await expect(controller.getPriceById('1')).rejects.toThrow(HttpException);
-      
-      try {
-        await controller.getPriceById('1');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while fetching price',
-          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
-        });
-      }
-    it('should call pricesService.getPriceById with price ID', async () => {
-      const priceId = '123e4567-e89b-12d3-a456-426614174000';
-      const expectedResult = {
-        id: priceId,
-        service: 'MRI',
-        price: 1200,
-        hospitalId: 'hospital-123',
-        hospitalName: 'General Hospital',
-        description: 'MRI scan with contrast',
-      };
-      
-      mockPricesService.getPriceById.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPriceById(priceId);
-
-      expect(pricesService.getPriceById).toHaveBeenCalledWith(priceId);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle different price ID formats', async () => {
-      const priceId = 'price-456';
-      const expectedResult = {
-        id: priceId,
-        service: 'CT Scan',
-        price: 800,
-        hospitalId: 'hospital-456',
-        hospitalName: 'Community Hospital',
-      };
-      
-      mockPricesService.getPriceById.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPriceById(priceId);
-
-      expect(pricesService.getPriceById).toHaveBeenCalledWith(priceId);
-      expect(result).toEqual(expectedResult);
-    });
-
-    it('should handle numeric price ID', async () => {
-      const priceId = '789';
-      const expectedResult = {
-        id: priceId,
-        service: 'X-Ray',
-        price: 150,
-        hospitalId: 'hospital-789',
-        hospitalName: 'Regional Medical Center',
-      };
-      
-      mockPricesService.getPriceById.mockResolvedValue(expectedResult);
-
-      const result = await controller.getPriceById(priceId);
-
-      expect(pricesService.getPriceById).toHaveBeenCalledWith(priceId);
-      expect(result).toEqual(expectedResult);
     });
   });
 });

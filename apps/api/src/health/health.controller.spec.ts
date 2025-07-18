@@ -26,14 +26,9 @@ describe('HealthController', () => {
           useValue: mockHealthService,
         },
       ],
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [HealthController],
-      providers: [HealthService],
     }).compile();
 
     controller = module.get<HealthController>(HealthController);
-    service = module.get<HealthService>(HealthService);
   });
 
   afterEach(() => {
