@@ -33,6 +33,7 @@
     "!../src/**/*.e2e-spec.ts",
     "!../src/main.ts"
   ],
+  "coverageDirectory": "../coverage/e2e",
   "coverageDirectory": "../coverage-e2e",
   "coverageReporters": ["text", "lcov", "html"],
   "setupFilesAfterEnv": ["<rootDir>/setup.ts"]
