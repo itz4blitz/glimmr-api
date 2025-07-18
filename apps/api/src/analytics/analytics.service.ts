@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { eq, and, like, desc, asc, count, sql } from 'drizzle-orm';
+import { eq, and, like, desc, asc, count, sql, countDistinct } from 'drizzle-orm';
 import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { analytics, prices, hospitals } from '../database/schema';
-import { Response } from 'express';
 import { Transform } from 'stream';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -47,24 +46,47 @@ export class AnalyticsService {
     try {
       const db = this.databaseService.db;
 
-      // Get summary statistics
-      const [summaryStats] = await db
+      // Get summary statistics with optimized queries
+      const [hospitalStats] = await db
         .select({
           totalHospitals: count(hospitals.id),
-          totalPrices: sql<number>`(SELECT COUNT(*) FROM ${prices} WHERE ${prices.isActive} = true)`,
-          totalServices: sql<number>`(SELECT COUNT(DISTINCT ${prices.serviceName}) FROM ${prices} WHERE ${prices.isActive} = true)`,
         })
         .from(hospitals)
         .where(eq(hospitals.isActive, true));
 
-      // Get recent activity (last 24 hours)
+      const [priceStats] = await db
+        .select({
+          totalPrices: count(prices.id),
+          totalServices: countDistinct(prices.serviceName),
+        })
+        .from(prices)
+        .where(eq(prices.isActive, true));
+
+      const summaryStats = {
+        totalHospitals: hospitalStats.totalHospitals,
+        totalPrices: priceStats.totalPrices,
+        totalServices: priceStats.totalServices,
+      };
+
+      // Get recent activity (last 24 hours) with optimized queries
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const [recentActivity] = await db
+      const [hospitalActivity] = await db
         .select({
           newHospitals: sql<number>`COUNT(CASE WHEN ${hospitals.createdAt} > ${twentyFourHoursAgo.toISOString()} THEN 1 END)`,
-          updatedPrices: sql<number>`(SELECT COUNT(*) FROM ${prices} WHERE ${prices.updatedAt} > ${twentyFourHoursAgo.toISOString()})`,
         })
         .from(hospitals);
+
+      const [priceActivity] = await db
+        .select({
+          updatedPrices: count(prices.id),
+        })
+        .from(prices)
+        .where(sql`${prices.updatedAt} > ${twentyFourHoursAgo.toISOString()}`);
+
+      const recentActivity = {
+        newHospitals: hospitalActivity.newHospitals,
+        updatedPrices: priceActivity.updatedPrices,
+      };
 
       // Get most expensive service
       const [mostExpensiveService] = await db

@@ -52,6 +52,11 @@ export const hospitals = pgTable('hospitals', {
   cmsIdx: index('hospitals_cms_idx').on(table.cmsProviderNumber),
   activeIdx: index('hospitals_active_idx').on(table.isActive),
   lastUpdatedIdx: index('hospitals_last_updated_idx').on(table.lastUpdated),
+  // Composite indexes for performance optimization
+  activeStateIdx: index('hospitals_active_state_idx').on(table.isActive, table.state),
+  activeStateCityIdx: index('hospitals_active_state_city_idx').on(table.isActive, table.state, table.city),
+  activeLastUpdatedIdx: index('hospitals_active_last_updated_idx').on(table.isActive, table.lastUpdated),
+  ccnIdx: index('hospitals_ccn_idx').on(table.ccn), // For hospital sync lookup optimization
 }));
 
 // Zod schemas for validation
