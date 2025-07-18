@@ -1,6 +1,8 @@
 import { Module, RequestMethod, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
@@ -13,12 +15,33 @@ import { ODataModule } from './odata/odata.module';
 import { DatabaseModule } from './database/database.module';
 import { ExternalApisModule } from './external-apis/external-apis.module';
 import { RequestContextMiddleware } from './common/middleware';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: config.get('RATE_LIMIT_WINDOW_MS', 900000),
+            limit: config.get('RATE_LIMIT_MAX_REQUESTS', 100),
+          },
+          {
+            name: 'expensive',
+            ttl: config.get('RATE_LIMIT_WINDOW_MS', 900000),
+            limit: config.get('RATE_LIMIT_MAX_REQUESTS_EXPENSIVE', 10),
+          },
+        ],
+        // Note: Using default in-memory storage for simplicity
+        // For production, consider using @nestjs/throttler with Redis integration
+      }),
     }),
     LoggerModule.forRootAsync({
       imports: [ConfigModule],
@@ -108,7 +131,13 @@ import { RequestContextMiddleware } from './common/middleware';
     ExternalApisModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
