@@ -13,6 +13,7 @@ import { createRedisConnection, QUEUE_NAMES } from './queues/queue.config.js';
 // import { PriceFileDownloadProcessor } from './processors/price-file-download.processor.js';
 import { PRAFileDownloadProcessor } from './processors/pra-file-download.processor.js';
 import { PRAUnifiedScannerProcessor } from './processors/pra-unified-scanner.processor.js';
+import { ExportDataProcessor } from './processors/export-data.processor.js';
 import { HospitalMonitorService } from './services/hospital-monitor.service.js';
 import { PRAPipelineService } from './services/pra-pipeline.service.js';
 import { JobsController } from './jobs.controller.js';
@@ -67,7 +68,7 @@ import { JobsService } from './jobs.service.js';
       },
       {
         name: QUEUE_NAMES.EXPORT_DATA,
-        // No processor needed for this queue
+        // Register processor for export jobs
       },
       {
         name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
@@ -91,6 +92,7 @@ import { JobsService } from './jobs.service.js';
     // Only register essential processors to reduce memory usage
     PRAFileDownloadProcessor,
     PRAUnifiedScannerProcessor,
+    ExportDataProcessor,
     HospitalMonitorService,
     PRAPipelineService,
   ],
