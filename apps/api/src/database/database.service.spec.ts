@@ -64,7 +64,7 @@ describe('DatabaseService', () => {
           useValue: mockConfigService,
         },
         {
-          provide: PinoLogger,
+          provide: `PinoLogger:${DatabaseService.name}`,
           useValue: mockLogger,
         },
       ],
@@ -72,7 +72,7 @@ describe('DatabaseService', () => {
 
     service = module.get<DatabaseService>(DatabaseService);
     configService = module.get<ConfigService>(ConfigService);
-    logger = module.get<PinoLogger>(PinoLogger);
+    logger = module.get<PinoLogger>(`PinoLogger:${DatabaseService.name}`);
 
     // Reset mocks
     (postgres as unknown as jest.Mock).mockReturnValue(mockPostgresClient);

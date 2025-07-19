@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { HospitalsController } from './hospitals.controller.js';
-import { HospitalsService } from './hospitals.service.js';
-import { ExternalApisModule } from '../external-apis/external-apis.module.js';
-import { AuthModule } from '../auth/auth.module.js';
+import { HospitalsController } from './hospitals.controller';
+import { HospitalsService } from './hospitals.service';
+import { ExternalApisModule } from '../external-apis/external-apis.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [ExternalApisModule, AuthModule],

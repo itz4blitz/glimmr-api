@@ -3,23 +3,23 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { ScheduleModule } from '@nestjs/schedule';
-import { DatabaseModule } from '../database/database.module.js';
-import { ExternalApisModule } from '../external-apis/external-apis.module.js';
-import { StorageModule } from '../storage/storage.module.js';
-import { HospitalsModule } from '../hospitals/hospitals.module.js';
-import { createRedisConnection, QUEUE_NAMES } from './queues/queue.config.js';
+import { DatabaseModule } from '../database/database.module';
+import { ExternalApisModule } from '../external-apis/external-apis.module';
+import { StorageModule } from '../storage/storage.module';
+import { HospitalsModule } from '../hospitals/hospitals.module';
+import { createRedisConnection, QUEUE_NAMES } from './queues/queue.config';
 // Removed unused processors to reduce memory usage
-// import { HospitalImportProcessor } from './processors/hospital-import.processor.js';
-// import { PriceFileDownloadProcessor } from './processors/price-file-download.processor.js';
-import { PRAFileDownloadProcessor } from './processors/pra-file-download.processor.js';
-import { PRAUnifiedScannerProcessor } from './processors/pra-unified-scanner.processor.js';
-import { ExportDataProcessor } from './processors/export-data.processor.js';
-import { AnalyticsRefreshProcessor } from './processors/analytics-refresh.processor.js';
-import { HospitalMonitorService } from './services/hospital-monitor.service.js';
-import { PRAPipelineService } from './services/pra-pipeline.service.js';
-import { JobCleanupService } from './services/job-cleanup.service.js';
-import { JobsController } from './jobs.controller.js';
-import { JobsService } from './jobs.service.js';
+// import { HospitalImportProcessor } from './processors/hospital-import.processor';
+// import { PriceFileDownloadProcessor } from './processors/price-file-download.processor';
+import { PRAFileDownloadProcessor } from './processors/pra-file-download.processor';
+import { PRAUnifiedScannerProcessor } from './processors/pra-unified-scanner.processor';
+import { ExportDataProcessor } from './processors/export-data.processor';
+import { AnalyticsRefreshProcessor } from './processors/analytics-refresh.processor';
+import { HospitalMonitorService } from './services/hospital-monitor.service';
+import { PRAPipelineService } from './services/pra-pipeline.service';
+import { JobCleanupService } from './services/job-cleanup.service';
+import { JobsController } from './jobs.controller';
+import { JobsService } from './jobs.service';
 
 @Module({
   imports: [

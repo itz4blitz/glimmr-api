@@ -4,10 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { Job } from 'bullmq';
 import axios from 'axios';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
-import { DatabaseService } from '../../database/database.service.js';
-import { StorageService } from '../../storage/storage.service.js';
-import { priceTransparencyFiles } from '../../database/schema/index.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
+import { DatabaseService } from '../../database/database.service';
+import { StorageService } from '../../storage/storage.service';
+import { priceTransparencyFiles } from '../../database/schema/index';
 import { eq } from 'drizzle-orm';
 
 export interface PRAFileDownloadJobData {

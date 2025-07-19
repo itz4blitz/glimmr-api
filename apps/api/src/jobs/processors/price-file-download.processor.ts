@@ -8,10 +8,10 @@ import * as path from 'path';
 import AdmZip from 'adm-zip';
 import * as Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { DatabaseService } from '../../database/database.service.js';
-import { priceTransparencyFiles, prices } from '../../database/schema/index.js';
+import { DatabaseService } from '../../database/database.service';
+import { priceTransparencyFiles, prices } from '../../database/schema/index';
 import { eq } from 'drizzle-orm';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
 
 export interface PriceFileDownloadJobData {
   hospitalId: string;

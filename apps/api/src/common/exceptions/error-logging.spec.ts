@@ -152,7 +152,7 @@ describe('Error Logging', () => {
 
       const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, argumentsHostWithoutHeaders as ArgumentsHost);
+      filter.catch(exception, argumentsHostWithoutHeaders as unknown as ArgumentsHost);
 
       expect(Logger.prototype.warn).toHaveBeenCalledWith(
         expect.objectContaining({

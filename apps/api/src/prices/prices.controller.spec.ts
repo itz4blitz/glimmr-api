@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { PricesController } from './prices.controller';
 import { PricesService } from './prices.service';
+import { RbacService } from '../auth/rbac.service';
 
 describe('PricesController', () => {
   let controller: PricesController;
@@ -14,6 +15,11 @@ describe('PricesController', () => {
     getPriceById: jest.fn(),
   };
 
+  const mockRbacService = {
+    hasPermission: jest.fn().mockReturnValue(true),
+    getUserPermissions: jest.fn().mockReturnValue(['prices:read']),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PricesController],
@@ -21,6 +27,10 @@ describe('PricesController', () => {
         {
           provide: PricesService,
           useValue: mockPricesService,
+        },
+        {
+          provide: RbacService,
+          useValue: mockRbacService,
         },
       ],
     }).compile();

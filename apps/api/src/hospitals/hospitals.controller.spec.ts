@@ -3,6 +3,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { HospitalsController } from './hospitals.controller';
 import { HospitalsService } from './hospitals.service';
 import { HospitalFilterQueryDto } from '../common/dto/query.dto';
+import { RbacService } from '../auth/rbac.service';
 
 describe('HospitalsController', () => {
   let controller: HospitalsController;
@@ -14,6 +15,11 @@ describe('HospitalsController', () => {
     getHospitalPrices: jest.fn(),
   };
 
+  const mockRbacService = {
+    hasPermission: jest.fn().mockReturnValue(true),
+    getUserPermissions: jest.fn().mockReturnValue(['hospitals:read']),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HospitalsController],
@@ -21,6 +27,10 @@ describe('HospitalsController', () => {
         {
           provide: HospitalsService,
           useValue: mockHospitalsService,
+        },
+        {
+          provide: RbacService,
+          useValue: mockRbacService,
         },
       ],
     }).compile();

@@ -3,8 +3,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
-import { PRAUnifiedScanJobData } from '../processors/pra-unified-scanner.processor.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
+import { PRAUnifiedScanJobData } from '../processors/pra-unified-scanner.processor';
 
 @Injectable()
 export class PRAPipelineService {

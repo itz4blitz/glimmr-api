@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
 
 export interface CleanupOptions {
   maxAge?: number; // Maximum age in milliseconds
