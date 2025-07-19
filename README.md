@@ -45,8 +45,11 @@ pnpm install
 
 2. **Start development environment**:
 ```bash
-# Start all services (PostgreSQL, Redis, MinIO)
-docker-compose -f docker-compose.dev.yml up -d
+# Option A: Start just infrastructure services (recommended for development)
+pnpm dev:services
+
+# Option B: Start all services including API in Docker
+pnpm dev:full
 
 # Copy environment configuration
 cp apps/api/.env.production.example apps/api/.env
@@ -61,11 +64,13 @@ pnpm db:seed       # Seed initial data
 
 4. **Start development server**:
 ```bash
-# Start all apps
+# Option A: Start API bare metal (faster, better for development)
+cd apps/api && pnpm start:dev
+
+# Option B: Start all apps via Turborepo (if you have multiple apps)
 pnpm dev
 
-# Or start API only
-cd apps/api && pnpm start:dev
+# Note: If using Option A, make sure you ran `pnpm dev:services` first
 ```
 
 ### Environment Configuration
