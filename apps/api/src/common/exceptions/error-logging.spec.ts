@@ -63,13 +63,14 @@ describe('Error Logging', () => {
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Internal server error',
-          error: 'Internal server error',
+          error: 'INTERNAL_SERVER_ERROR',
           method: 'GET',
           url: '/api/v1/hospitals/123',
           userAgent: 'Mozilla/5.0 (Test Agent)',
           ip: '192.168.1.100',
           traceId: 'trace-12345',
           statusCode: 500,
+          stack: expect.any(String),
         })
       );
     });
@@ -82,7 +83,7 @@ describe('Error Logging', () => {
       expect(Logger.prototype.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Client error',
-          error: 'Hospital with ID 123 not found',
+          error: 'NOT_FOUND',
           method: 'GET',
           url: '/api/v1/hospitals/123',
           userAgent: 'Mozilla/5.0 (Test Agent)',
@@ -101,7 +102,7 @@ describe('Error Logging', () => {
       expect(Logger.prototype.debug).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Exception handled',
-          error: 'Accepted',
+          error: 'INTERNAL_SERVER_ERROR',
           method: 'GET',
           url: '/api/v1/hospitals/123',
           userAgent: 'Mozilla/5.0 (Test Agent)',
@@ -133,16 +134,26 @@ describe('Error Logging', () => {
     });
 
     it('should handle missing request headers gracefully', () => {
-      mockRequest = {
-        ...mockRequest,
-        headers: {},
+      // Create a new mock request with missing headers
+      const requestWithoutHeaders = {
+        url: '/api/v1/hospitals/123',
+        method: 'GET',
         ip: undefined,
+        headers: {},
       };
-      
+
+      // Create a new ArgumentsHost mock for this test
+      const argumentsHostWithoutHeaders = {
+        switchToHttp: jest.fn().mockReturnValue({
+          getRequest: jest.fn().mockReturnValue(requestWithoutHeaders),
+          getResponse: jest.fn().mockReturnValue(mockResponse),
+        }),
+      };
+
       const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
-      
-      filter.catch(exception, mockArgumentsHost as ArgumentsHost);
-      
+
+      filter.catch(exception, argumentsHostWithoutHeaders as ArgumentsHost);
+
       expect(Logger.prototype.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'GET',
@@ -151,6 +162,7 @@ describe('Error Logging', () => {
           ip: undefined,
           traceId: undefined,
           statusCode: 400,
+          error: 'INVALID_REQUEST',
         })
       );
     });
@@ -193,7 +205,7 @@ describe('Error Logging', () => {
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Internal server error',
-          error: 'Internal error with stack',
+          error: 'INTERNAL_SERVER_ERROR',
           stack: expect.stringContaining('Error: Internal error with stack'),
         })
       );
@@ -216,7 +228,7 @@ describe('Error Logging', () => {
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Internal server error',
-          error: 'External service Test API error: Service unavailable',
+          error: 'EXTERNAL_SERVICE_ERROR',
           statusCode: 502,
         })
       );
@@ -236,7 +248,7 @@ describe('Error Logging', () => {
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Internal server error',
-          error: 'Connection to database failed',
+          error: 'DATABASE_QUERY_ERROR',
           statusCode: 500,
         })
       );
@@ -254,7 +266,7 @@ describe('Error Logging', () => {
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
           msg: 'Internal server error',
-          error: 'duplicate key value violates unique constraint',
+          error: 'DATABASE_QUERY_ERROR',
           statusCode: 500,
         })
       );
@@ -318,7 +330,7 @@ describe('Error Logging', () => {
       
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Development error',
+          error: 'INTERNAL_SERVER_ERROR',
           stack: expect.any(String),
         })
       );
@@ -336,7 +348,7 @@ describe('Error Logging', () => {
       
       expect(Logger.prototype.error).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Internal server error', // Generic message in production
+          error: 'INTERNAL_SERVER_ERROR', // Generic message in production
         })
       );
       

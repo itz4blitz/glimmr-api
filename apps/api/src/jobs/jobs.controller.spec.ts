@@ -3,6 +3,7 @@ import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 import { HospitalMonitorService } from './services/hospital-monitor.service';
 import { PRAPipelineService } from './services/pra-pipeline.service';
+import { JobCleanupService } from './services/job-cleanup.service';
 import { JobFilterQueryDto } from '../common/dto/query.dto';
 import {
   TriggerHospitalImportDto,
@@ -17,6 +18,7 @@ describe('JobsController', () => {
   let jobsService: JobsService;
   let hospitalMonitorService: HospitalMonitorService;
   let praPipelineService: PRAPipelineService;
+  let jobCleanupService: JobCleanupService;
 
   const mockJobsService = {
     getJobs: jest.fn(),
@@ -40,6 +42,16 @@ describe('JobsController', () => {
     triggerFullPipelineRefresh: jest.fn(),
   };
 
+  const mockJobCleanupService = {
+    getCleanupStats: jest.fn(),
+    cleanupAllQueues: jest.fn(),
+    cleanupSpecificQueue: jest.fn(),
+    drainQueue: jest.fn(),
+    obliterateQueue: jest.fn(),
+    getAvailableQueues: jest.fn(),
+    getDefaultPolicy: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [JobsController],
@@ -56,6 +68,10 @@ describe('JobsController', () => {
           provide: PRAPipelineService,
           useValue: mockPraPipelineService,
         },
+        {
+          provide: JobCleanupService,
+          useValue: mockJobCleanupService,
+        },
       ],
     }).compile();
 
@@ -63,6 +79,7 @@ describe('JobsController', () => {
     jobsService = module.get<JobsService>(JobsService);
     hospitalMonitorService = module.get<HospitalMonitorService>(HospitalMonitorService);
     praPipelineService = module.get<PRAPipelineService>(PRAPipelineService);
+    jobCleanupService = module.get<JobCleanupService>(JobCleanupService);
   });
 
   afterEach(() => {

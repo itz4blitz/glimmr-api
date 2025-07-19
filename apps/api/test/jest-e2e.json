@@ -4,37 +4,22 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": ["ts-jest", {
+      "useESM": true
+    }]
   },
   "collectCoverageFrom": [
-    "src/**/*.(t|j)s",
-    "!src/**/*.spec.ts",
-    "!src/**/*.e2e-spec.ts"
-  ],
-  "coverageDirectory": "../coverage-e2e"
-    "src/**/*.(t|j)s"
-  ],
-  "coverageDirectory": "./coverage",
-  "testTimeout": 30000,
-  "setupFilesAfterEnv": ["<rootDir>/test-setup.ts"]
-  "coverageDirectory": "../coverage-e2e",
-  "collectCoverageFrom": [
-    "../src/**/*.(t|j)s",
-    "!../src/**/*.spec.ts",
-    "!../src/**/*.e2e-spec.ts",
-    "!../src/main.ts"
-  ]
-    "!../src/**/*.e2e-spec.ts"
-  ],
-  "coverageReporters": ["text", "lcov", "html"]
-  "collectCoverageFrom": [
     "../src/**/*.(t|j)s",
     "!../src/**/*.spec.ts",
     "!../src/**/*.e2e-spec.ts",
     "!../src/main.ts"
   ],
-  "coverageDirectory": "../coverage/e2e",
   "coverageDirectory": "../coverage-e2e",
   "coverageReporters": ["text", "lcov", "html"],
-  "setupFilesAfterEnv": ["<rootDir>/setup.ts"]
+  "testTimeout": 30000,
+  "setupFilesAfterEnv": ["<rootDir>/setup.ts"],
+  "moduleNameMapper": {
+    "^(.+)\\.js$": "$1"
+  },
+  "extensionsToTreatAsEsm": [".ts"]
 }

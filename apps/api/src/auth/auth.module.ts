@@ -9,6 +9,7 @@ import { RbacService } from './rbac.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { ApiKeyStrategy } from './strategies/api-key.strategy';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -25,7 +26,7 @@ import { UsersModule } from '../users/users.module';
     }),
   ],
   controllers: [AuthController, AdminController],
-  providers: [AuthService, RbacService, JwtStrategy, LocalStrategy, ApiKeyStrategy],
-  exports: [AuthService, RbacService, JwtModule],
+  providers: [AuthService, RbacService, JwtStrategy, LocalStrategy, ApiKeyStrategy, PermissionsGuard],
+  exports: [AuthService, RbacService, JwtModule, PermissionsGuard],
 })
 export class AuthModule {}

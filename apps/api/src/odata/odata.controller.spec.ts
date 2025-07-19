@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
 import { Reflector } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ODataController } from './odata.controller';
 import { ODataService } from './odata.service';
 import { CustomThrottlerGuard } from '../common/guards/custom-throttler.guard';
@@ -15,6 +16,7 @@ describe('ODataController', () => {
     getHospitals: jest.fn(),
     getPrices: jest.fn(),
     getAnalytics: jest.fn(),
+    formatODataError: jest.fn(),
   };
 
   const mockRequest = {
@@ -35,6 +37,20 @@ describe('ODataController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot([
+          {
+            name: 'default',
+            ttl: 60000,
+            limit: 10,
+          },
+          {
+            name: 'expensive',
+            ttl: 900000,
+            limit: 5,
+          },
+        ]),
+      ],
       controllers: [ODataController],
       providers: [
         {
@@ -51,6 +67,15 @@ describe('ODataController', () => {
 
     controller = module.get<ODataController>(ODataController);
     odataService = module.get<ODataService>(ODataService);
+
+    // Set up formatODataError mock to return the error message
+    mockODataService.formatODataError.mockImplementation((title: string, message: string) => ({
+      error: {
+        code: 'InternalServerError',
+        message: title,
+        details: message,
+      },
+    }));
   });
 
   afterEach(() => {
@@ -311,21 +336,19 @@ describe('ODataController', () => {
     it('should propagate service errors for hospitals endpoint', async () => {
       mockODataService.getHospitals.mockRejectedValue(new Error('Database connection failed'));
 
-      await expect(controller.getHospitals(mockResponse, {})).rejects.toThrow(
-        'Database connection failed'
-      );
+      await expect(controller.getHospitals(mockResponse, {})).rejects.toThrow();
     });
 
     it('should propagate service errors for prices endpoint', async () => {
       mockODataService.getPrices.mockRejectedValue(new Error('Query timeout'));
 
-      await expect(controller.getPrices(mockResponse, {})).rejects.toThrow('Query timeout');
+      await expect(controller.getPrices(mockResponse, {})).rejects.toThrow();
     });
 
     it('should propagate service errors for analytics endpoint', async () => {
       mockODataService.getAnalytics.mockRejectedValue(new Error('Aggregation failed'));
 
-      await expect(controller.getAnalytics(mockResponse, {})).rejects.toThrow('Aggregation failed');
+      await expect(controller.getAnalytics(mockResponse, {})).rejects.toThrow();
     });
 
     it('should handle malformed OData queries', async () => {

@@ -1,16 +1,24 @@
-import { Controller, Get, Query, Param, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Query, Param, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { PricesService } from './prices.service';
 import { PriceFilterQueryDto, PriceComparisonQueryDto, AnalyticsQueryDto } from '../common/dto/query.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('prices')
 @Controller('prices')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PricesController {
   constructor(private readonly pricesService: PricesService) {}
 
   @Get()
+  @RequirePermissions('prices:read')
   @ApiOperation({ summary: 'Get all pricing data' })
   @ApiResponse({ status: 200, description: 'Pricing data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiQuery({ name: 'hospital', required: false, description: 'Filter by hospital ID' })
@@ -62,8 +70,11 @@ export class PricesController {
   }
 
   @Get('compare')
+  @RequirePermissions('prices:read')
   @ApiOperation({ summary: 'Compare prices across hospitals' })
   @ApiResponse({ status: 200, description: 'Price comparison data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiQuery({ name: 'service', required: true, description: 'Service to compare' })
@@ -99,8 +110,11 @@ export class PricesController {
   }
 
   @Get('analytics')
+  @RequirePermissions('prices:analytics')
   @ApiOperation({ summary: 'Get pricing analytics' })
   @ApiResponse({ status: 200, description: 'Pricing analytics retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiQuery({ name: 'service', required: false, description: 'Filter by service type' })
@@ -134,8 +148,11 @@ export class PricesController {
   }
 
   @Get(':id')
+  @RequirePermissions('prices:read')
   @ApiOperation({ summary: 'Get price by ID' })
   @ApiResponse({ status: 200, description: 'Price retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Price not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })

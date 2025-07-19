@@ -1,17 +1,25 @@
-import { Controller, Get, Query, Param, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Query, Param, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { HospitalsService } from './hospitals.service';
 import { ErrorResponseDto } from '../common/exceptions';
 import { HospitalFilterQueryDto } from '../common/dto/query.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('hospitals')
 @Controller('hospitals')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class HospitalsController {
   constructor(private readonly hospitalsService: HospitalsService) {}
 
   @Get()
+  @RequirePermissions('hospitals:read')
   @ApiOperation({ summary: 'Get all hospitals' })
   @ApiResponse({ status: 200, description: 'List of hospitals retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiResponse({ status: 500, description: 'Internal server error', type: ErrorResponseDto })
@@ -45,8 +53,11 @@ export class HospitalsController {
   }
 
   @Get(':id')
+  @RequirePermissions('hospitals:read')
   @ApiOperation({ summary: 'Get hospital by ID' })
   @ApiResponse({ status: 200, description: 'Hospital retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Hospital not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
@@ -93,8 +104,11 @@ export class HospitalsController {
   }
 
   @Get(':id/prices')
+  @RequirePermissions('prices:read')
   @ApiOperation({ summary: 'Get pricing data for a hospital' })
   @ApiResponse({ status: 200, description: 'Hospital pricing data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
   @ApiResponse({ status: 404, description: 'Hospital not found', type: ErrorResponseDto })
@@ -128,6 +142,4 @@ export class HospitalsController {
       );
     }
   }
-
-
 }
