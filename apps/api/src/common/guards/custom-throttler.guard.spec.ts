@@ -40,7 +40,7 @@ describe('CustomThrottlerGuard', () => {
       path: '/test',
       route: { path: '/test' },
       headers: {},
-      connection: { remoteAddress: '127.0.0.1' },
+      socket: { remoteAddress: '127.0.0.1' },
       user: null,
     };
 
@@ -151,10 +151,10 @@ describe('CustomThrottlerGuard', () => {
       expect(clientId).toBe('ip:192.168.1.1');
     });
 
-    it('should fallback to connection.remoteAddress when no forwarded header', () => {
+    it('should fallback to socket.remoteAddress when no forwarded header', () => {
       delete mockRequest.headers['x-forwarded-for'];
-      mockRequest.connection.remoteAddress = '10.0.0.1';
-      
+      mockRequest.socket.remoteAddress = '10.0.0.1';
+
       const clientId = guard['getClientId'](mockRequest);
       expect(clientId).toBe('ip:10.0.0.1');
     });
@@ -180,9 +180,40 @@ describe('CustomThrottlerGuard', () => {
       jest.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
     });
 
+    it('should skip rate limiting for health check endpoints', async () => {
+      const healthPaths = [
+        '/health',
+        '/health/ready',
+        '/health/live',
+        '/metrics',
+        '/api/v1/health',
+        '/api/v1/health/ready',
+        '/api/v1/health/live',
+        '/api/v1/metrics'
+      ];
+
+      for (const path of healthPaths) {
+        mockRequest.path = path;
+        mockRequest.url = path;
+
+        const result = await guard.canActivate(mockExecutionContext);
+
+        expect(result).toBe(true);
+        // Verify parent canActivate was NOT called for health endpoints
+        expect(ThrottlerGuard.prototype.canActivate).not.toHaveBeenCalled();
+
+        // Reset the spy for next iteration
+        jest.clearAllMocks();
+        jest.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
+      }
+    });
+
     it('should call parent canActivate and return true when allowed', async () => {
+      mockRequest.path = '/api/v1/hospitals';
+      mockRequest.url = '/api/v1/hospitals';
+
       const result = await guard.canActivate(mockExecutionContext);
-      
+
       expect(result).toBe(true);
       expect(ThrottlerGuard.prototype.canActivate).toHaveBeenCalledWith(mockExecutionContext);
     });
@@ -247,13 +278,13 @@ describe('CustomThrottlerGuard', () => {
       expect(clientId).toBe('ip:127.0.0.1');
     });
 
-    it('should handle request without connection object', () => {
-      const requestWithoutConnection = {
+    it('should handle request without socket object', () => {
+      const requestWithoutSocket = {
         ...mockRequest,
-        connection: undefined,
+        socket: undefined,
       };
-      
-      const clientId = guard['getClientId'](requestWithoutConnection);
+
+      const clientId = guard['getClientId'](requestWithoutSocket);
       expect(clientId).toBe('ip:undefined');
     });
   });

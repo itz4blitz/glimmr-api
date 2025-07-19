@@ -22,26 +22,55 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     if (user && user.id) {
       return `user:${user.id}`;
     }
-    
+
     // Get IP address with proxy support
     const headers = request.headers || {};
     const forwarded = headers['x-forwarded-for'] as string;
-    const connection = request.connection || {} as any;
-    const ip = forwarded ? forwarded.split(',')[0].trim() : connection.remoteAddress;
+    const socket = request.socket || {} as any;
+    const ip = forwarded ? forwarded.split(',')[0].trim() : socket.remoteAddress;
     return `ip:${ip}`;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const response = context.switchToHttp().getResponse<Response>();
-    
-    // Call the parent implementation
-    const result = await super.canActivate(context);
-    
-    // Add rate limit headers (basic implementation)
-    response.setHeader('X-RateLimit-Limit', '100');
-    response.setHeader('X-RateLimit-Window', '900000');
-    
-    return result;
+    try {
+      const request = context.switchToHttp().getRequest<Request>();
+      const response = context.switchToHttp().getResponse<Response>();
+
+      // Skip rate limiting for health check endpoints
+      const path = request?.path || request?.url || '';
+      if (this.isHealthCheckEndpoint(path)) {
+        return true;
+      }
+
+      // Call the parent implementation
+      const result = await super.canActivate(context);
+
+      // Add rate limit headers (basic implementation)
+      if (response && typeof response.setHeader === 'function') {
+        response.setHeader('X-RateLimit-Limit', '100');
+        response.setHeader('X-RateLimit-Window', '900000');
+      }
+
+      return result;
+    } catch (error) {
+      // If we can't get request/response objects, fall back to parent implementation
+      return await super.canActivate(context);
+    }
+  }
+
+  private isHealthCheckEndpoint(path: string): boolean {
+    const healthPaths = [
+      '/health',
+      '/health/ready',
+      '/health/live',
+      '/metrics',
+      // Also handle with API prefix
+      '/api/v1/health',
+      '/api/v1/health/ready',
+      '/api/v1/health/live',
+      '/api/v1/metrics'
+    ];
+
+    return healthPaths.includes(path);
   }
 }
