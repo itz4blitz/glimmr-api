@@ -2,23 +2,37 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { RbacService } from './rbac.service';
 import { User } from '../database/schema/users';
+
+// Mock bcrypt at the module level
+jest.mock('bcrypt', () => ({
+  hash: jest.fn().mockResolvedValue('hashedpassword'),
+  compare: jest.fn(),
+}));
+
+const bcrypt = require('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
+  let rbacService: jest.Mocked<RbacService>;
 
   const mockUser: User = {
     id: 'user-id-123',
     username: 'testuser',
     password: 'hashedpassword',
     role: 'api-user',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
     apiKey: 'gapi_test123',
+    isActive: true,
+    lastLoginAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -28,7 +42,12 @@ describe('AuthService', () => {
     username: 'admin',
     password: 'hashedpassword',
     role: 'admin',
+    email: 'admin@example.com',
+    firstName: 'Admin',
+    lastName: 'User',
     apiKey: 'gapi_admin123',
+    isActive: true,
+    lastLoginAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -42,8 +61,10 @@ describe('AuthService', () => {
           useValue: {
             findByUsername: jest.fn(),
             findByApiKey: jest.fn(),
+            findByEmail: jest.fn(),
             create: jest.fn(),
             updateApiKey: jest.fn(),
+            updateLastLogin: jest.fn(),
           },
         },
         {
@@ -58,6 +79,12 @@ describe('AuthService', () => {
             get: jest.fn(),
           },
         },
+        {
+          provide: RbacService,
+          useValue: {
+            getUserWithRoles: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -65,15 +92,16 @@ describe('AuthService', () => {
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
     configService = module.get(ConfigService);
+    rbacService = module.get(RbacService);
   });
 
   describe('validateUser', () => {
     it('should return user when credentials are valid', async () => {
       const plainPassword = 'testpassword';
-      const hashedPassword = await bcrypt.hash(plainPassword, 10);
-      const userWithHashedPassword = { ...mockUser, password: hashedPassword };
+      const userWithHashedPassword = { ...mockUser, password: 'hashedpassword' };
 
       usersService.findByUsername.mockResolvedValue(userWithHashedPassword);
+      bcrypt.compare.mockResolvedValue(true);
 
       const result = await service.validateUser('testuser', plainPassword);
 
@@ -90,10 +118,10 @@ describe('AuthService', () => {
     });
 
     it('should return null when password is incorrect', async () => {
-      const hashedPassword = await bcrypt.hash('correctpassword', 10);
-      const userWithHashedPassword = { ...mockUser, password: hashedPassword };
+      const userWithHashedPassword = { ...mockUser, password: 'hashedpassword' };
 
       usersService.findByUsername.mockResolvedValue(userWithHashedPassword);
+      bcrypt.compare.mockResolvedValue(false);
 
       const result = await service.validateUser('testuser', 'wrongpassword');
 
@@ -145,6 +173,11 @@ describe('AuthService', () => {
           id: mockUser.id,
           username: mockUser.username,
           role: mockUser.role,
+          email: mockUser.email,
+          firstName: mockUser.firstName,
+          lastName: mockUser.lastName,
+          roles: [],
+          permissions: [],
         },
       });
 
@@ -176,10 +209,8 @@ describe('AuthService', () => {
       usersService.create.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue('new.jwt.token');
 
-      // Mock bcrypt.hash
-      jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve('hashedpassword'));
-
-      const result = await service.register(username, plainPassword, role);
+      const registerDto = { username, password: plainPassword };
+      const result = await service.register(registerDto);
 
       expect(result).toEqual({
         access_token: 'new.jwt.token',
@@ -202,7 +233,7 @@ describe('AuthService', () => {
       usersService.findByUsername.mockResolvedValue(mockUser);
 
       await expect(
-        service.register('testuser', 'password', 'api-user')
+        service.register({ username: 'testuser', password: 'password' })
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -211,30 +242,38 @@ describe('AuthService', () => {
       usersService.create.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue('jwt.token');
 
-      jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve('hashedpassword'));
-
-      await service.register('newuser', 'password');
+      await service.register({ username: 'newuser', password: 'password' });
 
       expect(usersService.create).toHaveBeenCalledWith({
         username: 'newuser',
         password: 'hashedpassword',
         role: 'api-user',
+        email: undefined,
+        firstName: undefined,
+        lastName: undefined,
       });
     });
 
-    it('should allow creating admin users', async () => {
+    it('should create users with api-user role by default (admin assignment done separately)', async () => {
       usersService.findByUsername.mockResolvedValue(null);
-      usersService.create.mockResolvedValue(mockAdminUser);
-      jwtService.sign.mockReturnValue('admin.jwt.token');
+      usersService.create.mockResolvedValue(mockUser);
+      jwtService.sign.mockReturnValue('jwt.token');
 
-      jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve('hashedpassword'));
-
-      const result = await service.register('admin', 'password', 'admin');
+      const result = await service.register({
+        username: 'newuser',
+        password: 'password',
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User'
+      });
 
       expect(usersService.create).toHaveBeenCalledWith({
-        username: 'admin',
+        username: 'newuser',
         password: 'hashedpassword',
-        role: 'admin',
+        role: 'api-user', // Always defaults to api-user
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
       });
     });
   });

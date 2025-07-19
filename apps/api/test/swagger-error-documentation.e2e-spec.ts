@@ -31,11 +31,14 @@ describe('Swagger Error Documentation (e2e)', () => {
       .setDescription('Hospital pricing data aggregation and analytics platform')
       .setVersion('1.0')
       .addBearerAuth()
+      .addTag('api', 'Core API information and status')
+      .addTag('auth', 'Authentication and authorization')
       .addTag('hospitals', 'Hospital data management')
       .addTag('prices', 'Pricing data operations')
-      .addTag('analytics', 'Data analytics and reporting')
-      .addTag('jobs', 'Background job management')
-      .addTag('health', 'System health checks')
+      .addTag('analytics', 'Analytics, insights, and reporting')
+      .addTag('jobs', 'Background job management and monitoring')
+      .addTag('odata', 'OData protocol endpoints')
+      .addTag('health', 'System health and monitoring')
       .build();
 
     swaggerDocument = SwaggerModule.createDocument(app, config);

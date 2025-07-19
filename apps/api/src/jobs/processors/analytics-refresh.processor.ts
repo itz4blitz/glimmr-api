@@ -152,19 +152,19 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     });
 
     // Total active prices with optional time range
-    let pricesQuery = db
-      .select({ count: count() })
-      .from(prices)
-      .where(eq(prices.isActive, true));
+    const whereConditions = [eq(prices.isActive, true)];
 
     if (timeRange) {
-      pricesQuery = pricesQuery.where(
-        and(
-          gte(prices.lastUpdated, new Date(timeRange.start)),
-          lte(prices.lastUpdated, new Date(timeRange.end))
-        )
+      whereConditions.push(
+        gte(prices.lastUpdated, new Date(timeRange.start)),
+        lte(prices.lastUpdated, new Date(timeRange.end))
       );
     }
+
+    const pricesQuery = db
+      .select({ count: count() })
+      .from(prices)
+      .where(and(...whereConditions));
 
     const [priceCount] = await pricesQuery;
 
@@ -181,22 +181,22 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     });
 
     // Average price per service
-    let avgPriceQuery = db
-      .select({ 
+    const avgWhereConditions = [eq(prices.isActive, true)];
+
+    if (timeRange) {
+      avgWhereConditions.push(
+        gte(prices.lastUpdated, new Date(timeRange.start)),
+        lte(prices.lastUpdated, new Date(timeRange.end))
+      );
+    }
+
+    const avgPriceQuery = db
+      .select({
         avg: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
         count: count()
       })
       .from(prices)
-      .where(eq(prices.isActive, true));
-
-    if (timeRange) {
-      avgPriceQuery = avgPriceQuery.where(
-        and(
-          gte(prices.lastUpdated, new Date(timeRange.start)),
-          lte(prices.lastUpdated, new Date(timeRange.end))
-        )
-      );
-    }
+      .where(and(...avgWhereConditions));
 
     const [avgPrice] = await avgPriceQuery;
 
@@ -223,7 +223,16 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
     // Price variance by service (coefficient of variation)
-    let serviceVarianceQuery = db
+    const varianceWhereConditions = [eq(prices.isActive, true)];
+
+    if (timeRange) {
+      varianceWhereConditions.push(
+        gte(prices.lastUpdated, new Date(timeRange.start)),
+        lte(prices.lastUpdated, new Date(timeRange.end))
+      );
+    }
+
+    const serviceVarianceQuery = db
       .select({
         serviceName: prices.serviceName,
         serviceCategory: prices.category,
@@ -234,16 +243,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         sampleSize: count(),
       })
       .from(prices)
-      .where(eq(prices.isActive, true));
-
-    if (timeRange) {
-      serviceVarianceQuery = serviceVarianceQuery.where(
-        and(
-          gte(prices.lastUpdated, new Date(timeRange.start)),
-          lte(prices.lastUpdated, new Date(timeRange.end))
-        )
-      );
-    }
+      .where(and(...varianceWhereConditions));
 
     const serviceVariance = await serviceVarianceQuery
       .groupBy(prices.serviceName, prices.category)
@@ -287,7 +287,19 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
     // Average prices by state
-    let stateMetricsQuery = db
+    const stateWhereConditions = [
+      eq(prices.isActive, true),
+      eq(hospitals.isActive, true)
+    ];
+
+    if (timeRange) {
+      stateWhereConditions.push(
+        gte(prices.lastUpdated, new Date(timeRange.start)),
+        lte(prices.lastUpdated, new Date(timeRange.end))
+      );
+    }
+
+    const stateMetricsQuery = db
       .select({
         state: hospitals.state,
         avgPrice: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
@@ -296,16 +308,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       })
       .from(prices)
       .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
-      .where(and(eq(prices.isActive, true), eq(hospitals.isActive, true)));
-
-    if (timeRange) {
-      stateMetricsQuery = stateMetricsQuery.where(
-        and(
-          gte(prices.lastUpdated, new Date(timeRange.start)),
-          lte(prices.lastUpdated, new Date(timeRange.end))
-        )
-      );
-    }
+      .where(and(...stateWhereConditions));
 
     const stateMetrics = await stateMetricsQuery
       .groupBy(hospitals.state)
@@ -341,7 +344,16 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     const currentPeriod = new Date().toISOString().slice(0, 7);
 
     // Most expensive services
-    let expensiveServicesQuery = db
+    const expensiveWhereConditions = [eq(prices.isActive, true)];
+
+    if (timeRange) {
+      expensiveWhereConditions.push(
+        gte(prices.lastUpdated, new Date(timeRange.start)),
+        lte(prices.lastUpdated, new Date(timeRange.end))
+      );
+    }
+
+    const expensiveServicesQuery = db
       .select({
         serviceName: prices.serviceName,
         serviceCategory: prices.category,
@@ -350,16 +362,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         sampleSize: count(),
       })
       .from(prices)
-      .where(eq(prices.isActive, true));
-
-    if (timeRange) {
-      expensiveServicesQuery = expensiveServicesQuery.where(
-        and(
-          gte(prices.lastUpdated, new Date(timeRange.start)),
-          lte(prices.lastUpdated, new Date(timeRange.end))
-        )
-      );
-    }
+      .where(and(...expensiveWhereConditions));
 
     const expensiveServices = await expensiveServicesQuery
       .groupBy(prices.serviceName, prices.category)
@@ -413,8 +416,8 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       .from(prices)
       .where(and(
         eq(prices.isActive, true),
-        gte(prices.lastUpdated, startDate.toISOString()),
-        lte(prices.lastUpdated, endDate.toISOString())
+        gte(prices.lastUpdated, startDate),
+        lte(prices.lastUpdated, endDate)
       ))
       .groupBy(sql`DATE_TRUNC('month', ${prices.lastUpdated})`)
       .orderBy(sql`DATE_TRUNC('month', ${prices.lastUpdated})`);
@@ -475,7 +478,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       serviceCategory: metric.serviceCategory || null,
       period: metric.period,
       periodType: metric.periodType,
-      confidence: metric.confidence,
+      confidence: metric.confidence?.toString() || null,
       sampleSize: metric.sampleSize,
       metadata: metric.metadata ? JSON.stringify(metric.metadata) : null,
       sourceQuery: metric.sourceQuery || null,

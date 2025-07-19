@@ -8,25 +8,18 @@ import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
 import { CustomThrottlerGuard } from '../common/guards/custom-throttler.guard';
 
-describe('AnalyticsController - Rate Limiting Integration', () => {
+describe('AnalyticsController', () => {
   let controller: AnalyticsController;
   let analyticsService: AnalyticsService;
   let throttlerGuard: CustomThrottlerGuard;
   let reflector: Reflector;
-import { AnalyticsController } from './analytics.controller';
-import { AnalyticsService } from './analytics.service';
-
-describe('AnalyticsController', () => {
-  let controller: AnalyticsController;
-  let service: AnalyticsService;
-  let analyticsService: AnalyticsService;
 
   const mockAnalyticsService = {
     getDashboardAnalytics: jest.fn(),
     getPricingTrends: jest.fn(),
     getPowerBIInfo: jest.fn(),
     exportData: jest.fn(),
-    streamExportData: jest.fn(),
+    downloadExportData: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -60,7 +53,6 @@ describe('AnalyticsController', () => {
     }).compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);
-    service = module.get<AnalyticsService>(AnalyticsService);
     analyticsService = module.get<AnalyticsService>(AnalyticsService);
     throttlerGuard = module.get(APP_GUARD);
     reflector = module.get<Reflector>(Reflector);
@@ -928,6 +920,8 @@ describe('AnalyticsController', () => {
           error: 'Internal Server Error',
         });
       }
+    });
+
     it('should call analyticsService.exportData with all query parameters', async () => {
       const query = {
         format: 'csv',
@@ -1055,7 +1049,7 @@ describe('AnalyticsController', () => {
     });
   });
 
-  describe('streamExportData', () => {
+  describe('downloadExportData', () => {
     let mockResponse: any;
 
     beforeEach(() => {
@@ -1071,11 +1065,11 @@ describe('AnalyticsController', () => {
 
     it('should stream export data successfully with default parameters', async () => {
       const query = {};
-      mockAnalyticsService.streamExportData.mockResolvedValue(undefined);
+      mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.streamExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse);
 
-      expect(mockAnalyticsService.streamExportData).toHaveBeenCalledWith(query, mockResponse);
+      expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(query, mockResponse);
     });
 
     it('should stream export data with custom parameters', async () => {
@@ -1084,11 +1078,11 @@ describe('AnalyticsController', () => {
         dataset: 'hospitals',
         limit: 1000,
       };
-      mockAnalyticsService.streamExportData.mockResolvedValue(undefined);
+      mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.streamExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse);
 
-      expect(mockAnalyticsService.streamExportData).toHaveBeenCalledWith(query, mockResponse);
+      expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(query, mockResponse);
     });
 
     it('should handle all dataset types', async () => {
@@ -1096,20 +1090,20 @@ describe('AnalyticsController', () => {
       
       for (const dataset of datasets) {
         const query = { format: 'json', dataset };
-        mockAnalyticsService.streamExportData.mockResolvedValue(undefined);
+        mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-        await controller.streamExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse);
 
-        expect(mockAnalyticsService.streamExportData).toHaveBeenCalledWith(query, mockResponse);
+        expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(query, mockResponse);
       }
     });
 
     it('should handle service errors during streaming', async () => {
       const query = { format: 'json', dataset: 'hospitals' };
       const error = new Error('Service error');
-      mockAnalyticsService.streamExportData.mockRejectedValue(error);
+      mockAnalyticsService.downloadExportData.mockRejectedValue(error);
 
-      await expect(controller.streamExportData(query, mockResponse)).rejects.toThrow(
+      await expect(controller.downloadExportData(query, mockResponse)).rejects.toThrow(
         HttpException
       );
     });
@@ -1117,14 +1111,14 @@ describe('AnalyticsController', () => {
     it('should throw SERVICE_UNAVAILABLE when database connection fails during streaming', async () => {
       const query = { format: 'json', dataset: 'hospitals' };
       const connectionError = new Error('ECONNREFUSED');
-      mockAnalyticsService.streamExportData.mockRejectedValue(connectionError);
+      mockAnalyticsService.downloadExportData.mockRejectedValue(connectionError);
 
-      await expect(controller.streamExportData(query, mockResponse)).rejects.toThrow(
+      await expect(controller.downloadExportData(query, mockResponse)).rejects.toThrow(
         HttpException
       );
 
       try {
-        await controller.streamExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
@@ -1139,14 +1133,14 @@ describe('AnalyticsController', () => {
     it('should throw INTERNAL_SERVER_ERROR for other errors during streaming', async () => {
       const query = { format: 'json', dataset: 'hospitals' };
       const otherError = new Error('Some other error');
-      mockAnalyticsService.streamExportData.mockRejectedValue(otherError);
+      mockAnalyticsService.downloadExportData.mockRejectedValue(otherError);
 
-      await expect(controller.streamExportData(query, mockResponse)).rejects.toThrow(
+      await expect(controller.downloadExportData(query, mockResponse)).rejects.toThrow(
         HttpException
       );
 
       try {
-        await controller.streamExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -1161,14 +1155,14 @@ describe('AnalyticsController', () => {
     it('should handle network connection errors during streaming', async () => {
       const query = { format: 'json', dataset: 'hospitals' };
       const networkError = new Error('connect ECONNREFUSED');
-      mockAnalyticsService.streamExportData.mockRejectedValue(networkError);
+      mockAnalyticsService.downloadExportData.mockRejectedValue(networkError);
 
-      await expect(controller.streamExportData(query, mockResponse)).rejects.toThrow(
+      await expect(controller.downloadExportData(query, mockResponse)).rejects.toThrow(
         HttpException
       );
 
       try {
-        await controller.streamExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
@@ -1180,21 +1174,21 @@ describe('AnalyticsController', () => {
       
       for (const limit of limits) {
         const query = { format: 'json', dataset: 'hospitals', limit };
-        mockAnalyticsService.streamExportData.mockResolvedValue(undefined);
+        mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-        await controller.streamExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse);
 
-        expect(mockAnalyticsService.streamExportData).toHaveBeenCalledWith(query, mockResponse);
+        expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(query, mockResponse);
       }
     });
 
     it('should handle empty query object', async () => {
       const query = {};
-      mockAnalyticsService.streamExportData.mockResolvedValue(undefined);
+      mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.streamExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse);
 
-      expect(mockAnalyticsService.streamExportData).toHaveBeenCalledWith(query, mockResponse);
+      expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(query, mockResponse);
     });
 
     it('should propagate service method call with exact parameters', async () => {
@@ -1203,12 +1197,12 @@ describe('AnalyticsController', () => {
         dataset: 'prices',
         limit: 5000,
       };
-      mockAnalyticsService.streamExportData.mockResolvedValue(undefined);
+      mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.streamExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse);
 
-      expect(mockAnalyticsService.streamExportData).toHaveBeenCalledTimes(1);
-      expect(mockAnalyticsService.streamExportData).toHaveBeenCalledWith(query, mockResponse);
+      expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledTimes(1);
+      expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(query, mockResponse);
     });
   });
 });

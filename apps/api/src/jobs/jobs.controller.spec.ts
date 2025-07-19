@@ -106,7 +106,11 @@ describe('JobsController', () => {
       ],
       total: 2,
       limit: 50,
-      offset: 0,
+      filters: {
+        status: undefined,
+        type: undefined,
+        limit: 50,
+      },
     };
 
     it('should return jobs with all filters', async () => {
@@ -174,18 +178,16 @@ describe('JobsController', () => {
     });
 
     it('should handle pagination parameters', async () => {
-      const query: JobFilterQueryDto = { limit: 25, offset: 50 };
+      const query: JobFilterQueryDto = { limit: 25 };
 
       mockJobsService.getJobs.mockResolvedValue({
         ...mockJobsResponse,
         limit: 25,
-        offset: 50,
       });
 
       const result = await controller.getJobs(query);
 
       expect(result.limit).toBe(25);
-      expect(result.offset).toBe(50);
     });
 
     it('should propagate service errors', async () => {
@@ -244,9 +246,17 @@ describe('JobsController', () => {
 
   describe('getBullBoard', () => {
     const mockBoardInfo = {
-      url: '/api/v1/admin/queues',
-      enabled: true,
-      queues: ['hospital-import', 'price-update', 'pra-scan'],
+      dashboardUrl: '/admin/queues',
+      description: 'Bull Board dashboard for monitoring job queues',
+      features: [
+        'Real-time job monitoring',
+        'Queue management',
+        'Job retry and cleanup',
+        'Performance metrics',
+        'Failed job analysis',
+      ],
+      authentication: 'Admin access required',
+      documentation: 'https://api.glimmr.health/docs#bull-board',
     };
 
     it('should return Bull Board information', async () => {
@@ -260,15 +270,17 @@ describe('JobsController', () => {
 
     it('should handle disabled Bull Board', async () => {
       const disabledBoardInfo = {
-        url: null,
-        enabled: false,
-        queues: [],
+        dashboardUrl: null,
+        description: 'Bull Board is disabled',
+        features: [],
+        authentication: 'Not available',
+        documentation: 'https://api.glimmr.health/docs#bull-board',
       };
       mockJobsService.getBullBoardInfo.mockResolvedValue(disabledBoardInfo);
 
       const result = await controller.getBullBoard();
 
-      expect(result.enabled).toBe(false);
+      expect(result.dashboardUrl).toBe(null);
     });
 
     it('should propagate service errors', async () => {
@@ -448,7 +460,7 @@ describe('JobsController', () => {
         ...mockJob,
         status: 'failed',
         progress: 50,
-        error: 'Connection timeout',
+        failedReason: 'Connection timeout',
         failedAt: new Date('2024-01-01'),
       };
       mockJobsService.getJobById.mockResolvedValue(failedJob);
@@ -456,7 +468,7 @@ describe('JobsController', () => {
       const result = await controller.getJobById('job-123');
 
       expect(result.status).toBe('failed');
-      expect(result.error).toBe('Connection timeout');
+      expect(result.failedReason).toBe('Connection timeout');
     });
 
     it('should propagate service errors', async () => {
@@ -699,20 +711,14 @@ describe('JobsController', () => {
 
   describe('getPRAPipelineStatus', () => {
     const mockPipelineStatus = {
-      isRunning: true,
-      lastRun: new Date('2024-01-01T10:00:00Z'),
-      nextScheduledRun: new Date('2024-01-02T10:00:00Z'),
-      statistics: {
-        hospitalsProcesed: 1200,
-        filesProcessed: 800,
-        errors: 5,
-        lastRunDuration: 3600000, // 1 hour in ms
-      },
-      currentJob: {
-        id: 'pra-current-job',
-        progress: 65,
-        startedAt: new Date('2024-01-01T09:30:00Z'),
-      },
+      queue: 'pra-unified-scan',
+      waiting: 2,
+      active: 1,
+      completed: 150,
+      failed: 3,
+      delayed: 0,
+      paused: false,
+      timestamp: new Date('2024-01-01T10:00:00Z').toISOString(),
     };
 
     it('should return pipeline status', async () => {
@@ -727,15 +733,15 @@ describe('JobsController', () => {
     it('should handle idle pipeline status', async () => {
       const idleStatus = {
         ...mockPipelineStatus,
-        isRunning: false,
-        currentJob: null,
+        active: 0,
+        waiting: 0,
       };
       mockPraPipelineService.getPipelineStatus.mockResolvedValue(idleStatus);
 
       const result = await controller.getPRAPipelineStatus();
 
-      expect(result.isRunning).toBe(false);
-      expect(result.currentJob).toBeNull();
+      expect(result.active).toBe(0);
+      expect(result.waiting).toBe(0);
     });
 
     it('should propagate service errors', async () => {
@@ -749,9 +755,8 @@ describe('JobsController', () => {
   describe('triggerFullPRARefresh', () => {
     const mockRefreshResult = {
       jobId: 'full-refresh-123',
-      estimatedTime: '2 hours',
-      warning: 'This will process all hospitals and may take significant time',
-      affectedHospitals: 1500,
+      testMode: false,
+      forceRefresh: true,
     };
 
     it('should trigger full PRA refresh', async () => {
@@ -766,16 +771,17 @@ describe('JobsController', () => {
       });
     });
 
-    it('should handle refresh with warnings', async () => {
-      const warningResult = {
+    it('should handle refresh with force refresh enabled', async () => {
+      const forceRefreshResult = {
         ...mockRefreshResult,
-        warning: 'Previous refresh is still running, queued for later execution',
+        forceRefresh: true,
       };
-      mockPraPipelineService.triggerFullPipelineRefresh.mockResolvedValue(warningResult);
+      mockPraPipelineService.triggerFullPipelineRefresh.mockResolvedValue(forceRefreshResult);
 
       const result = await controller.triggerFullPRARefresh();
 
-      expect(result.warning).toContain('Previous refresh is still running');
+      expect(result.forceRefresh).toBe(true);
+      expect(result.message).toBe('Full PRA refresh triggered');
     });
 
     it('should propagate service errors', async () => {

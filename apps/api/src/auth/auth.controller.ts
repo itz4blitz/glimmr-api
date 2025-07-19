@@ -17,7 +17,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
-@ApiTags('Authentication')
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -32,16 +32,15 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
-  @ApiOperation({ summary: 'Register new user' })
+  @ApiOperation({
+    summary: 'Register new user',
+    description: 'Register a new user. Note: Users start with no roles - an admin must assign roles for access to protected endpoints.'
+  })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 400, description: 'Username already exists' })
+  @ApiResponse({ status: 400, description: 'Username or email already exists' })
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(
-      registerDto.username,
-      registerDto.password,
-      registerDto.role as 'admin' | 'api-user',
-    );
+    return this.authService.register(registerDto);
   }
 
   @ApiOperation({ summary: 'Get current user profile' })

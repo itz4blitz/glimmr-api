@@ -1,10 +1,10 @@
-version: '3.8'
+name: glimmr
 
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: glimmr-postgres-dev
+    container_name: glimmr-postgres
     environment:
       POSTGRES_DB: glimmr_dev
       POSTGRES_USER: postgres
@@ -23,7 +23,7 @@ services:
   # Redis for caching and job queues
   redis:
     image: redis:7-alpine
-    container_name: glimmr-redis-dev
+    container_name: glimmr-redis
     ports:
       - "6379:6379"
     volumes:
@@ -37,7 +37,7 @@ services:
   # MinIO for S3-compatible object storage
   minio:
     image: minio/minio:latest
-    container_name: glimmr-minio-dev
+    container_name: glimmr-minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
@@ -53,10 +53,26 @@ services:
       timeout: 20s
       retries: 3
 
+  # Inbucket for email testing
+  inbucket:
+    image: inbucket/inbucket:latest
+    container_name: glimmr-inbucket
+    ports:
+      - "2500:2500"  # SMTP port
+      - "8025:9000"  # Web UI port (map internal 9000 to external 8025)
+      - "1100:1100"  # POP3 port
+    environment:
+      INBUCKET_SMTP_DOMAIN: localhost
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # MinIO Client for bucket creation
   minio-setup:
     image: minio/mc:latest
-    container_name: glimmr-minio-setup-dev
+    container_name: glimmr-minio-setup
     depends_on:
       minio:
         condition: service_healthy
@@ -73,7 +89,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile.dev
-    container_name: glimmr-api-dev
+    container_name: glimmr-api
     environment:
       NODE_ENV: development
       DATABASE_HOST: postgres
@@ -125,6 +141,12 @@ services:
       STORAGE_SPACES_ACCESS_KEY_ID: minioadmin
       STORAGE_SPACES_SECRET_ACCESS_KEY: minioadmin123
       STORAGE_SPACES_REGION: us-east-1
+      # Email Configuration - Inbucket for Development
+      EMAIL_HOST: inbucket
+      EMAIL_PORT: 2500
+      EMAIL_SECURE: false
+      EMAIL_FROM: noreply@glimmr.local
+      EMAIL_FROM_NAME: Glimmr API
     ports:
       - "3000:3000"
     volumes:
@@ -153,4 +175,4 @@ volumes:
 
 networks:
   default:
-    name: glimmr-dev-network
+    name: glimmr-network

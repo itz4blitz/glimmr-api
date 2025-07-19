@@ -26,7 +26,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     // Get IP address with proxy support
     const headers = request.headers || {};
     const forwarded = headers['x-forwarded-for'] as string;
-    const connection = request.connection || {};
+    const connection = request.connection || {} as any;
     const ip = forwarded ? forwarded.split(',')[0].trim() : connection.remoteAddress;
     return `ip:${ip}`;
   }

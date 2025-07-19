@@ -1,14 +1,17 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { RbacService } from './rbac.service';
 import { User } from '../database/schema/users';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
+    @Optional() private rbacService: RbacService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -30,33 +33,73 @@ export class AuthService {
   }
 
   async login(user: User) {
-    const payload = { 
-      sub: user.id, 
-      username: user.username, 
-      role: user.role 
+    // Get user roles and permissions from RBAC system (if available)
+    let userWithRoles;
+    try {
+      if (this.rbacService) {
+        userWithRoles = await this.rbacService.getUserWithRoles(user.id as string);
+      }
+    } catch (error) {
+      // RBAC system not available yet, fall back to legacy role
+      userWithRoles = null;
+    }
+
+    const payload = {
+      sub: user.id,
+      username: user.username,
+      role: user.role, // Keep legacy role for backward compatibility
+      roles: userWithRoles?.roles.map(r => r.name) || [user.role],
+      permissions: userWithRoles?.permissions.map(p => `${p.resource}:${p.action}`) || []
     };
-    
+
+    // Update last login time if method exists
+    try {
+      await this.usersService.updateLastLogin(user.id as string);
+    } catch (error) {
+      // Method might not exist yet
+    }
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         username: user.username,
-        role: user.role,
+        role: user.role, // Keep legacy role
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles: userWithRoles?.roles || [],
+        permissions: userWithRoles?.permissions || [],
       },
     };
   }
 
-  async register(username: string, password: string, role: 'admin' | 'api-user' = 'api-user') {
-    const existingUser = await this.usersService.findByUsername(username);
+  async register(registerDto: RegisterDto) {
+    const existingUser = await this.usersService.findByUsername(registerDto.username);
     if (existingUser) {
       throw new UnauthorizedException('Username already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Check if email is already in use (if method exists)
+    if (registerDto.email) {
+      try {
+        const existingEmail = await this.usersService.findByEmail(registerDto.email);
+        if (existingEmail) {
+          throw new UnauthorizedException('Email already exists');
+        }
+      } catch (error) {
+        // findByEmail method might not exist yet
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
     const user = await this.usersService.create({
-      username,
+      username: registerDto.username,
       password: hashedPassword,
-      role,
+      role: 'api-user', // Default role for new users
+      email: registerDto.email,
+      firstName: registerDto.firstName,
+      lastName: registerDto.lastName,
     });
 
     return this.login(user);

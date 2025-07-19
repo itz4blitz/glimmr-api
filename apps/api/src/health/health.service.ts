@@ -1,16 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { DatabaseService } from '../database/database.service';
-import { ConfigService } from '@nestjs/config';
-import { createClient } from 'redis';
 import { JobsService } from '../jobs/jobs.service';
+import { RedisHealthIndicator } from '../redis/redis-health.service';
 
 @Injectable()
 export class HealthService {
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly configService: ConfigService,
     private readonly jobsService: JobsService,
+    private readonly redisHealthIndicator: RedisHealthIndicator,
     @InjectPinoLogger(HealthService.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -77,47 +76,18 @@ export class HealthService {
   }
 
   private async checkRedisHealth() {
-    let redisClient;
     try {
-      const redisUrl = this.configService.get<string>('REDIS_URL');
-      if (!redisUrl) {
-        return {
-          status: 'unhealthy',
-          error: 'Redis URL not configured',
-        };
-      }
-
-      redisClient = createClient({ url: redisUrl });
-      await redisClient.connect();
-      
-      const startTime = Date.now();
-      await redisClient.ping();
-      const duration = Date.now() - startTime;
-      
-      await redisClient.quit();
-      
+      const result = await this.redisHealthIndicator.isHealthy();
       return {
-        status: 'healthy',
-        details: {
-          duration,
-          url: redisUrl.replace(/:[^:]*@/, ':***@'), // Hide password
-        },
+        status: result.status === 'connected' ? 'healthy' : 'unhealthy',
+        details: result,
       };
     } catch (error) {
       this.logger.error({
         msg: 'Redis health check failed',
         error: error.message,
       });
-      
-      // Ensure connection is closed
-      if (redisClient) {
-        try {
-          await redisClient.quit();
-        } catch (closeError) {
-          // Ignore close errors
-        }
-      }
-      
+
       return {
         status: 'unhealthy',
         error: error.message,

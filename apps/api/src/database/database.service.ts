@@ -67,19 +67,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
             value,
           });
         },
-        // Connection pool monitoring
-        onclose: (connectionId) => {
-          this.logger.debug({
-            msg: 'Database connection closed',
-            connectionId,
-          });
-        },
-        onconnect: (connection) => {
-          this.logger.debug({
-            msg: 'Database connection established',
-            connectionId: connection.processID,
-          });
-        },
       });
 
       // Initialize Drizzle with schema

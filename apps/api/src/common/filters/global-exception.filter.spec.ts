@@ -259,16 +259,16 @@ describe('GlobalExceptionFilter', () => {
     });
 
     it('should handle 300 level responses with info logging', () => {
-      const exception = new HttpException('Multiple Choices', HttpStatus.MULTIPLE_CHOICES);
+      const exception = new HttpException('Multiple Choices', 300);
 
       filter.catch(exception, mockArgumentsHost as any);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.MULTIPLE_CHOICES);
+      expect(mockResponse.status).toHaveBeenCalledWith(300);
       expect(mockLogger.info).toHaveBeenCalledWith({
         timestamp: expect.any(String),
         path: '/api/v1/test',
         method: 'GET',
-        statusCode: HttpStatus.MULTIPLE_CHOICES,
+        statusCode: 300,
         message: 'Multiple Choices',
         userAgent: 'Mozilla/5.0 (Test Browser)',
         ip: '127.0.0.1',

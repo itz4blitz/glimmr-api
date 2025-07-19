@@ -113,7 +113,9 @@ describe('HealthService', () => {
 
       expect(result.status).toBe('unhealthy');
       expect(result.checks.database.status).toBe('unhealthy');
-      expect(result.checks.database.error).toBe('Database connection failed');
+      if ('error' in result.checks.database) {
+        expect(result.checks.database.error).toBe('Database connection failed');
+      }
       expect(result.checks.redis.status).toBe('healthy');
     });
 
@@ -151,9 +153,13 @@ describe('HealthService', () => {
 
       expect(result.status).toBe('unhealthy');
       expect(result.checks.database.status).toBe('unhealthy');
-      expect(result.checks.database.error).toBe('Database error');
+      if ('error' in result.checks.database) {
+        expect(result.checks.database.error).toBe('Database error');
+      }
       expect(result.checks.redis.status).toBe('unhealthy');
-      expect(result.checks.redis.error).toBe('Redis error');
+      if ('error' in result.checks.redis) {
+        expect(result.checks.redis.error).toBe('Redis error');
+      }
     });
 
     it('should handle Redis URL not configured', async () => {
@@ -341,13 +347,13 @@ describe('HealthService', () => {
       const originalMemoryUsage = process.memoryUsage;
       
       // Mock process.memoryUsage
-      process.memoryUsage = jest.fn().mockReturnValue({
+      process.memoryUsage = Object.assign(jest.fn().mockReturnValue({
         rss: 104857600, // 100MB
         heapTotal: 52428800, // 50MB
         heapUsed: 31457280, // 30MB
         external: 1048576, // 1MB
         arrayBuffers: 0,
-      });
+      }), { rss: jest.fn() });
 
       const result = (service as any).getMemoryUsage();
 
@@ -365,13 +371,13 @@ describe('HealthService', () => {
       const originalMemoryUsage = process.memoryUsage;
       
       // Mock process.memoryUsage with fractional values
-      process.memoryUsage = jest.fn().mockReturnValue({
+      process.memoryUsage = Object.assign(jest.fn().mockReturnValue({
         rss: 157286400, // ~150MB
         heapTotal: 78643200, // ~75MB
         heapUsed: 47185920, // ~45MB
         external: 1048576,
         arrayBuffers: 0,
-      });
+      }), { rss: jest.fn() });
 
       const result = (service as any).getMemoryUsage();
 

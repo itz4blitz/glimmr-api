@@ -4,11 +4,12 @@ import { eq, and, like, desc, asc, count, sql, countDistinct } from 'drizzle-orm
 import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { analytics, prices, hospitals } from '../database/schema';
-import { Transform } from 'stream';
+
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QUEUE_NAMES } from '../jobs/queues/queue.config';
 import type { ExportJobData } from '../jobs/processors/export-data.processor';
+import * as XLSX from 'xlsx';
 
 interface ExportProgress {
   exportId: string;
@@ -1062,8 +1063,6 @@ export class AnalyticsService {
     });
 
     try {
-      const db = this.databaseService.db;
-
       if (filters.hospitalId) {
         // Hospital-specific analysis
         return this.getHospitalPositionAnalysis(filters.hospitalId);
@@ -1135,7 +1134,7 @@ export class AnalyticsService {
 
       // Calculate percentiles and rankings
       Object.keys(benchmarks).forEach(metricName => {
-        const stateValues = Object.values(benchmarks[metricName].states).map(s => s.value);
+        const stateValues = Object.values(benchmarks[metricName].states).map((s: any) => s.value);
         if (stateValues.length > 0) {
           stateValues.sort((a, b) => a - b);
           benchmarks[metricName].percentiles = {

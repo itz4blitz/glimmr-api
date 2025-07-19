@@ -52,49 +52,67 @@ describe('Swagger Configuration', () => {
         .build();
 
       expect(config.components.securitySchemes.bearer).toBeDefined();
-      expect(config.components.securitySchemes.bearer.type).toBe('http');
-      expect(config.components.securitySchemes.bearer.scheme).toBe('bearer');
+      const bearerScheme = config.components.securitySchemes.bearer;
+      if ('type' in bearerScheme) {
+        expect(bearerScheme.type).toBe('http');
+        expect(bearerScheme.scheme).toBe('bearer');
+      }
     });
 
     it('should add all required tags', () => {
       const config = new DocumentBuilder()
+        .addTag('api', 'Core API information and status')
+        .addTag('auth', 'Authentication and authorization')
         .addTag('hospitals', 'Hospital data management')
         .addTag('prices', 'Pricing data operations')
-        .addTag('analytics', 'Data analytics and reporting')
-        .addTag('jobs', 'Background job management')
-        .addTag('health', 'System health checks')
+        .addTag('analytics', 'Analytics, insights, and reporting')
+        .addTag('jobs', 'Background job management and monitoring')
+        .addTag('odata', 'OData protocol endpoints')
+        .addTag('health', 'System health and monitoring')
         .build();
 
-      expect(config.tags).toHaveLength(5);
-      
+      expect(config.tags).toHaveLength(8);
+
       const tagNames = config.tags.map(tag => tag.name);
+      expect(tagNames).toContain('api');
+      expect(tagNames).toContain('auth');
       expect(tagNames).toContain('hospitals');
       expect(tagNames).toContain('prices');
       expect(tagNames).toContain('analytics');
       expect(tagNames).toContain('jobs');
+      expect(tagNames).toContain('odata');
       expect(tagNames).toContain('health');
     });
 
     it('should add tags with correct descriptions', () => {
       const config = new DocumentBuilder()
+        .addTag('api', 'Core API information and status')
+        .addTag('auth', 'Authentication and authorization')
         .addTag('hospitals', 'Hospital data management')
         .addTag('prices', 'Pricing data operations')
-        .addTag('analytics', 'Data analytics and reporting')
-        .addTag('jobs', 'Background job management')
-        .addTag('health', 'System health checks')
+        .addTag('analytics', 'Analytics, insights, and reporting')
+        .addTag('jobs', 'Background job management and monitoring')
+        .addTag('odata', 'OData protocol endpoints')
+        .addTag('health', 'System health and monitoring')
         .build();
 
+      const apiTag = config.tags.find(tag => tag.name === 'api');
+      const authTag = config.tags.find(tag => tag.name === 'auth');
       const hospitalsTag = config.tags.find(tag => tag.name === 'hospitals');
       const pricesTag = config.tags.find(tag => tag.name === 'prices');
       const analyticsTag = config.tags.find(tag => tag.name === 'analytics');
       const jobsTag = config.tags.find(tag => tag.name === 'jobs');
+      const odataTag = config.tags.find(tag => tag.name === 'odata');
       const healthTag = config.tags.find(tag => tag.name === 'health');
 
+      expect(apiTag.description).toBe('Core API information and status');
+      expect(authTag.description).toBe('Authentication and authorization');
       expect(hospitalsTag.description).toBe('Hospital data management');
       expect(pricesTag.description).toBe('Pricing data operations');
-      expect(analyticsTag.description).toBe('Data analytics and reporting');
-      expect(jobsTag.description).toBe('Background job management');
-      expect(healthTag.description).toBe('System health checks');
+      expect(analyticsTag.description).toBe('Analytics, insights, and reporting');
+      expect(jobsTag.description).toBe('Background job management and monitoring');
+      expect(odataTag.description).toBe('OData protocol endpoints');
+      expect(healthTag.description).toBe('System health and monitoring');
     });
 
     it('should create complete configuration as in main.ts', () => {
@@ -103,18 +121,21 @@ describe('Swagger Configuration', () => {
         .setDescription('Hospital pricing data aggregation and analytics platform')
         .setVersion('1.0')
         .addBearerAuth()
+        .addTag('api', 'Core API information and status')
+        .addTag('auth', 'Authentication and authorization')
         .addTag('hospitals', 'Hospital data management')
         .addTag('prices', 'Pricing data operations')
-        .addTag('analytics', 'Data analytics and reporting')
-        .addTag('jobs', 'Background job management')
-        .addTag('health', 'System health checks')
+        .addTag('analytics', 'Analytics, insights, and reporting')
+        .addTag('jobs', 'Background job management and monitoring')
+        .addTag('odata', 'OData protocol endpoints')
+        .addTag('health', 'System health and monitoring')
         .build();
 
       expect(config.info.title).toBe('Glimmr API');
       expect(config.info.description).toBe('Hospital pricing data aggregation and analytics platform');
       expect(config.info.version).toBe('1.0');
       expect(config.components.securitySchemes.bearer).toBeDefined();
-      expect(config.tags).toHaveLength(5);
+      expect(config.tags).toHaveLength(8);
     });
   });
 

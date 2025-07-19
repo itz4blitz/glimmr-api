@@ -38,11 +38,15 @@ describe('HealthModule', () => {
       expect(controller).toBeDefined();
       expect(service).toBeDefined();
       
-      const controllerResult = await controller.getHealth();
+      const mockResponse = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+      } as any;
+
+      await controller.getHealth(mockResponse);
       const serviceResult = await service.getHealth();
-      
-      expect(controllerResult.service).toBe(serviceResult.service);
-      expect(controllerResult.version).toBe(serviceResult.version);
+
+      expect(mockResponse.json).toHaveBeenCalledWith(serviceResult);
     });
   });
 });

@@ -74,10 +74,14 @@ export class ExportDataProcessor extends WorkerHost {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `exports/${exportId}_${dataset}_${timestamp}.${format}`;
       
-      const uploadResult = await this.storageService.uploadFile(
+      const stream = require('stream');
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(fileBuffer);
+
+      const uploadResult = await this.storageService.uploadFromStream(
         filename,
-        fileBuffer,
-        this.getContentType(format)
+        bufferStream,
+        { contentType: this.getContentType(format) }
       );
 
       // Complete

@@ -177,7 +177,7 @@ export class ODataService {
 
     try {
       const db = this.databaseService.db;
-      const { limit, offset, needsCount } = this.parseQueryOptions(options);
+      const { limit, offset, needsCount, selectFields, searchTerm } = this.parseQueryOptions(options);
 
       const config: EntityConfig = {
         table: hospitals,

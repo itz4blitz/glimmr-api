@@ -75,8 +75,8 @@ describe('DatabaseService', () => {
     logger = module.get<PinoLogger>(PinoLogger);
 
     // Reset mocks
-    (postgres as jest.Mock).mockReturnValue(mockPostgresClient);
-    (drizzle as jest.Mock).mockReturnValue(mockDrizzleDb);
+    (postgres as unknown as jest.Mock).mockReturnValue(mockPostgresClient);
+    (drizzle as unknown as jest.Mock).mockReturnValue(mockDrizzleDb);
     
     const { createDatabaseConfig } = require('./database.config');
     createDatabaseConfig.mockReturnValue(mockDatabaseConfig);
@@ -357,7 +357,7 @@ describe('DatabaseService', () => {
       await service.onModuleInit();
 
       // Get the onnotice callback from the postgres call
-      const postgresCall = (postgres as jest.Mock).mock.calls[0][0];
+      const postgresCall = (postgres as unknown as jest.Mock).mock.calls[0][0];
       const onnotice = postgresCall.onnotice;
 
       // Call the callback with a mock notice
@@ -376,7 +376,7 @@ describe('DatabaseService', () => {
       await service.onModuleInit();
 
       // Get the onparameter callback from the postgres call
-      const postgresCall = (postgres as jest.Mock).mock.calls[0][0];
+      const postgresCall = (postgres as unknown as jest.Mock).mock.calls[0][0];
       const onparameter = postgresCall.onparameter;
 
       // Call the callback with mock parameters

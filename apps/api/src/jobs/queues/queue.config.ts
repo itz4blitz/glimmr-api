@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import { getSharedRedisConnection } from '../../redis/redis.config.js';
 
 export interface QueueConfig {
   name: string;
@@ -131,146 +132,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
 };
 
 export function createRedisConnection(configService: ConfigService): IORedis {
-  const isProduction = configService.get('NODE_ENV') === 'production';
-  
-  // Use VALKEY_URL in production, REDIS_URL in development
-  const connectionUrl = isProduction 
-    ? configService.get<string>('VALKEY_URL') || configService.get<string>('REDIS_URL')
-    : configService.get<string>('REDIS_URL');
-
-  const baseOptions = {
-    maxRetriesPerRequest: null, // Required by BullMQ - disable retries for blocking commands
-    enableReadyCheck: false, // Disable for Valkey compatibility
-    lazyConnect: false, // Let BullMQ handle connection initialization
-    connectTimeout: 30000, // Increased connection timeout for initial setup
-    // commandTimeout: 0 disables timeout for all commands including INFO
-    // This is required for BullMQ which uses blocking commands like BRPOP
-    commandTimeout: 0, // Disable command timeout to prevent BullMQ worker timeouts
-    family: 4, // Force IPv4
-    enableOfflineQueue: true, // Allow command queueing during reconnection
-    showFriendlyErrorStack: true,
-    // BullMQ-specific optimizations
-    retryDelayOnFailover: 100,
-    keepAlive: 30000,
-    // Note: maxMemoryPolicy should be configured on the Valkey server, not client
-  };
-
-  // Different configurations for production (Valkey) vs development (Redis)
-  const productionOptions = {
-    ...baseOptions,
-    retryDelayOnFailover: 1000,
-    retryDelayOnClusterDown: 2000,
-    keepAlive: 60000,
-    // Override base connectTimeout for production managed services
-    connectTimeout: 60000, // Even longer timeout for managed services
-    // Disable autoResubscribe to prevent issues with managed Valkey
-    autoResubscribe: false,
-    // SSL/TLS for DigitalOcean managed Valkey service (only if using public endpoint)
-    // Private network connections may not need TLS
-    ...(process.env.VALKEY_HOST?.includes('private-') ? {} : {
-      tls: {
-        rejectUnauthorized: false, // DigitalOcean managed databases use self-signed certs
-        checkServerIdentity: () => undefined, // Skip hostname verification
-      },
-    }),
-    // Better reconnection for managed services
-    reconnectOnError: (err: Error) => {
-      const targetErrors = ['READONLY', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED'];
-      return targetErrors.some(error => err.message.includes(error));
-    },
-  };
-
-  const developmentOptions = {
-    ...baseOptions,
-    retryDelayOnFailover: 100,
-    retryDelayOnClusterDown: 300,
-    keepAlive: 30000,
-    // Standard Redis reconnection
-    reconnectOnError: (err: Error) => {
-      const targetErrors = ['READONLY', 'ECONNRESET'];
-      return targetErrors.some(error => err.message.includes(error));
-    },
-  };
-
-  const options = isProduction ? productionOptions : developmentOptions;
-
-  let redis: IORedis;
-
-  if (connectionUrl) {
-    redis = new IORedis(connectionUrl, options);
-  } else {
-    // Production uses VALKEY_* variables, development uses REDIS_* variables
-    const host = isProduction
-      ? configService.get<string>('VALKEY_HOST')
-      : configService.get<string>('REDIS_HOST', 'localhost');
-    const port = isProduction
-      ? configService.get<number>('VALKEY_PORT')
-      : configService.get<number>('REDIS_PORT', 6379);
-    const password = isProduction
-      ? configService.get<string>('VALKEY_PASSWORD')
-      : configService.get<string>('REDIS_PASSWORD');
-    const db = isProduction
-      ? configService.get<number>('VALKEY_DB', 0)
-      : configService.get<number>('REDIS_DB', 0);
-
-    redis = new IORedis({
-      host,
-      port,
-      password,
-      db,
-      ...options,
-    });
-  }
-
-  // Minimal logging for production
-  if (!isProduction) {
-    redis.on('error', (err) => {
-      console.error('Redis connection error:', err.message);
-    });
-
-    redis.on('connect', () => {
-      console.log('Redis connected successfully');
-    });
-
-    redis.on('ready', () => {
-      console.log('Redis ready for commands');
-    });
-
-    redis.on('close', () => {
-      console.log('Redis connection closed');
-    });
-
-    redis.on('reconnecting', (ms: number) => {
-      console.log(`Redis reconnecting in ${ms}ms`);
-    });
-  } else {
-    // Production: Only log errors and warnings
-    redis.on('error', (err) => {
-      console.error('Valkey connection error:', err.message);
-    });
-
-    redis.on('connect', () => {
-      console.log('Valkey connected successfully');
-      // Note: BullMQ may show eviction policy warnings. These can be safely ignored
-      // as they are informational. The important fix is commandTimeout: 0 which
-      // prevents timeout errors during BullMQ initialization (INFO command) and
-      // worker blocking operations (BRPOP).
-      //
-      // For production: If you see "IMPORTANT! Eviction policy is allkeys-lru. It should be noeviction" warnings,
-      // this is a server-side configuration that needs to be changed in DigitalOcean's Valkey service.
-    });
-
-    // Log timeout-related events in production to help diagnose issues
-    redis.on('close', () => {
-      console.warn('Valkey connection closed');
-    });
-
-    redis.on('reconnecting', (ms: number) => {
-      console.warn(`Valkey reconnecting in ${ms}ms`);
-    });
-  }
-
-  return redis;
+  // Use the optimized shared connection for better resource management
+  return getSharedRedisConnection(configService);
 }
 
 export function createQueues(redis: IORedis): { queues: Queue[]; adapters: BullMQAdapter[] } {
@@ -289,3 +152,5 @@ export function createQueues(redis: IORedis): { queues: Queue[]; adapters: BullM
 
   return { queues, adapters };
 }
+
+

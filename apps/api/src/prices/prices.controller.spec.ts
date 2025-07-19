@@ -60,7 +60,10 @@ describe('PricesController', () => {
 
       mockPricesService.getPrices.mockResolvedValue(mockResult);
 
-      const query = {
+      const result = await controller.getPrices('1', 'MRI', 'CA', 1000, 2000, 50, 0);
+
+      expect(result).toBe(mockResult);
+      expect(mockPricesService.getPrices).toHaveBeenCalledWith({
         hospital: '1',
         service: 'MRI',
         state: 'CA',
@@ -68,12 +71,7 @@ describe('PricesController', () => {
         maxPrice: 2000,
         limit: 50,
         offset: 0,
-      };
-
-      const result = await controller.getPrices(query);
-
-      expect(result).toBe(mockResult);
-      expect(mockPricesService.getPrices).toHaveBeenCalledWith(query);
+      });
     });
   });
 
@@ -93,10 +91,9 @@ describe('PricesController', () => {
 
       mockPricesService.comparePrices.mockResolvedValue(mockResult);
 
-      const query = { service: 'MRI', state: 'CA', limit: 10 };
-      const result = await controller.comparePrices(query);
+      const result = await controller.comparePrices('MRI', 'CA', 10);
 
-      expect(pricesService.comparePrices).toHaveBeenCalledWith(query);
+      expect(pricesService.comparePrices).toHaveBeenCalledWith({ service: 'MRI', state: 'CA', limit: 10 });
       expect(result).toEqual(mockResult);
     });
   });
@@ -116,11 +113,10 @@ describe('PricesController', () => {
 
       mockPricesService.getPricingAnalytics.mockResolvedValue(mockResult);
 
-      const query = { service: 'MRI', state: 'CA' };
-      const result = await controller.getPricingAnalytics(query);
+      const result = await controller.getPricingAnalytics('MRI', 'CA');
 
       expect(result).toBe(mockResult);
-      expect(mockPricesService.getPricingAnalytics).toHaveBeenCalledWith(query);
+      expect(mockPricesService.getPricingAnalytics).toHaveBeenCalledWith({ service: 'MRI', state: 'CA' });
     });
   });
 

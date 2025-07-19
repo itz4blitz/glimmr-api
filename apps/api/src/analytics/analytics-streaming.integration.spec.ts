@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AnalyticsModule } from './analytics.module';
 import { DatabaseService } from '../database/database.service';
 import { PinoLogger } from 'nestjs-pino';

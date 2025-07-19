@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { join } from 'path';
+
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from '../database/database.module.js';
 import { ExternalApisModule } from '../external-apis/external-apis.module.js';
@@ -34,71 +34,50 @@ import { JobsService } from './jobs.service.js';
       useFactory: (configService: ConfigService) => ({
         connection: createRedisConnection(configService),
         defaultJobOptions: {
-          removeOnComplete: 3, // Global limit for memory
-          removeOnFail: 5,
+          removeOnComplete: 5, // Keep more for debugging
+          removeOnFail: 10,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
         },
       }),
       inject: [ConfigService],
     }),
-    // Register all queues required by JobsService
+    // Register all required queues - optimized Redis connection should handle this
     BullModule.registerQueue(
       {
-        name: QUEUE_NAMES.HOSPITAL_IMPORT,
-        processors: [{
-          path: join(__dirname, 'processors', 'hospital-import.processor.js'),
-          concurrency: 1
-        }]
-      },
-      {
-        name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
-        processors: [{
-          path: join(__dirname, 'processors', 'price-file-download.processor.js'),
-          concurrency: 1
-        }]
-      },
-      {
-        name: QUEUE_NAMES.PRICE_UPDATE,
-        // No processor needed for this queue
+        name: QUEUE_NAMES.EXPORT_DATA,
       },
       {
         name: QUEUE_NAMES.ANALYTICS_REFRESH,
-        processors: [{
-          path: join(__dirname, 'processors', 'analytics-refresh.processor.js'),
-          concurrency: 1
-        }]
+      },
+      {
+        name: QUEUE_NAMES.HOSPITAL_IMPORT,
+      },
+      {
+        name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
+      },
+      {
+        name: QUEUE_NAMES.PRICE_UPDATE,
       },
       {
         name: QUEUE_NAMES.DATA_VALIDATION,
-        // No processor needed for this queue
-      },
-      {
-        name: QUEUE_NAMES.EXPORT_DATA,
-        // Register processor for export jobs
       },
       {
         name: QUEUE_NAMES.PRA_UNIFIED_SCAN,
-        processors: [{
-          path: join(__dirname, 'processors', 'pra-unified-scanner.processor.js'),
-          concurrency: 1
-        }]
       },
       {
         name: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
-        processors: [{
-          path: join(__dirname, 'processors', 'pra-file-download.processor.js'),
-          concurrency: 1
-        }]
       },
     ),
   ],
   controllers: [JobsController],
   providers: [
     JobsService,
-    // Only register essential processors to reduce memory usage
-    PRAFileDownloadProcessor,
-    PRAUnifiedScannerProcessor,
+    // Only register essential processors for startup testing
     ExportDataProcessor,
-    AnalyticsRefreshProcessor,
     HospitalMonitorService,
     PRAPipelineService,
     JobCleanupService,

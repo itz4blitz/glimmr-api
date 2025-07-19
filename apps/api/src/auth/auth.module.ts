@@ -4,6 +4,8 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { AdminController } from './admin.controller';
+import { RbacService } from './rbac.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { ApiKeyStrategy } from './strategies/api-key.strategy';
@@ -22,8 +24,8 @@ import { UsersModule } from '../users/users.module';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy, ApiKeyStrategy],
-  exports: [AuthService],
+  controllers: [AuthController, AdminController],
+  providers: [AuthService, RbacService, JwtStrategy, LocalStrategy, ApiKeyStrategy],
+  exports: [AuthService, RbacService, JwtModule],
 })
 export class AuthModule {}

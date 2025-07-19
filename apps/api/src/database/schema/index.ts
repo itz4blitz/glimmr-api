@@ -5,6 +5,7 @@ export * from './price-transparency-files';
 export * from './analytics';
 export * from './jobs';
 export * from './users';
+export * from './rbac';
 
 // Re-export for convenience
 import { hospitals } from './hospitals';
@@ -13,6 +14,7 @@ import { priceTransparencyFiles } from './price-transparency-files';
 import { analytics } from './analytics';
 import { jobs, jobLogs } from './jobs';
 import { users } from './users';
+import { roles, permissions, userRoles, rolePermissions } from './rbac';
 
 export const schema = {
   hospitals,
@@ -22,6 +24,10 @@ export const schema = {
   jobs,
   jobLogs,
   users,
+  roles,
+  permissions,
+  userRoles,
+  rolePermissions,
 };
 
 export type Schema = typeof schema;

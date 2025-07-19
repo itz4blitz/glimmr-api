@@ -4,10 +4,15 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AppModule } from './app.module';
+import { AppTestModule } from './app.test.module';
+import { LoggerModule } from 'nestjs-pino';
+import { HealthModule } from './health/health.module';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 
 describe('AppModule - Rate Limiting Configuration', () => {
   let module: TestingModule;
+  let app: any;
   let configService: ConfigService;
   let throttlerGuard: any;
 
@@ -52,6 +57,7 @@ describe('AppModule - Rate Limiting Configuration', () => {
       ],
     }).compile();
 
+    app = module.createNestApplication();
     configService = module.get<ConfigService>(ConfigService);
     throttlerGuard = module.get(APP_GUARD);
   });

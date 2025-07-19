@@ -7,6 +7,16 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@nestjs/throttler':
+        specifier: ^6.4.0
+        version: 6.4.0(@nestjs/common@10.4.19(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19)(reflect-metadata@0.1.14)
+      passport-headerapikey:
+        specifier: ^1.2.2
+        version: 1.2.2
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
     devDependencies:
       '@types/jest':
         specifier: ^29.5.14

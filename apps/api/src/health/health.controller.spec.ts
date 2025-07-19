@@ -274,27 +274,53 @@ describe('HealthController', () => {
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(mockResponse.json).toHaveBeenCalledWith(mockHealthResult);
       expect(mockHealthService.getHealth).toHaveBeenCalledWith();
-  describe('getHealth', () => {
+    });
+  });
+
+  describe('Controller functionality', () => {
     it('should be defined', () => {
       expect(controller).toBeDefined();
     });
 
-    it('should return health status', async () => {
-      const result = await controller.getHealth();
-      expect(result).toBeDefined();
-      expect(typeof result).toBe('object');
+    it('should have health service injected', () => {
+      expect(mockHealthService).toBeDefined();
     });
 
-    it('should call HealthService.getHealth()', async () => {
-      const getHealthSpy = jest.spyOn(service, 'getHealth');
-      await controller.getHealth();
-      expect(getHealthSpy).toHaveBeenCalled();
-    });
+    it('should call health service method', async () => {
+      const mockHealthResult = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: '300s',
+        version: '1.0.0',
+        service: 'Glimmr API',
+        environment: 'test',
+        checks: {
+          api: 'healthy',
+          memory: {
+            rss: '100MB',
+            heapTotal: '50MB',
+            heapUsed: '30MB',
+          },
+          database: {
+            status: 'healthy',
+            details: {
+              duration: 10,
+              timestamp: new Date(),
+            },
+          },
+          redis: {
+            status: 'healthy',
+            details: {
+              duration: 5,
+              url: 'redis://localhost:6379',
+            },
+          },
+        },
+      };
 
-    it('should return the same value as HealthService.getHealth()', async () => {
-      const serviceResult = await service.getHealth();
-      const controllerResult = await controller.getHealth();
-      expect(controllerResult).toEqual(serviceResult);
+      mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
+      await controller.getHealth(mockResponse as any);
+      expect(mockHealthService.getHealth).toHaveBeenCalled();
     });
   });
 
