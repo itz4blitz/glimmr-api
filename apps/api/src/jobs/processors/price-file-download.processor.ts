@@ -8,10 +8,10 @@ import * as path from 'path';
 import AdmZip from 'adm-zip';
 import * as Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { DatabaseService } from '../../database/database.service.js';
-import { priceTransparencyFiles, prices } from '../../database/schema/index.js';
+import { DatabaseService } from '../../database/database.service';
+import { priceTransparencyFiles, prices } from '../../database/schema/index';
 import { eq } from 'drizzle-orm';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
 
 export interface PriceFileDownloadJobData {
   hospitalId: string;
@@ -272,27 +272,67 @@ export class PriceFileDownloadProcessor extends WorkerHost {
     return new Promise((resolve, reject) => {
       const records: PriceRecord[] = [];
       let totalRecords = 0;
+      let chunksProcessed = 0;
+      let rowsProcessed = 0;
+
+      this.logger.info({
+        msg: 'Starting CSV file processing',
+        filePath,
+        hospitalId,
+        fileId,
+        jobId: job.id,
+      });
 
       Papa.parse(fs.createReadStream(filePath), {
         header: true,
         skipEmptyLines: true,
         chunk: (results) => {
+          chunksProcessed++;
+          rowsProcessed += results.data.length;
+          
+          this.logger.debug({
+            msg: 'Processing CSV chunk',
+            chunkNumber: chunksProcessed,
+            rowsInChunk: results.data.length,
+            totalRowsProcessed: rowsProcessed,
+            hasErrors: results.errors.length > 0,
+            errors: results.errors.slice(0, 3), // First 3 errors only
+            sampleRow: results.data[0], // First row sample
+            jobId: job.id,
+          });
+
           // Process chunk synchronously to avoid promise issues
           this.processChunk(results, records, hospitalId, fileId)
             .catch(error => {
               this.logger.error({
                 msg: 'Error processing CSV chunk',
                 filePath,
+                chunkNumber: chunksProcessed,
                 error: error.message,
                 jobId: job.id,
               });
             });
         },
         complete: () => {
+          this.logger.info({
+            msg: 'CSV parsing complete',
+            chunksProcessed,
+            rowsProcessed,
+            recordsCollected: records.length,
+            filePath,
+            jobId: job.id,
+          });
+
           // Process remaining records synchronously
           this.processRemainingRecords(records, hospitalId, fileId)
             .then(() => {
               totalRecords += records.length;
+              this.logger.info({
+                msg: 'CSV processing finished successfully',
+                totalRecords,
+                filePath,
+                jobId: job.id,
+              });
               resolve(totalRecords);
             })
             .catch(error => {
@@ -310,6 +350,7 @@ export class PriceFileDownloadProcessor extends WorkerHost {
             msg: 'CSV parsing error',
             filePath,
             error: error.message,
+            stack: error.stack,
             jobId: job.id,
           });
           reject(error);
@@ -373,8 +414,29 @@ export class PriceFileDownloadProcessor extends WorkerHost {
 
     this.mapFields(row, record, fieldMappings);
 
-    // Must have at least description or code
+    // Must have at least description or code, or at least a price field
+    const hasIdentifier = !!(record.description || record.code);
+    const hasPrice = !!(record.grossCharge || record.discountedCashPrice || 
+                       record.minimumNegotiatedCharge || record.maximumNegotiatedCharge);
+    
+    // For fallback, if we have any price-like field, use the first available field as description
+    if (!hasIdentifier && hasPrice) {
+      const availableFields = Object.keys(row);
+      const firstNonEmptyField = availableFields.find(field => 
+        row[field] && String(row[field]).trim() && !field.startsWith('__EMPTY_')
+      );
+      if (firstNonEmptyField) {
+        record.description = String(row[firstNonEmptyField]).trim();
+      }
+    }
+    
+    // Final validation: must have at least description or code
     if (!record.description && !record.code) {
+      this.logger.debug({
+        msg: 'Record rejected - no identifier',
+        availableFields: Object.keys(row).slice(0, 15),
+        sampleValues: Object.entries(row).slice(0, 5).map(([k, v]) => `${k}: ${v}`)
+      });
       return null;
     }
 
@@ -383,24 +445,57 @@ export class PriceFileDownloadProcessor extends WorkerHost {
 
   private getFieldMappings() {
     return {
-      description: ['description', 'service_description', 'item_description', 'procedure_description'],
-      code: ['code', 'procedure_code', 'cpt_code', 'hcpcs_code', 'drg_code'],
-      codeType: ['code_type', 'procedure_type'],
-      grossCharge: ['gross_charge', 'gross_price', 'standard_charge'],
-      discountedCashPrice: ['discounted_cash_price', 'cash_price', 'self_pay_price'],
-      minimumNegotiatedCharge: ['minimum_negotiated_charge', 'min_price'],
-      maximumNegotiatedCharge: ['maximum_negotiated_charge', 'max_price'],
+      description: [
+        'description', 'service_description', 'item_description', 'procedure_description',
+        'Standard Charges', 'standard_charges', 'service', 'procedure', 'item',
+        'hospital_service', 'charge_description', 'hospital_name', 'hospital',
+        'financial_aid_policy', 'charge_setting'
+      ],
+      code: [
+        'code', 'procedure_code', 'cpt_code', 'hcpcs_code', 'drg_code',
+        'cpt', 'hcpcs', 'drg', 'procedure_identifier', 'service_code',
+        'license_number', 'license', 'npi'
+      ],
+      codeType: ['code_type', 'procedure_type', 'charge_type', 'billing_code_type'],
+      grossCharge: [
+        'gross_charge', 'gross_price', 'standard_charge', 'standard_charges',
+        'charge_amount', 'price', 'amount', 'total_charge', 'base_rate',
+        'list_price', 'hospital_charge'
+      ],
+      discountedCashPrice: [
+        'discounted_cash_price', 'cash_price', 'self_pay_price', 'cash_rate',
+        'uninsured_price', 'self_pay_rate', 'cash_discount_price'
+      ],
+      minimumNegotiatedCharge: [
+        'minimum_negotiated_charge', 'min_price', 'minimum_rate', 'min_negotiated_rate',
+        'lowest_negotiated_price', 'min_payer_rate'
+      ],
+      maximumNegotiatedCharge: [
+        'maximum_negotiated_charge', 'max_price', 'maximum_rate', 'max_negotiated_rate',
+        'highest_negotiated_price', 'max_payer_rate'
+      ],
     };
   }
 
   private mapFields(row: any, record: PriceRecord, fieldMappings: Record<string, string[]>): void {
+    let mappedFields = 0;
     for (const [targetField, sourceFields] of Object.entries(fieldMappings)) {
       const value = this.findFieldValue(row, sourceFields);
       if (value !== null) {
         record[targetField] = this.processFieldValue(targetField, value);
-        break;
+        mappedFields++;
       }
     }
+    
+    // Debug logging for mapping results
+    this.logger.debug({
+      msg: 'Field mapping result',
+      mappedFields,
+      mappedRecord: record,
+      hasDescription: !!record.description,
+      hasCode: !!record.code,
+      availableFields: Object.keys(row).slice(0, 10), // Show first 10 fields
+    });
   }
 
   private findFieldValue(row: any, sourceFields: string[]): string | null {
@@ -410,6 +505,22 @@ export class PriceFileDownloadProcessor extends WorkerHost {
         return value;
       }
     }
+    
+    // Fallback: try to find fields with similar names (case-insensitive, BOM-stripped)
+    const rowKeys = Object.keys(row);
+    for (const sourceField of sourceFields) {
+      const cleanSourceField = sourceField.toLowerCase().replace(/^\uFEFF/, ''); // Remove BOM
+      for (const rowKey of rowKeys) {
+        const cleanRowKey = rowKey.toLowerCase().replace(/^\uFEFF/, ''); // Remove BOM
+        if (cleanRowKey.includes(cleanSourceField) || cleanSourceField.includes(cleanRowKey)) {
+          const value = row[rowKey];
+          if (value !== undefined && value !== null && value !== '') {
+            return value;
+          }
+        }
+      }
+    }
+    
     return null;
   }
 

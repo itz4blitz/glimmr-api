@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
-import { getSharedRedisConnection } from '../../redis/redis.config.js';
+import { getSharedRedisConnection } from '../../redis/redis.config';
 
 export interface QueueConfig {
   name: string;

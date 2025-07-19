@@ -165,3 +165,210 @@ curl http://localhost:3000/api/v1/jobs/status
 - Rate limiting per endpoint
 - Environment-based configuration
 - No secrets in code
+
+## Docker & Service Access Commands
+
+### Docker Management
+```bash
+# Environment control
+docker-compose -f docker-compose.dev.yml up -d     # Start all services
+docker-compose -f docker-compose.dev.yml down      # Stop all services
+docker-compose -f docker-compose.dev.yml restart   # Restart all services
+docker-compose -f docker-compose.dev.yml logs -f   # Follow all logs
+
+# Individual service control
+docker restart glimmr-api                          # Restart API only
+docker restart glimmr-postgres                     # Restart database
+docker restart glimmr-redis                        # Restart Redis
+docker restart glimmr-minio                        # Restart MinIO
+
+# Service logs
+docker logs glimmr-api --tail 50 -f               # API logs (follow)
+docker logs glimmr-postgres --tail 20             # Database logs
+docker logs glimmr-redis --tail 20                # Redis logs
+docker logs glimmr-minio --tail 20                # MinIO logs
+docker logs glimmr-inbucket --tail 20             # Email logs
+
+# Service status and health
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+docker exec glimmr-api curl -s http://localhost:3000/api/v1/health
+```
+
+### Database Access (PostgreSQL)
+```bash
+# Direct database connection
+docker exec -it glimmr-postgres psql -U postgres -d glimmr_dev
+
+# Quick queries via CLI
+docker exec glimmr-postgres psql -U postgres -d glimmr_dev -c "SELECT COUNT(*) FROM hospitals;"
+docker exec glimmr-postgres psql -U postgres -d glimmr_dev -c "SELECT COUNT(*) FROM prices;"
+docker exec glimmr-postgres psql -U postgres -d glimmr_dev -c "SELECT name, status FROM jobs ORDER BY created_at DESC LIMIT 10;"
+
+# Database dumps and restore
+docker exec glimmr-postgres pg_dump -U postgres glimmr_dev > backup.sql
+docker exec -i glimmr-postgres psql -U postgres -d glimmr_dev < backup.sql
+
+# Host machine direct access (if psql installed)
+PGPASSWORD=postgres psql -h localhost -U postgres -d glimmr_dev
+
+# Database schema inspection
+docker exec glimmr-postgres psql -U postgres -d glimmr_dev -c "\dt"  # List tables
+docker exec glimmr-postgres psql -U postgres -d glimmr_dev -c "\d+ hospitals"  # Describe table
+```
+
+### Redis Access
+```bash
+# Connect to Redis CLI
+docker exec -it glimmr-redis redis-cli
+
+# Quick Redis commands
+docker exec glimmr-redis redis-cli ping
+docker exec glimmr-redis redis-cli info
+docker exec glimmr-redis redis-cli keys "*"
+docker exec glimmr-redis redis-cli keys "bull:*"  # BullMQ queues
+
+# Monitor Redis activity
+docker exec glimmr-redis redis-cli monitor
+
+# Queue inspection
+docker exec glimmr-redis redis-cli llen "bull:pra-unified-scan:waiting"
+docker exec glimmr-redis redis-cli hgetall "bull:pra-unified-scan:1"
+
+# Host machine direct access (if redis-cli installed)
+redis-cli -h localhost -p 6379
+```
+
+### MinIO Storage Access
+```bash
+# MinIO Client (mc) commands via container
+docker exec glimmr-minio mc alias set local http://localhost:9000 minioadmin minioadmin123
+docker exec glimmr-minio mc ls local/glimmr-files
+docker exec glimmr-minio mc stat local/glimmr-files
+
+# File operations
+docker exec glimmr-minio mc cp local/glimmr-files/hospitals/ /tmp/ --recursive
+docker exec glimmr-minio mc find local/glimmr-files --name "*.csv"
+
+# MinIO Console Web UI
+open http://localhost:9001  # minioadmin / minioadmin123
+
+# S3 API compatible access
+curl -X GET http://localhost:9000/glimmr-files/
+aws --endpoint-url=http://localhost:9000 s3 ls s3://glimmr-files/
+```
+
+### Email Testing (Inbucket)
+```bash
+# Inbucket Web UI
+open http://localhost:8025
+
+# SMTP testing
+telnet localhost 2500
+
+# POP3 access
+telnet localhost 1100
+
+# Send test email via curl
+curl -X POST http://localhost:8025/api/v1/mailbox/test@example.com \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"Test","body":"Test message"}'
+
+# List mailbox contents
+curl http://localhost:8025/api/v1/mailbox/test@example.com
+
+# Read specific email
+curl http://localhost:8025/api/v1/mailbox/test@example.com/EMAIL_ID
+```
+
+### API Testing & Monitoring
+```bash
+# Health checks
+curl http://localhost:3000/api/v1/health
+curl http://localhost:3000/api/v1/health/ready
+curl http://localhost:3000/api/v1/health/live
+
+# API documentation
+open http://localhost:3000/api/docs
+
+# Queue monitoring
+open http://localhost:3000/api/v1/admin/queues
+
+# Job management
+curl http://localhost:3000/api/v1/jobs/status
+curl -X POST http://localhost:3000/api/v1/jobs/pra/scan \
+  -H "Content-Type: application/json" \
+  -d '{"testMode": true}'
+
+# Data queries
+curl "http://localhost:3000/api/v1/hospitals?limit=5"
+curl "http://localhost:3000/api/v1/prices?limit=5"
+curl "http://localhost:3000/api/v1/analytics/summary"
+
+# Authentication (get token first)
+TOKEN=$(curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}' | jq -r '.token')
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/v1/admin/users
+```
+
+### Development Tools
+```bash
+# Drizzle Studio (Database GUI)
+cd apps/api && pnpm db:studio
+open http://localhost:3000/drizzle  # or check console output for URL
+
+# Real-time log monitoring
+docker logs glimmr-api -f | grep ERROR           # Filter errors
+docker logs glimmr-api -f | grep "CSV"           # Filter CSV processing
+docker logs glimmr-api -f | grep "Job"           # Filter job processing
+
+# Performance monitoring
+docker stats glimmr-api glimmr-postgres glimmr-redis glimmr-minio
+
+# Container inspection
+docker inspect glimmr-api | jq '.[]'
+docker exec glimmr-api env | grep -E "(DATABASE_|REDIS_|STORAGE_)"
+```
+
+### Debugging & Troubleshooting
+```bash
+# Check all service endpoints
+curl -s http://localhost:3000/api/v1/health | jq '.'
+curl -s http://localhost:9000/minio/health/ready
+docker exec glimmr-redis redis-cli ping
+docker exec glimmr-postgres pg_isready -U postgres
+
+# Network connectivity
+docker network inspect glimmr-network
+docker exec glimmr-api ping glimmr-postgres
+docker exec glimmr-api ping glimmr-redis
+
+# Container resource usage
+docker exec glimmr-api ps aux
+docker exec glimmr-api df -h
+docker exec glimmr-api netstat -tlnp
+
+# Application debugging
+docker exec glimmr-api curl -s http://localhost:3000/api/v1/health
+docker exec -it glimmr-api sh  # Shell access for debugging
+
+# File system inspection
+docker exec glimmr-api ls -la /app
+docker exec glimmr-api cat /app/package.json
+docker exec glimmr-minio ls -la /data/glimmr-files/
+```
+
+### MCP & Integration Testing
+```bash
+# Test all service integrations
+./scripts/test-integration.sh  # If exists
+
+# Validate environment
+docker exec glimmr-api node -e "console.log(process.env.DATABASE_URL)"
+docker exec glimmr-api node -e "console.log(require('./package.json').version)"
+
+# Memory and performance
+docker exec glimmr-api node -e "console.log(process.memoryUsage())"
+docker exec glimmr-api top -n 1
+```

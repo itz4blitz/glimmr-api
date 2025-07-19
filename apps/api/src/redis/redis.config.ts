@@ -39,7 +39,7 @@ export const createRedisConfig = (configService: ConfigService): RedisConfig => 
     connectTimeout: isProduction ? 10000 : 5000,
     commandTimeout: isProduction ? 30000 : 10000,
     family: 4, // Force IPv4
-    enableOfflineQueue: false, // Fail fast when Redis is down
+    enableOfflineQueue: true, // Allow offline queuing for better resilience
     retryDelayOnFailover: isProduction ? 1000 : 100,
     keepAlive: isProduction ? 60000 : 30000,
     enableReadyCheck: true,

@@ -2,11 +2,11 @@ import { Processor, WorkerHost, OnWorkerEvent, InjectQueue } from '@nestjs/bullm
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { Job, Queue } from 'bullmq';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
-import { HospitalsService } from '../../hospitals/hospitals.service.js';
-import { PatientRightsAdvocateService, PRAHospital } from '../../external-apis/patient-rights-advocate.service.js';
-import { DatabaseService } from '../../database/database.service.js';
-import { hospitals } from '../../database/schema/hospitals.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
+import { HospitalsService } from '../../hospitals/hospitals.service';
+import { PatientRightsAdvocateService, PRAHospital } from '../../external-apis/patient-rights-advocate.service';
+import { DatabaseService } from '../../database/database.service';
+import { hospitals } from '../../database/schema/hospitals';
 import { eq } from 'drizzle-orm';
 
 export interface PRAUnifiedScanJobData {

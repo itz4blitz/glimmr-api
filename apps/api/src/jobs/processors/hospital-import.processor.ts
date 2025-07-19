@@ -2,11 +2,11 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { Job } from 'bullmq';
-import { DatabaseService } from '../../database/database.service.js';
-import { hospitals } from '../../database/schema/index.js';
+import { DatabaseService } from '../../database/database.service';
+import { hospitals } from '../../database/schema/index';
 import { eq } from 'drizzle-orm';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
-import { PatientRightsAdvocateService, type PRAHospital } from '../../external-apis/patient-rights-advocate.service.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
+import { PatientRightsAdvocateService, type PRAHospital } from '../../external-apis/patient-rights-advocate.service';
 
 export interface HospitalImportJobData {
   state?: string;

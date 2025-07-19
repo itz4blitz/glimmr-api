@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getSharedRedisConnection } from './redis.config.js';
+import { getSharedRedisConnection } from './redis.config';
 import IORedis from 'ioredis';
 
 export interface RedisHealthResult {

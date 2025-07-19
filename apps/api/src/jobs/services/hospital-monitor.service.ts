@@ -3,12 +3,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { DatabaseService } from '../../database/database.service.js';
-import { hospitals, priceTransparencyFiles } from '../../database/schema/index.js';
+import { DatabaseService } from '../../database/database.service';
+import { hospitals, priceTransparencyFiles } from '../../database/schema/index';
 import { eq, and, isNotNull, gte } from 'drizzle-orm';
-import { QUEUE_NAMES } from '../queues/queue.config.js';
-import { HospitalImportJobData } from '../processors/hospital-import.processor.js';
-import { PriceFileDownloadJobData } from '../processors/price-file-download.processor.js';
+import { QUEUE_NAMES } from '../queues/queue.config';
+import { HospitalImportJobData } from '../processors/hospital-import.processor';
+import { PriceFileDownloadJobData } from '../processors/price-file-download.processor';
 
 @Injectable()
 export class HospitalMonitorService {

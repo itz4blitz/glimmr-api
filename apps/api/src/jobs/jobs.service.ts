@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, Job } from 'bullmq';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { QUEUE_NAMES } from './queues/queue.config.js';
-import { HospitalImportJobData } from './processors/hospital-import.processor.js';
-import { PriceFileDownloadJobData } from './processors/price-file-download.processor.js';
-import type { AnalyticsRefreshJobData } from './processors/analytics-refresh.processor.js';
+import { QUEUE_NAMES } from './queues/queue.config';
+import { HospitalImportJobData } from './processors/hospital-import.processor';
+import { PriceFileDownloadJobData } from './processors/price-file-download.processor';
+import type { AnalyticsRefreshJobData } from './processors/analytics-refresh.processor';
 
 @Injectable()
 export class JobsService {

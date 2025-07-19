@@ -12,6 +12,7 @@ import {
   StartPriceUpdateDto,
   TriggerPRAScanDto,
 } from './dto/hospital-import.dto';
+import { RbacService } from '../auth/rbac.service';
 
 describe('JobsController', () => {
   let controller: JobsController;
@@ -52,6 +53,11 @@ describe('JobsController', () => {
     getDefaultPolicy: jest.fn(),
   };
 
+  const mockRbacService = {
+    hasPermission: jest.fn().mockResolvedValue(true),
+    getUserPermissions: jest.fn().mockResolvedValue(['read:jobs', 'write:jobs']),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [JobsController],
@@ -71,6 +77,10 @@ describe('JobsController', () => {
         {
           provide: JobCleanupService,
           useValue: mockJobCleanupService,
+        },
+        {
+          provide: RbacService,
+          useValue: mockRbacService,
         },
       ],
     }).compile();

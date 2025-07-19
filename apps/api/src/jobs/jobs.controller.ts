@@ -1,15 +1,15 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { JobsService } from './jobs.service.js';
-import { HospitalMonitorService } from './services/hospital-monitor.service.js';
-import { PRAPipelineService } from './services/pra-pipeline.service.js';
-import { JobCleanupService } from './services/job-cleanup.service.js';
-import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto, StartHospitalImportDto, StartPriceUpdateDto, TriggerPRAScanDto, TriggerAnalyticsRefreshDto } from './dto/hospital-import.dto.js';
-import { JobFilterQueryDto } from '../common/dto/query.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { JobsService } from './jobs.service';
+import { HospitalMonitorService } from './services/hospital-monitor.service';
+import { PRAPipelineService } from './services/pra-pipeline.service';
+import { JobCleanupService } from './services/job-cleanup.service';
+import { TriggerHospitalImportDto, TriggerPriceFileDownloadDto, StartHospitalImportDto, StartPriceUpdateDto, TriggerPRAScanDto, TriggerAnalyticsRefreshDto } from './dto/hospital-import.dto';
+import { JobFilterQueryDto } from '../common/dto/query.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('jobs')
 @Controller('jobs')

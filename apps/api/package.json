@@ -46,6 +46,7 @@
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^10.0.0",
     "@types/adm-zip": "^0.5.7",
+    "@types/nodemailer": "^6.4.17",
     "@types/papaparse": "^5.3.16",
     "adm-zip": "^0.5.16",
     "axios": "^1.5.0",
@@ -66,6 +67,7 @@
     "joi": "^17.9.0",
     "nest-winston": "^1.9.0",
     "nestjs-pino": "^4.4.0",
+    "nodemailer": "^7.0.5",
     "papaparse": "^5.5.3",
     "passport": "^0.6.0",
     "passport-headerapikey": "^1.2.2",
@@ -123,9 +125,7 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": ["ts-jest", {
-        "useESM": true
-      }]
+      "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
@@ -133,8 +133,7 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^(.+)\\.js$": "$1"
-    },
-    "extensionsToTreatAsEsm": [".ts"]
+      "bcrypt": "<rootDir>/__mocks__/bcrypt.js"
+    }
   }
 }

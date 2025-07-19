@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ODataController } from './odata.controller';
 import { ODataService } from './odata.service';
 import { CustomThrottlerGuard } from '../common/guards/custom-throttler.guard';
+import { RbacService } from '../auth/rbac.service';
 
 describe('ODataController', () => {
   let controller: ODataController;
@@ -35,6 +36,11 @@ describe('ODataController', () => {
     setHeader: jest.fn(),
   };
 
+  const mockRbacService = {
+    hasPermission: jest.fn().mockResolvedValue(true),
+    getUserPermissions: jest.fn().mockResolvedValue(['read:odata', 'write:odata']),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
@@ -60,6 +66,10 @@ describe('ODataController', () => {
         {
           provide: APP_GUARD,
           useClass: CustomThrottlerGuard,
+        },
+        {
+          provide: RbacService,
+          useValue: mockRbacService,
         },
         Reflector,
       ],
