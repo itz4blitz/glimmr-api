@@ -18,6 +18,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
 import { RbacService } from './rbac.service';
 import { UsersService } from '../users/users.service';
+import { EmailService } from '../email/email.service';
 import {
   CreateRoleDto,
   CreatePermissionDto,
@@ -27,6 +28,7 @@ import {
   UpdateUserDto,
   UserListQueryDto
 } from './dto/user-management.dto';
+import { SendEmailDto, SendTestEmailDto } from '../email/dto/email.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -36,6 +38,7 @@ export class AdminController {
   constructor(
     private readonly rbacService: RbacService,
     private readonly usersService: UsersService,
+    private readonly emailService: EmailService,
   ) {}
 
   // User Management
@@ -229,5 +232,32 @@ export class AdminController {
   async removePermissionFromRole(@Param('roleId') roleId: string, @Param('permissionId') permissionId: string) {
     await this.rbacService.removePermissionFromRole(roleId, permissionId);
     return { message: 'Permission removed successfully' };
+  }
+
+  // Email Management
+  @Get('email/test-connection')
+  @ApiOperation({ summary: 'Test email service connection' })
+  @ApiResponse({ status: 200, description: 'Email service connection test completed' })
+  @Roles('admin')
+  async testEmailConnection() {
+    return await this.emailService.testConnection();
+  }
+
+  @Post('email/send-test')
+  @ApiOperation({ summary: 'Send test email' })
+  @ApiResponse({ status: 200, description: 'Test email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to send test email' })
+  @Roles('admin')
+  async sendTestEmail(@Body() testEmailDto: SendTestEmailDto = {}) {
+    return await this.emailService.sendTestEmail(testEmailDto.to);
+  }
+
+  @Post('email/send')
+  @ApiOperation({ summary: 'Send custom email' })
+  @ApiResponse({ status: 200, description: 'Email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to send email' })
+  @Roles('admin')
+  async sendEmail(@Body() emailData: SendEmailDto) {
+    return await this.emailService.sendEmail(emailData);
   }
 }
