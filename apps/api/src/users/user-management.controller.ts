@@ -61,7 +61,7 @@ export class UserListQueryDto {
   lastLoginBefore?: string;
 }
 
-@ApiTags('User Management')
+@ApiTags('Admin - Users')
 @ApiBearerAuth()
 @Controller('api/v1/users')
 @UseGuards(JwtAuthGuard, RolesGuard)

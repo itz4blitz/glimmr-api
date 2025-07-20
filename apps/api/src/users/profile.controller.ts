@@ -49,7 +49,7 @@ export class UpdatePreferencesDto implements PreferencesUpdateData {
   dashboardLayout?: any;
 }
 
-@ApiTags('Profile Management')
+@ApiTags('User Profile')
 @ApiBearerAuth()
 @Controller('api/v1/profile')
 @UseGuards(JwtAuthGuard)

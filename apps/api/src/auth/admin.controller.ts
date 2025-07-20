@@ -30,7 +30,7 @@ import {
 } from './dto/user-management.dto';
 import { SendEmailDto, SendTestEmailDto } from '../email/dto/email.dto';
 
-@ApiTags('admin')
+@ApiTags('Admin - System')
 @Controller('admin')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

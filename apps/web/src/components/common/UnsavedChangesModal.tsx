@@ -59,8 +59,7 @@ export function UnsavedChangesModal({
           
           <AlertDialogAction
             onClick={onDiscard}
-            variant="destructive"
-            className="w-full sm:w-auto order-2 sm:order-2"
+            className="w-full sm:w-auto order-2 sm:order-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Discard Changes
