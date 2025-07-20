@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { 
@@ -23,7 +22,7 @@ import {
   Shield,
   User,
   Settings,
-  FileText,
+
   Upload,
   Download,
   Trash2,
@@ -107,7 +106,7 @@ const mockActivities: ActivityLog[] = [
   },
 ]
 
-const getActivityIcon = (action: string, resourceType: string) => {
+const getActivityIcon = (action: string) => {
   if (action.includes('login')) return <Shield className="h-4 w-4" />
   if (action.includes('profile')) return <User className="h-4 w-4" />
   if (action.includes('preferences')) return <Settings className="h-4 w-4" />
@@ -154,8 +153,7 @@ const getDeviceIcon = (userAgent: string) => {
 }
 
 export function ActivityHistory() {
-  const { user } = useAuthStore()
-  const [activities, setActivities] = useState<ActivityLog[]>(mockActivities)
+  const [activities] = useState<ActivityLog[]>(mockActivities)
   const [filteredActivities, setFilteredActivities] = useState<ActivityLog[]>(mockActivities)
   const [searchTerm, setSearchTerm] = useState('')
   const [actionFilter, setActionFilter] = useState('all')
@@ -255,7 +253,7 @@ export function ActivityHistory() {
                       ? 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400'
                       : 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400'
                   }`}>
-                    {getActivityIcon(activity.action, activity.resourceType)}
+                    {getActivityIcon(activity.action)}
                   </div>
 
                   {/* Content */}
