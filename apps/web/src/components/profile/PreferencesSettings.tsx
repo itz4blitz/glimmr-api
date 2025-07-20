@@ -40,7 +40,7 @@ const preferencesSchema = z.object({
   notificationEmail: z.boolean(),
   notificationPush: z.boolean(),
   notificationSms: z.boolean(),
-  themePreference: z.enum(['light', 'dark', 'system']),
+  themePreference: z.enum(['light', 'dark']),
   languagePreference: z.string(),
   timezonePreference: z.string(),
   dateFormat: z.string(),
@@ -93,7 +93,7 @@ export function PreferencesSettings() {
     notificationEmail: user?.preferences?.notificationEmail ?? true,
     notificationPush: user?.preferences?.notificationPush ?? true,
     notificationSms: user?.preferences?.notificationSms ?? false,
-    themePreference: (user?.preferences?.themePreference as 'light' | 'dark' | 'system') ?? 'system',
+    themePreference: (user?.preferences?.themePreference as 'light' | 'dark') ?? theme,
     languagePreference: user?.preferences?.languagePreference ?? 'en',
     timezonePreference: user?.preferences?.timezonePreference ?? 'UTC',
     dateFormat: user?.preferences?.dateFormat ?? 'MM/DD/YYYY',
@@ -266,7 +266,6 @@ export function PreferencesSettings() {
                     <SelectContent className="select-content-enhanced">
                       <SelectItem value="light">Light</SelectItem>
                       <SelectItem value="dark">Dark</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>

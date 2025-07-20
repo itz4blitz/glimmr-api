@@ -20,7 +20,7 @@ The system discovers hospital pricing data, monitors changes, downloads files, a
 - ✅ **ALL 47 shadcn/ui Components** - Complete component library
 - ✅ **Beautiful Custom Theme** - OKLCH-based colors with light/dark modes
 - ✅ **Framer Motion** - Smooth animations throughout
-- ✅ **Zustand State Management** - Authentication and theme stores
+- ✅ **Zustand State Management** - Authentication store with React Context for theme
 - ✅ **React Router** - Protected routes with role-based access
 - ✅ **Form Validation** - React Hook Form + Zod integration
 - ✅ **Mobile Responsive** - Mobile-first design approach

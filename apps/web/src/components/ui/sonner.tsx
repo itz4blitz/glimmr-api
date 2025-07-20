@@ -1,14 +1,14 @@
 import { Toaster as Sonner } from "sonner"
-import { useThemeStore } from "@/stores/theme"
+import { useTheme } from "@/components/theme-provider"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme } = useThemeStore()
+  const { theme } = useTheme()
 
   return (
     <Sonner
-      theme={theme === "system" ? "system" : theme}
+      theme={theme}
       className="toaster group"
       style={{ right: '1rem', left: 'auto' }}
       position="top-right"

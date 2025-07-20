@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Override Tailwind's default dark mode styles */
+html {
+  color-scheme: light !important;
+}
+
+html.dark {
+  color-scheme: dark !important;
+}
+
 :root {
   --background: oklch(0.98 0 0);
   --foreground: oklch(0.21 0.03 263.61);
@@ -151,9 +160,42 @@
   * {
     @apply border-border;
   }
+
+  html {
+    /* Force override any browser/Tailwind defaults */
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+  }
+
+  /* Ensure light mode uses light colors */
+  html:not(.dark) {
+    background-color: oklch(0.98 0 0) !important;
+    color: oklch(0.21 0.03 263.61) !important;
+  }
+
+  /* Ensure dark mode uses dark colors */
+  html.dark {
+    background-color: oklch(0.26 0.03 262.67) !important;
+    color: oklch(0.93 0.01 261.82) !important;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
+    /* Force override any browser defaults */
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+  }
+
+  /* Ensure body follows html */
+  body:not(.dark) {
+    background-color: oklch(0.98 0 0) !important;
+    color: oklch(0.21 0.03 263.61) !important;
+  }
+
+  html.dark body {
+    background-color: oklch(0.26 0.03 262.67) !important;
+    color: oklch(0.93 0.01 261.82) !important;
   }
 
   /* Focus styles */
@@ -250,25 +292,6 @@
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(var(--primary), 0.15) !important;
     outline: none !important;
     transform: translateY(-1px);
-  }
-
-  /* Dark theme enhanced inputs */
-  .dark input.input-enhanced,
-  .dark textarea.textarea-enhanced,
-  .dark [data-slot="input"].input-enhanced {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-  }
-
-  .dark input.input-enhanced:hover,
-  .dark textarea.textarea-enhanced:hover,
-  .dark [data-slot="input"].input-enhanced:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15) !important;
-  }
-
-  .dark input.input-enhanced:focus,
-  .dark textarea.textarea-enhanced:focus,
-  .dark [data-slot="input"].input-enhanced:focus {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(var(--primary), 0.15) !important;
   }
 
   /* Textarea specific styles are handled above with input.input-enhanced */
