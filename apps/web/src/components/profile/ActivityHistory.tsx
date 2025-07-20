@@ -244,7 +244,7 @@ export function ActivityHistory() {
           </Card>
         ) : (
           filteredActivities.map((activity) => (
-            <Card key={activity.id} className="shadow-card hover:shadow-card-hover">
+            <Card key={activity.id}>
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start gap-3 sm:gap-4">
                   {/* Icon */}

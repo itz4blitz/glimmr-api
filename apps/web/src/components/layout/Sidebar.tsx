@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useLocation } from 'react-router-dom'
+import { useNavigation } from '@/hooks/useNavigation'
 import {
   Home,
   User,
@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 export function Sidebar() {
   const { user } = useAuthStore()
   const { isCollapsed, toggleSidebar } = useSidebarStore()
+  const { isPending } = useNavigation()
   const location = useLocation()
 
   const navigation = [
@@ -89,11 +90,13 @@ export function Sidebar() {
     return location.pathname === href || location.pathname.startsWith(href + '/')
   }
 
-  const NavSection = ({ 
-    title, 
-    items, 
-    showForRole 
-  }: { 
+  const { navigate } = useNavigation()
+
+  const NavSection = ({
+    title,
+    items,
+    showForRole
+  }: {
     title: string
     items: typeof navigation
     showForRole?: (role: string) => boolean
@@ -130,17 +133,19 @@ export function Sidebar() {
                 <TooltipProvider key={item.name}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link
-                        to={item.href}
+                      <button
+                        onClick={() => navigate(item.href)}
                         className={cn(
                           'group flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 mx-auto mb-2',
                           active
                             ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                          isPending && 'opacity-50'
                         )}
+                        disabled={isPending}
                       >
                         <Icon className="h-4 w-4 flex-shrink-0" />
-                      </Link>
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
                       <p className="font-medium">{item.name}</p>
@@ -159,15 +164,17 @@ export function Sidebar() {
             }
 
             return (
-              <Link
+              <button
                 key={item.name}
-                to={item.href}
+                onClick={() => navigate(item.href)}
                 className={cn(
-                  'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 w-full text-left',
                   active
                     ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                  isPending && 'opacity-50'
                 )}
+                disabled={isPending}
               >
                 <Icon className={cn(
                   'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
@@ -189,7 +196,7 @@ export function Sidebar() {
                     {item.description}
                   </p>
                 </div>
-              </Link>
+              </button>
             )
           })}
         </nav>
@@ -198,21 +205,17 @@ export function Sidebar() {
   }
 
   return (
-    <motion.aside
-      initial={{ x: -20, opacity: 0 }}
-      animate={{
-        x: 0,
-        opacity: 1,
-        width: isCollapsed ? '4rem' : '16rem'
-      }}
-      transition={{ duration: 0.3 }}
+    <aside
       className={cn(
-        "fixed top-14 left-0 h-[calc(100vh-3.5rem)] bg-sidebar border-r border-sidebar-border overflow-y-auto z-40",
+        "fixed top-14 left-0 h-[calc(100vh-3.5rem)] bg-sidebar border-r border-sidebar-border overflow-y-auto z-40 transition-all duration-300 ease-in-out",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Toggle Button - Top right with proper spacing */}
-      <div className="absolute top-2 right-2 z-10">
+      {/* Toggle Button - Responsive positioning */}
+      <div className={cn(
+        "absolute top-2 z-10 transition-all duration-300",
+        isCollapsed ? "left-1/2 transform -translate-x-1/2" : "right-2"
+      )}>
         <Button
           onClick={toggleSidebar}
           size="sm"
@@ -242,51 +245,7 @@ export function Sidebar() {
 
         {/* Settings Navigation */}
         <NavSection title="Preferences" items={settingsNavigation} />
-
-        {/* User Info Card */}
-        {user && !isCollapsed && (
-          <div className="mt-6 p-3 bg-sidebar-accent rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-sidebar-primary rounded-full flex items-center justify-center">
-                <span className="text-sidebar-primary-foreground font-medium text-sm">
-                  {user.email?.charAt(0).toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-accent-foreground truncate">
-                  {user.email}
-                </p>
-                <p className="text-xs text-sidebar-accent-foreground/70 truncate">
-                  {user.role.replace('_', ' ').toLowerCase()}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Collapsed User Avatar */}
-        {user && isCollapsed && (
-          <div className="mt-6 flex justify-center">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="w-8 h-8 bg-sidebar-primary rounded-full flex items-center justify-center">
-                    <span className="text-sidebar-primary-foreground font-medium text-sm">
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="font-medium">{user.email}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {user.role.replace('_', ' ').toLowerCase()}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
       </div>
-    </motion.aside>
+    </aside>
   )
 }

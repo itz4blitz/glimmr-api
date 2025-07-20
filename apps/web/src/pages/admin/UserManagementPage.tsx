@@ -1,135 +1,202 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Plus, 
-  Download, 
-  Upload,
+import {
+  Users,
+  Search,
+  Filter,
+  Plus,
+  Download,
   BarChart3,
-  UserCheck,
-  UserX,
-  Shield,
   Settings,
-  MoreHorizontal
+  SlidersHorizontal
 } from 'lucide-react'
 import { UserList } from '@/components/admin/UserList'
+import { UserCardList } from '@/components/admin/UserCardList'
 import { UserStats } from '@/components/admin/UserStats'
-import { UserFilters } from '@/components/admin/UserFilters'
-import { UserBulkActions } from '@/components/admin/UserBulkActions'
-import { CreateUserDialog } from '@/components/admin/CreateUserDialog'
 
-export function UserManagementPage() {
+import { UserBulkActions } from '@/components/admin/UserBulkActions'
+import { AdvancedFiltersDialog } from '@/components/admin/AdvancedFiltersDialog'
+import { MobileFiltersDrawer } from '@/components/admin/MobileFiltersDrawer'
+import { ExportDialog } from '@/components/admin/ExportDialog'
+import { UserDetailDialog } from '@/components/admin/UserDetailDialog'
+import { CreateUserDialog } from '@/components/admin/CreateUserDialog'
+import { useUserManagementStore } from '@/stores/userManagement'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import type { UserFilters as UserFiltersType, AdvancedFilters } from '@/types/userManagement'
+
+function UserManagementPageContent() {
   const [activeTab, setActiveTab] = useState('users')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
-  const [filters, setFilters] = useState({
-    role: 'all',
-    status: 'all',
-    emailVerified: 'all',
-    dateRange: 'all',
-  })
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    roles: [],
+    statuses: [],
+    emailVerified: null,
+    dateRange: {
+      field: 'createdAt',
+      start: null,
+      end: null
+    },
+    hasActivity: null,
+    hasFiles: null
+  })
+
+  const isMobile = useMediaQuery('(max-width: 768px)')
+
+  const {
+    users,
+    loading,
+    filters,
+    selectedUserIds,
+    setFilters,
+    resetFilters,
+    loadUsers,
+    loadUserStats,
+    selectUser,
+    deselectUser,
+    selectAllUsers,
+    clearSelection
+  } = useUserManagementStore()
+
+  // Load initial data
+  useEffect(() => {
+    loadUsers()
+    loadUserStats()
+  }, []) // Remove dependencies to prevent multiple calls
+
+  // Update search term in store with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setFilters({ search: searchTerm })
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, setFilters])
 
   const handleUserSelect = (userId: string, selected: boolean) => {
     if (selected) {
-      setSelectedUsers(prev => [...prev, userId])
+      selectUser(userId)
     } else {
-      setSelectedUsers(prev => prev.filter(id => id !== userId))
+      deselectUser(userId)
     }
   }
 
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      // In a real app, you'd get all user IDs from the current page/filter
-      setSelectedUsers(['user1', 'user2', 'user3']) // Mock data
-    } else {
-      setSelectedUsers([])
-    }
+
+
+  const handleUserAction = (userId: string) => {
+    setSelectedUserId(userId)
   }
 
-  const handleBulkAction = (action: string) => {
-    console.log('Bulk action:', action, 'for users:', selectedUsers)
-    // Here you would implement the bulk action logic
-    setSelectedUsers([])
+  const handleUserClick = (userId: string) => {
+    setSelectedUserId(userId)
   }
 
-  const handleExportUsers = () => {
-    console.log('Exporting users with filters:', filters)
-    // Here you would implement the export logic
+  const handleFilterChange = (key: keyof UserFiltersType, value: string) => {
+    setFilters({ [key]: value })
   }
 
-  const handleImportUsers = () => {
-    console.log('Importing users')
-    // Here you would implement the import logic
+  const handleAdvancedFiltersChange = (newFilters: AdvancedFilters) => {
+    setAdvancedFilters(newFilters)
+    // Convert advanced filters to basic filters for the store
+    setFilters({ advanced: newFilters })
+  }
+
+  const clearFilters = () => {
+    resetFilters()
+    setSearchTerm('')
+    setAdvancedFilters({
+      roles: [],
+      statuses: [],
+      emailVerified: null,
+      dateRange: {
+        field: 'createdAt',
+        start: null,
+        end: null
+      },
+      hasActivity: null,
+      hasFiles: null
+    })
   }
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Users className="h-8 w-8" />
-              User Management
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage users, roles, and permissions across your organization
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleImportUsers}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            <Button variant="outline" onClick={handleExportUsers}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </div>
+        <div className="mb-6 sm:mb-8">
+          <Card className="border border-border/50">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                    <Users className="h-6 w-6 sm:h-8 sm:w-8" />
+                    User Management
+                  </h1>
+                  <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                    Manage users, roles, and permissions across your organization
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <ExportDialog>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Export</span>
+                    </Button>
+                  </ExportDialog>
+                  <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">Add User</span>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="users" className="flex items-center gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-y-8">
+          <TabsList className="tabs-list-enhanced grid w-full grid-cols-3 h-auto p-1.5">
+            <TabsTrigger value="users" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
               <Users className="h-4 w-4" />
-              Users
+              <span className="text-xs sm:text-sm font-medium">Users</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <TabsTrigger value="analytics" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
               <BarChart3 className="h-4 w-4" />
-              Analytics
+              <span className="text-xs sm:text-sm font-medium">Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
+            <TabsTrigger value="settings" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
               <Settings className="h-4 w-4" />
-              Settings
+              <span className="text-xs sm:text-sm font-medium">Settings</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
-          <TabsContent value="users" className="space-y-6">
-            {/* Search and Filters */}
-            <Card>
-              <CardContent className="pt-6">
+          <TabsContent value="users" className="space-y-4 sm:space-y-6">
+
+            {/* User List with Integrated Filters */}
+            <div className="bg-gradient-to-br from-background to-muted/20 rounded-xl shadow-2xl border border-border/20 overflow-hidden">
+              {/* Header with Filters */}
+              <div className="px-6 py-6 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-foreground">Users ({users.length})</h2>
+                </div>
+
+                {/* Search and Filters */}
                 <div className="flex flex-col lg:flex-row gap-4">
                   {/* Search */}
                   <div className="relative flex-1">
@@ -138,14 +205,14 @@ export function UserManagementPage() {
                       placeholder="Search users by name, email, or role..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 input-enhanced"
                     />
                   </div>
 
                   {/* Quick Filters */}
-                  <div className="flex flex-wrap gap-2">
-                    <Select value={filters.role} onValueChange={(value) => setFilters(prev => ({ ...prev, role: value }))}>
-                      <SelectTrigger className="w-[140px]">
+                  <div className="flex flex-wrap gap-3">
+                    <Select value={filters.role} onValueChange={(value) => handleFilterChange('role', value)}>
+                      <SelectTrigger className="w-[140px] input-enhanced">
                         <SelectValue placeholder="Role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -156,8 +223,8 @@ export function UserManagementPage() {
                       </SelectContent>
                     </Select>
 
-                    <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                      <SelectTrigger className="w-[140px]">
+                    <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                      <SelectTrigger className="w-[140px] input-enhanced">
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -167,48 +234,84 @@ export function UserManagementPage() {
                       </SelectContent>
                     </Select>
 
-                    <UserFilters filters={filters} onFiltersChange={setFilters} />
+                    {/* Advanced Filters - Desktop */}
+                    {!isMobile && (
+                      <AdvancedFiltersDialog
+                        filters={advancedFilters}
+                        onFiltersChange={handleAdvancedFiltersChange}
+                      >
+                        <Button variant="outline" className="input-enhanced">
+                          <SlidersHorizontal className="h-4 w-4 mr-2" />
+                          Advanced
+                        </Button>
+                      </AdvancedFiltersDialog>
+                    )}
+
+                    {/* Mobile Filters */}
+                    {isMobile && (
+                      <MobileFiltersDrawer
+                        filters={filters}
+                        onFiltersChange={setFilters}
+                        onReset={clearFilters}
+                      >
+                        <Button variant="outline" className="input-enhanced">
+                          <Filter className="h-4 w-4 mr-2" />
+                          Filters
+                        </Button>
+                      </MobileFiltersDrawer>
+                    )}
                   </div>
                 </div>
 
                 {/* Bulk Actions */}
-                {selectedUsers.length > 0 && (
-                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                {selectedUserIds.length > 0 && (
+                  <div className="mt-4 p-4 bg-background/80 rounded-lg border border-border/20">
                     <UserBulkActions
-                      selectedCount={selectedUsers.length}
-                      onAction={handleBulkAction}
-                      onClear={() => setSelectedUsers([])}
+                      selectedUserIds={selectedUserIds}
+                      onClear={clearSelection}
                     />
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* User List */}
-            <UserList
-              searchTerm={searchTerm}
-              filters={filters}
-              selectedUsers={selectedUsers}
-              onUserSelect={handleUserSelect}
-              onSelectAll={handleSelectAll}
-            />
+              {/* User List Content */}
+              {isMobile ? (
+                <div className="bg-background/95 backdrop-blur-sm">
+                  <UserCardList
+                    users={users}
+                    selectedUsers={selectedUserIds}
+                    onUserSelect={handleUserSelect}
+                    onUserAction={handleUserAction}
+                    onUserClick={handleUserClick}
+                    isLoading={loading.users}
+                  />
+                </div>
+              ) : (
+                <UserList
+                  selectedUsers={selectedUserIds}
+                  onUserSelect={handleUserSelect}
+                  onSelectAll={selectAllUsers}
+                  onUserEdit={handleUserAction}
+                />
+              )}
+            </div>
           </TabsContent>
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
+          <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
             <UserStats />
           </TabsContent>
 
           {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Management Settings</CardTitle>
-                <CardDescription>
+          <TabsContent value="settings" className="space-y-4 sm:space-y-6">
+            <Card className="border-2 border-border/50">
+              <CardHeader className="px-6 py-6">
+                <CardTitle className="text-xl">User Management Settings</CardTitle>
+                <CardDescription className="text-sm">
                   Configure user registration, permissions, and security settings
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-6 pb-6">
                 <div className="space-y-6">
                   {/* Registration Settings */}
                   <div>
@@ -298,7 +401,25 @@ export function UserManagementPage() {
           open={isCreateDialogOpen}
           onOpenChange={setIsCreateDialogOpen}
         />
+
+        {/* User Detail Dialog */}
+        {selectedUserId && (
+          <UserDetailDialog
+            userId={selectedUserId}
+            open={!!selectedUserId}
+            onOpenChange={(open) => !open && setSelectedUserId(null)}
+          />
+        )}
+        </div>
       </div>
     </AppLayout>
+  )
+}
+
+export function UserManagementPage() {
+  return (
+    <UnsavedChangesProvider>
+      <UserManagementPageContent />
+    </UnsavedChangesProvider>
   )
 }

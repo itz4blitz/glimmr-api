@@ -51,7 +51,7 @@ export class UpdatePreferencesDto implements PreferencesUpdateData {
 
 @ApiTags('User Profile')
 @ApiBearerAuth()
-@Controller('api/v1/profile')
+@Controller('profile')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(

@@ -56,41 +56,51 @@ interface StatCardProps {
 
 function StatCard({ title, value, description, icon, trend, badge }: StatCardProps) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="flex items-center gap-2">
-          {badge && (
-            <Badge variant={badge.variant} className="text-xs">
-              {badge.text}
-            </Badge>
-          )}
-          {icon}
+    <div className="bg-gradient-to-br from-background to-muted/20 rounded-xl shadow-2xl border border-border/20 overflow-hidden group hover:shadow-3xl transition-all duration-300">
+      <div className="px-6 py-4 bg-gradient-to-r from-muted/30 to-muted/20 border-b border-border/20">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            {title}
+          </h3>
+          <div className="flex items-center gap-2">
+            {badge && (
+              <Badge variant={badge.variant} className="text-xs shadow-sm">
+                {badge.text}
+              </Badge>
+            )}
+            <div className="p-2 bg-background/80 rounded-lg shadow-sm">
+              {icon}
+            </div>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="px-6 py-6 bg-background/95 backdrop-blur-sm">
+        <div className="text-3xl font-bold text-foreground mb-2">
+          {value.toLocaleString()}
+        </div>
+        <p className="text-sm text-muted-foreground font-medium mb-3">
+          {description}
+        </p>
         {trend && (
-          <div className="flex items-center pt-1">
+          <div className="flex items-center gap-1 px-3 py-1 bg-background/80 rounded-full w-fit">
             {trend.isPositive ? (
               <TrendingUp className="h-4 w-4 text-green-500" />
             ) : (
               <TrendingDown className="h-4 w-4 text-red-500" />
             )}
-            <span className={`text-xs ml-1 ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            <span className={`text-sm font-medium ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
               {trend.isPositive ? '+' : ''}{trend.value}% {trend.period}
             </span>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
 export function UserStats() {
   const [stats, setStats] = useState<UserStatsData>(mockStats)
-  const [isLoading, setIsLoading] = useState(false)
+
 
   useEffect(() => {
     // Here you would fetch real stats from your API
@@ -115,9 +125,9 @@ export function UserStats() {
   const adminPercentage = Math.round((stats.adminUsers / stats.totalUsers) * 100)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Overview Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
           value={stats.totalUsers}
@@ -165,19 +175,19 @@ export function UserStats() {
       </div>
 
       {/* Detailed Breakdown */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
         {/* User Status Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-2 border-border/50">
+          <CardHeader className="px-6 py-6">
+            <CardTitle className="flex items-center gap-2 text-xl">
               <Activity className="h-5 w-5" />
               User Status Breakdown
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Distribution of active and inactive users
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-6 pb-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-green-500" />
@@ -210,17 +220,17 @@ export function UserStats() {
         </Card>
 
         {/* Email Verification Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-2 border-border/50">
+          <CardHeader className="px-6 py-6">
+            <CardTitle className="flex items-center gap-2 text-xl">
               <Mail className="h-5 w-5" />
               Email Verification Status
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Email verification completion rates
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-6 pb-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-green-500" />

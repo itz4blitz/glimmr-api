@@ -108,6 +108,9 @@ services:
       API_PORT: 3000
       API_PREFIX: api/v1
       API_RATE_LIMIT: 1000
+      RATE_LIMIT_WINDOW_MS: 60000  # 1 minute for development
+      RATE_LIMIT_MAX_REQUESTS: 1000  # High limit for development
+      RATE_LIMIT_MAX_REQUESTS_EXPENSIVE: 100  # Higher limit for development
       LOG_LEVEL: info
       BULL_REDIS_HOST: redis
       BULL_REDIS_PORT: 6379

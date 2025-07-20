@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -18,32 +18,39 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { 
-  UserCheck, 
-  UserX, 
-  Trash2, 
-  Shield, 
-  Mail, 
+
+import {
+  UserCheck,
+  UserX,
+  Trash2,
+  Shield,
+  Mail,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
+import { useUserManagementStore } from '@/stores/userManagement'
+import type { BulkUserActionDto } from '@/types/userManagement'
+import { UserRole } from '@/types/auth'
 
 interface UserBulkActionsProps {
-  selectedCount: number
-  onAction: (action: string) => void
+  selectedUserIds: string[]
   onClear: () => void
 }
 
-export function UserBulkActions({ selectedCount, onAction, onClear }: UserBulkActionsProps) {
+export function UserBulkActions({ selectedUserIds, onClear }: UserBulkActionsProps) {
   const [selectedAction, setSelectedAction] = useState('')
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingAction, setPendingAction] = useState('')
 
+  const { bulkAction, loading } = useUserManagementStore()
+  const selectedCount = selectedUserIds.length
+
   const handleActionSelect = (action: string) => {
     setSelectedAction(action)
-    
+
     // Actions that require confirmation
-    const destructiveActions = ['delete', 'deactivate', 'remove_role']
+    const destructiveActions = ['delete', 'deactivate', 'remove_admin']
     if (destructiveActions.includes(action)) {
       setPendingAction(action)
       setShowConfirmDialog(true)
@@ -52,11 +59,56 @@ export function UserBulkActions({ selectedCount, onAction, onClear }: UserBulkAc
     }
   }
 
-  const executeAction = (action: string) => {
-    onAction(action)
-    setSelectedAction('')
-    setShowConfirmDialog(false)
-    setPendingAction('')
+  const executeAction = async (action: string) => {
+    try {
+      let bulkActionData: BulkUserActionDto
+
+      switch (action) {
+        case 'activate':
+          bulkActionData = {
+            userIds: selectedUserIds,
+            action: 'activate'
+          }
+          break
+        case 'deactivate':
+          bulkActionData = {
+            userIds: selectedUserIds,
+            action: 'deactivate'
+          }
+          break
+        case 'delete':
+          bulkActionData = {
+            userIds: selectedUserIds,
+            action: 'delete'
+          }
+          break
+        case 'make_admin':
+          bulkActionData = {
+            userIds: selectedUserIds,
+            action: 'activate', // Activate and set role
+            role: UserRole.ADMIN
+          }
+          break
+        case 'remove_admin':
+          bulkActionData = {
+            userIds: selectedUserIds,
+            action: 'activate', // Keep active but change role
+            role: UserRole.USER
+          }
+          break
+        default:
+          throw new Error(`Unknown action: ${action}`)
+      }
+
+      await bulkAction(bulkActionData)
+      onClear()
+    } catch (error) {
+      console.error('Bulk action failed:', error)
+    } finally {
+      setSelectedAction('')
+      setShowConfirmDialog(false)
+      setPendingAction('')
+    }
   }
 
   const getActionDetails = (action: string) => {
@@ -129,8 +181,12 @@ export function UserBulkActions({ selectedCount, onAction, onClear }: UserBulkAc
           <Badge variant="secondary" className="gap-1">
             <span>{selectedCount} selected</span>
           </Badge>
-          
-          <Select value={selectedAction} onValueChange={handleActionSelect}>
+
+          <Select
+            value={selectedAction}
+            onValueChange={handleActionSelect}
+            disabled={loading.bulkAction}
+          >
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Choose action..." />
             </SelectTrigger>
@@ -145,18 +201,6 @@ export function UserBulkActions({ selectedCount, onAction, onClear }: UserBulkAc
                 <div className="flex items-center gap-2">
                   <UserX className="h-4 w-4 text-red-500" />
                   Deactivate Users
-                </div>
-              </SelectItem>
-              <SelectItem value="verify_email">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-blue-500" />
-                  Verify Email
-                </div>
-              </SelectItem>
-              <SelectItem value="send_verification">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-blue-500" />
-                  Send Verification
                 </div>
               </SelectItem>
               <SelectItem value="make_admin">
@@ -179,9 +223,21 @@ export function UserBulkActions({ selectedCount, onAction, onClear }: UserBulkAc
               </SelectItem>
             </SelectContent>
           </Select>
+
+          {loading.bulkAction && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing...
+            </div>
+          )}
         </div>
 
-        <Button variant="ghost" size="sm" onClick={onClear}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          disabled={loading.bulkAction}
+        >
           <X className="h-4 w-4 mr-1" />
           Clear Selection
         </Button>
@@ -200,15 +256,23 @@ export function UserBulkActions({ selectedCount, onAction, onClear }: UserBulkAc
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>
+            <AlertDialogCancel
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={loading.bulkAction}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => executeAction(pendingAction)}
+              disabled={loading.bulkAction}
               className={actionDetails.variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
-              {actionDetails.variant === 'destructive' && <AlertTriangle className="h-4 w-4 mr-2" />}
-              Confirm
+              {loading.bulkAction ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                actionDetails.variant === 'destructive' && <AlertTriangle className="h-4 w-4 mr-2" />
+              )}
+              {loading.bulkAction ? 'Processing...' : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

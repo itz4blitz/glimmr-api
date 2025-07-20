@@ -41,15 +41,18 @@ export interface User {
   emailVerified?: boolean
   emailVerifiedAt?: string
   lastLoginAt?: string
+  apiKey?: string
   profile?: UserProfile
   preferences?: UserPreferences
 }
 
-export enum UserRole {
-  USER = 'user',
-  ADMIN = 'admin',
-  SUPER_ADMIN = 'super_admin'
-}
+export const UserRole = {
+  USER: 'user',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
+} as const
+
+export type UserRole = typeof UserRole[keyof typeof UserRole]
 
 export interface LoginCredentials {
   email: string

@@ -140,7 +140,7 @@ export function SecuritySettings() {
   return (
     <div className="space-y-6">
       {/* Password Change */}
-      <Card className="shadow-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
@@ -294,7 +294,7 @@ export function SecuritySettings() {
       </Card>
 
       {/* Two-Factor Authentication */}
-      <Card className="shadow-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
@@ -330,7 +330,7 @@ export function SecuritySettings() {
       </Card>
 
       {/* Active Sessions */}
-      <Card className="shadow-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Shield className="h-5 w-5" />

@@ -1,8 +1,8 @@
-import { useEffect, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { useSidebarStore } from '@/stores/sidebar'
+import { useNavigation } from '@/hooks/useNavigation'
 import { cn } from '@/lib/utils'
 
 interface AppLayoutProps {
@@ -11,6 +11,16 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { isCollapsed, toggleSidebar } = useSidebarStore()
+  const { isPending } = useNavigation()
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Only show initial animation once
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false)
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Keyboard shortcut to toggle sidebar (Ctrl/Cmd + B)
   useEffect(() => {
@@ -37,18 +47,19 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Main Content - Adjusted for Fixed Sidebar */}
       <main
         className={cn(
-          "min-h-[calc(100vh-3.5rem)] transition-all duration-300",
+          "min-h-[calc(100vh-3.5rem)] transition-all duration-300 relative",
           isCollapsed ? "md:ml-16" : "md:ml-64"
         )}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="container mx-auto px-4 sm:px-6 lg:px-8 py-6"
-        >
+        {/* Smooth loading indicator */}
+        {isPending && <div className="nav-loading-bar" />}
+
+        <div className={cn(
+          "page-enter transition-opacity duration-200",
+          isPending && "opacity-90"
+        )}>
           {children}
-        </motion.div>
+        </div>
       </main>
     </div>
   )

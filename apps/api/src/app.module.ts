@@ -33,13 +33,13 @@ import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middl
         throttlers: [
           {
             name: 'default',
-            ttl: config.get('RATE_LIMIT_WINDOW_MS', 900000),
-            limit: config.get('RATE_LIMIT_MAX_REQUESTS', 100),
+            ttl: config.get('RATE_LIMIT_WINDOW_MS', 60000), // 1 minute default
+            limit: config.get('RATE_LIMIT_MAX_REQUESTS', process.env.NODE_ENV === 'development' ? 10000 : 100),
           },
           {
             name: 'expensive',
-            ttl: config.get('RATE_LIMIT_WINDOW_MS', 900000),
-            limit: config.get('RATE_LIMIT_MAX_REQUESTS_EXPENSIVE', 10),
+            ttl: config.get('RATE_LIMIT_WINDOW_MS', 60000), // 1 minute default
+            limit: config.get('RATE_LIMIT_MAX_REQUESTS_EXPENSIVE', process.env.NODE_ENV === 'development' ? 1000 : 10),
           },
         ],
         // Note: Using default in-memory storage for simplicity

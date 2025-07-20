@@ -18,7 +18,9 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiQuery, ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString, IsIn } from 'class-validator';
+import { Type } from 'class-transformer';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -47,23 +49,80 @@ export class BulkUserActionDto {
 }
 
 export class UserListQueryDto {
+  @ApiProperty({ description: 'Page number', required: false, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
   page?: number = 1;
+
+  @ApiProperty({ description: 'Items per page', required: false, default: 20 })
+  @IsOptional()
+  @Type(() => Number)
   limit?: number = 20;
+
+  @ApiProperty({
+    description: 'Sort field',
+    required: false,
+    enum: ['email', 'firstName', 'lastName', 'createdAt', 'lastLoginAt'],
+    default: 'createdAt'
+  })
+  @IsOptional()
+  @IsIn(['email', 'firstName', 'lastName', 'createdAt', 'lastLoginAt'])
   sortBy?: 'email' | 'firstName' | 'lastName' | 'createdAt' | 'lastLoginAt' = 'createdAt';
+
+  @ApiProperty({
+    description: 'Sort order',
+    required: false,
+    enum: ['asc', 'desc'],
+    default: 'desc'
+  })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc' = 'desc';
+
+  @ApiProperty({ description: 'Search by username or email', required: false })
+  @IsOptional()
+  @IsString()
   search?: string;
+
+  @ApiProperty({ description: 'Filter by role name', required: false })
+  @IsOptional()
+  @IsString()
   role?: string;
+
+  @ApiProperty({ description: 'Filter by active status', required: false })
+  @IsOptional()
+  @Type(() => Boolean)
   isActive?: boolean;
+
+  @ApiProperty({ description: 'Filter by email verification status', required: false })
+  @IsOptional()
+  @Type(() => Boolean)
   emailVerified?: boolean;
+
+  @ApiProperty({ description: 'Filter by created after date', required: false })
+  @IsOptional()
+  @IsString()
   createdAfter?: string;
+
+  @ApiProperty({ description: 'Filter by created before date', required: false })
+  @IsOptional()
+  @IsString()
   createdBefore?: string;
+
+  @ApiProperty({ description: 'Filter by last login after date', required: false })
+  @IsOptional()
+  @IsString()
   lastLoginAfter?: string;
+
+  @ApiProperty({ description: 'Filter by last login before date', required: false })
+  @IsOptional()
+  @IsString()
   lastLoginBefore?: string;
 }
 
 @ApiTags('Admin - Users')
 @ApiBearerAuth()
-@Controller('api/v1/users')
+@Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserManagementController {
   constructor(

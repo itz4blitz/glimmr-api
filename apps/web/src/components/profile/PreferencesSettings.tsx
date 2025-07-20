@@ -163,7 +163,7 @@ export function PreferencesSettings() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Notifications */}
-        <Card className="shadow-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
@@ -240,7 +240,7 @@ export function PreferencesSettings() {
         </Card>
 
         {/* Appearance */}
-        <Card className="shadow-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Palette className="h-5 w-5" />
@@ -279,7 +279,7 @@ export function PreferencesSettings() {
         </Card>
 
         {/* Localization */}
-        <Card className="shadow-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
