@@ -162,3 +162,161 @@
     outline-offset: 2px;
   }
 }
+
+@layer components {
+  /* Toast improvements - theme-aware */
+  .toaster.group {
+    max-width: 24rem;
+  }
+
+  /* Enhanced shadows for cards and components */
+  .shadow-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-card-hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s ease-in-out;
+  }
+
+  .shadow-card-elevated {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 6px 15px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Dark theme adjustments */
+  .dark .shadow-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .shadow-card-hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .shadow-card-elevated {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 6px 15px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Enhanced Tabs */
+  .tabs-list-enhanced {
+    @apply bg-muted p-1 rounded-xl shadow-card;
+    background-color: rgba(var(--muted), 0.5);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .tabs-trigger-enhanced {
+    @apply relative px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200;
+    @apply text-muted-foreground hover:text-foreground;
+    @apply hover:bg-background;
+    background-color: rgba(var(--background), 0.5);
+  }
+
+  .tabs-trigger-enhanced:hover {
+    background-color: rgba(var(--background), 0.8);
+  }
+
+  .tabs-trigger-enhanced[data-state="active"] {
+    @apply bg-background text-foreground shadow-card;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+  }
+
+  .dark .tabs-trigger-enhanced[data-state="active"] {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Enhanced Inputs */
+  input.input-enhanced,
+  textarea.textarea-enhanced,
+  [data-slot="input"].input-enhanced {
+    @apply transition-all duration-200;
+    border: 1px solid var(--border) !important;
+    background: var(--background) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  input.input-enhanced:hover,
+  textarea.textarea-enhanced:hover,
+  [data-slot="input"].input-enhanced:hover {
+    border-color: var(--ring) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-1px);
+  }
+
+  input.input-enhanced:focus,
+  textarea.textarea-enhanced:focus,
+  [data-slot="input"].input-enhanced:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(var(--primary), 0.15) !important;
+    outline: none !important;
+    transform: translateY(-1px);
+  }
+
+  /* Textarea specific styles are handled above with input.input-enhanced */
+
+  /* Enhanced Select */
+  button.select-enhanced,
+  [role="combobox"].select-enhanced {
+    @apply transition-all duration-200;
+    border: 1px solid var(--border) !important;
+    background: var(--background) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  button.select-enhanced:hover,
+  [role="combobox"].select-enhanced:hover {
+    border-color: var(--ring) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-1px);
+  }
+
+  button.select-enhanced:focus,
+  [role="combobox"].select-enhanced:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(var(--primary), 0.15) !important;
+    outline: none !important;
+    transform: translateY(-1px);
+  }
+
+  /* Enhanced Buttons */
+  .button-enhanced {
+    @apply transition-all duration-200;
+    @apply shadow-sm;
+    transform: scale(1);
+  }
+
+  .button-enhanced:hover {
+    @apply shadow-md;
+    transform: scale(1.02);
+  }
+
+  .button-enhanced:active {
+    @apply shadow-sm;
+    transform: scale(0.98);
+  }
+
+  .button-primary-enhanced {
+    @apply bg-primary text-primary-foreground;
+    @apply transition-all duration-200;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05);
+    transform: scale(1);
+  }
+
+  .button-primary-enhanced:hover {
+    background-color: rgba(var(--primary), 0.9);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+    transform: scale(1.02);
+  }
+
+  .button-primary-enhanced:active {
+    transform: scale(0.98);
+  }
+
+  .dark .button-primary-enhanced {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .button-primary-enhanced:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.3);
+  }
+}

@@ -14,12 +14,12 @@ async function seedAdminUser() {
   const db = drizzle(client);
 
   try {
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
     // Check if admin user already exists
-    const existingAdmin = await db.select().from(users).where(eq(users.username, adminUsername)).limit(1);
-    
+    const existingAdmin = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
+
     if (existingAdmin.length > 0) {
       console.log('Admin user already exists');
       return;
@@ -32,9 +32,14 @@ async function seedAdminUser() {
     const [admin] = await db
       .insert(users)
       .values({
-        username: adminUsername,
+        email: adminEmail,
+        firstName: 'Admin',
+        lastName: 'User',
         password: hashedPassword,
         role: 'admin',
+        isActive: true,
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -42,12 +47,12 @@ async function seedAdminUser() {
 
     console.log('Admin user created successfully:', {
       id: admin.id,
-      username: admin.username,
+      email: admin.email,
       role: admin.role,
     });
 
     console.log('\n=== ADMIN CREDENTIALS ===');
-    console.log(`Username: ${adminUsername}`);
+    console.log(`Email: ${adminEmail}`);
     console.log(`Password: ${adminPassword}`);
     console.log('========================\n');
 

@@ -15,6 +15,7 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>
   logout: () => void
   refreshToken: () => Promise<void>
+  updateUser: (user: User) => Promise<void>
   clearError: () => void
   setLoading: (loading: boolean) => void
 }
@@ -128,6 +129,26 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           // Refresh failed, logout user
           get().logout()
+          throw error
+        }
+      },
+
+      updateUser: async (user: User) => {
+        try {
+          set({ isLoading: true, error: null })
+
+          // Here you would call your API to update the user
+          // For now, we'll just update the local state
+          set({
+            user,
+            isLoading: false,
+            error: null
+          })
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to update user'
+          })
           throw error
         }
       },

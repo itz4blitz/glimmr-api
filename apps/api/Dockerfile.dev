@@ -32,6 +32,9 @@ RUN mkdir -p /app/apps/api/logs
 # Change to API directory
 WORKDIR /app/apps/api
 
+# Install dependencies directly in API directory to fix module resolution
+RUN pnpm install --frozen-lockfile
+
 # Expose port
 EXPOSE 3000
 

@@ -199,7 +199,7 @@ async function setupRBAC() {
             userId: user.id,
             roleId,
           });
-          console.log(`  ✓ Assigned ${user.role} role to user: ${user.username}`);
+          console.log(`  ✓ Assigned ${user.role} role to user: ${user.email}`);
         }
       }
     }

@@ -38,7 +38,7 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
         if (validatedUser) {
           user = {
             id: validatedUser.id,
-            username: validatedUser.username,
+            email: validatedUser.email,
             role: validatedUser.role,
           };
         }

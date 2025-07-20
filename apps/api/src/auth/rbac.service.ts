@@ -253,7 +253,7 @@ export class RbacService {
     const [user] = await this.db
       .select({
         id: users.id,
-        username: users.username,
+        email: users.email,
       })
       .from(users)
       .where(and(eq(users.id, userId), eq(users.isActive, true)));
@@ -265,7 +265,7 @@ export class RbacService {
 
     return {
       id: user.id,
-      username: user.username,
+      email: user.email,
       roles: userRolesList,
       permissions: userPermissionsList,
     };

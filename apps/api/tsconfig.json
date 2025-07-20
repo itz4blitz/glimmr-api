@@ -1,5 +1,4 @@
 {
-
   "compilerOptions": {
     "module": "commonjs",
     "declaration": false,
@@ -23,14 +22,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "lib": ["ES2021"],
-    "types": ["node", "jest"],
-    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"],
-    "paths": {
-      "*": ["./node_modules/*", "../../node_modules/*"],
-      "@nestjs/*": ["./node_modules/@nestjs/*", "../../node_modules/@nestjs/*"],
-      "nestjs-pino": ["./node_modules/nestjs-pino", "../../node_modules/nestjs-pino"],
-      "@bull-board/*": ["./node_modules/@bull-board/*", "../../node_modules/@bull-board/*"]
-    }
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

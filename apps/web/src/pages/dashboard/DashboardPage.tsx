@@ -16,7 +16,7 @@ export function DashboardPage() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Welcome back, {user?.username}!
+            Welcome back, {user?.email}!
           </p>
         </div>
 
@@ -117,12 +117,12 @@ export function DashboardPage() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Username</label>
-                    <p className="text-foreground">{user?.username}</p>
-                  </div>
-                  <div>
                     <label className="text-sm font-medium text-muted-foreground">Email</label>
                     <p className="text-foreground break-all">{user?.email}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">User ID</label>
+                    <p className="text-foreground font-mono text-sm">{user?.id}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Role</label>

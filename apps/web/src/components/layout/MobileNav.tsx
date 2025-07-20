@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Home, User, Settings, Shield, LogOut } from 'lucide-react'
+import { Menu, Home, User, Settings, Shield, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useAuthStore } from '@/stores/auth'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { isAdmin } from '@/lib/permissions'
@@ -37,6 +36,10 @@ export function MobileNav() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[280px] sm:w-[320px]">
+        <SheetHeader>
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+        </SheetHeader>
+
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b">
@@ -46,7 +49,7 @@ export function MobileNav() {
               </div>
               <span className="font-semibold text-lg">Glimmr</span>
             </div>
-            <ThemeToggle />
+            {/* Theme toggle moved to bottom to avoid overlap with close button */}
           </div>
 
           {/* User Info */}
@@ -57,8 +60,8 @@ export function MobileNav() {
                   <User className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.username}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  <p className="text-sm font-medium truncate">{user.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.role}</p>
                 </div>
               </div>
             </div>
@@ -92,7 +95,11 @@ export function MobileNav() {
           </nav>
 
           {/* Footer */}
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t space-y-2">
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-sm text-muted-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
             <Button
               variant="ghost"
               onClick={handleLogout}

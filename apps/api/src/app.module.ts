@@ -15,6 +15,7 @@ import { ODataModule } from './odata/odata.module';
 import { DatabaseModule } from './database/database.module';
 import { ExternalApisModule } from './external-apis/external-apis.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { RequestContextMiddleware } from './common/middleware';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middleware';
@@ -132,6 +133,7 @@ import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middl
     DatabaseModule,
     ExternalApisModule,
     AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

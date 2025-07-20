@@ -185,12 +185,12 @@ export function Sidebar() {
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-sidebar-primary rounded-full flex items-center justify-center">
                 <span className="text-sidebar-primary-foreground font-medium text-sm">
-                  {user.username.charAt(0).toUpperCase()}
+                  {user.email?.charAt(0).toUpperCase() || 'U'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-accent-foreground truncate">
-                  {user.username}
+                  {user.email}
                 </p>
                 <p className="text-xs text-sidebar-accent-foreground/70 truncate">
                   {user.role.replace('_', ' ').toLowerCase()}

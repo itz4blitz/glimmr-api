@@ -15,7 +15,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
 const registerSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
@@ -35,7 +34,6 @@ export function RegisterForm() {
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -45,7 +43,9 @@ export function RegisterForm() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       clearError()
-      await register(data)
+      // Only send email and password to the API
+      const { email, password } = data
+      await register({ email, password })
       toast.success('Account created successfully! Welcome to Glimmr.')
       navigate('/dashboard', { replace: true })
     } catch (error) {
@@ -76,25 +76,6 @@ export function RegisterForm() {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter your username"
-                        autoComplete="username"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="email"

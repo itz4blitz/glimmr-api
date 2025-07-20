@@ -1,12 +1,48 @@
+export interface UserProfile {
+  bio?: string
+  avatarUrl?: string
+  phoneNumber?: string
+  timezone?: string
+  languagePreference?: string
+  dateOfBirth?: string
+  company?: string
+  jobTitle?: string
+  city?: string
+  country?: string
+  website?: string
+  linkedinUrl?: string
+  twitterUrl?: string
+  githubUrl?: string
+}
+
+export interface UserPreferences {
+  notificationEmail?: boolean
+  notificationPush?: boolean
+  notificationSms?: boolean
+  themePreference?: 'light' | 'dark' | 'system'
+  languagePreference?: string
+  timezonePreference?: string
+  dateFormat?: string
+  timeFormat?: '12h' | '24h'
+  privacySettings?: any
+  dashboardLayout?: any
+}
+
 export interface User {
   id: string
-  username: string
   email: string
   role: UserRole
+  firstName?: string
+  lastName?: string
   tenantId?: string
   createdAt: string
   updatedAt: string
   isActive: boolean
+  emailVerified?: boolean
+  emailVerifiedAt?: string
+  lastLoginAt?: string
+  profile?: UserProfile
+  preferences?: UserPreferences
 }
 
 export enum UserRole {
@@ -16,15 +52,13 @@ export enum UserRole {
 }
 
 export interface LoginCredentials {
-  username: string
+  email: string
   password: string
 }
 
 export interface RegisterData {
-  username: string
   email: string
   password: string
-  confirmPassword: string
 }
 
 export interface AuthResponse {
@@ -42,7 +76,7 @@ export interface AuthState {
 }
 
 export interface LoginRequest {
-  username: string
+  email: string
   password: string
 }
 

@@ -116,7 +116,7 @@ export type NewRolePermission = z.infer<typeof insertRolePermissionSchema>;
 // Helper types for complex queries
 export type UserWithRoles = {
   id: string;
-  username: string;
+  email: string;
   roles: Role[];
   permissions: Permission[];
 };

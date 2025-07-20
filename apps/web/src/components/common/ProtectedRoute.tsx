@@ -35,6 +35,8 @@ export function ProtectedRoute({
   }
 
   // Check if user has required permissions
+  console.log('Permission Check:', { userRole: user.role, requiredRole, hasPermission: hasPermission(user.role, requiredRole) })
+
   if (!hasPermission(user.role, requiredRole)) {
     if (fallback) {
       return <>{fallback}</>
@@ -45,7 +47,7 @@ export function ProtectedRoute({
         <Alert className="max-w-md">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            You don't have permission to access this page. 
+            You don't have permission to access this page.
             Contact your administrator if you believe this is an error.
           </AlertDescription>
         </Alert>

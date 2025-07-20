@@ -23,7 +23,7 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
     }
     done(null, {
       id: user.id,
-      username: user.username,
+      email: user.email,
       role: user.role,
     });
   }

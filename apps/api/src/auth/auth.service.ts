@@ -16,8 +16,8 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async validateUser(username: string, password: string): Promise<User | null> {
-    const user = await this.usersService.findByUsername(username);
+  async validateUser(email: string, password: string): Promise<User | null> {
+    const user = await this.usersService.findByEmail(email);
     if (user && await bcrypt.compare(password, user.password)) {
       return user;
     }
@@ -46,7 +46,7 @@ export class AuthService {
 
     const payload = {
       sub: user.id,
-      username: user.username,
+      email: user.email,
       role: user.role, // Keep legacy role for backward compatibility
       roles: userWithRoles?.roles.map(r => r.name) || [user.role],
       permissions: userWithRoles?.permissions.map(p => `${p.resource}:${p.action}`) || []
@@ -63,9 +63,8 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
-        username: user.username,
-        role: user.role, // Keep legacy role
         email: user.email,
+        role: user.role, // Keep legacy role
         firstName: user.firstName,
         lastName: user.lastName,
         roles: userWithRoles?.roles || [],
@@ -75,28 +74,16 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const existingUser = await this.usersService.findByUsername(registerDto.username);
-    if (existingUser) {
-      throw new UnauthorizedException('Username already exists');
-    }
-
-    // Check if email is already in use (if method exists)
-    if (registerDto.email) {
-      try {
-        const existingEmail = await this.usersService.findByEmail(registerDto.email);
-        if (existingEmail) {
-          throw new UnauthorizedException('Email already exists');
-        }
-      } catch (error) {
-        // findByEmail method might not exist yet
-      }
+    // Check if email is already in use
+    const existingEmail = await this.usersService.findByEmail(registerDto.email);
+    if (existingEmail) {
+      throw new UnauthorizedException('Email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
     const user = await this.usersService.create({
-      username: registerDto.username,
       password: hashedPassword,
-      role: 'api-user', // Default role for new users
+      role: 'user', // Default role for new users
       email: registerDto.email,
       firstName: registerDto.firstName,
       lastName: registerDto.lastName,

@@ -54,7 +54,7 @@ export class AdminController {
     let filteredUsers = users;
     if (query.search) {
       filteredUsers = users.filter(user => 
-        user.username.toLowerCase().includes(query.search!.toLowerCase()) ||
+        user.email?.toLowerCase().includes(query.search!.toLowerCase()) ||
         (user.email && user.email.toLowerCase().includes(query.search!.toLowerCase()))
       );
     }

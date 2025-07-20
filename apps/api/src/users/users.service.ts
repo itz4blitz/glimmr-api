@@ -7,12 +7,11 @@ import { DatabaseService } from '../database/database.service';
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(DatabaseService) private db: NodePgDatabase<any>,
+    private readonly databaseService: DatabaseService,
   ) {}
 
-  async findByUsername(username: string): Promise<User | null> {
-    const result = await this.db.select().from(users).where(and(eq(users.username, username), eq(users.isActive, true))).limit(1);
-    return result[0] as User || null;
+  private get db() {
+    return this.databaseService.db;
   }
 
   async findById(id: string): Promise<User | null> {
@@ -31,10 +30,9 @@ export class UsersService {
   }
 
   async create(userData: {
-    username: string;
     password: string;
-    role?: 'admin' | 'api-user';
-    email?: string;
+    role?: 'user' | 'admin' | 'super_admin';
+    email: string;
     firstName?: string;
     lastName?: string;
     apiKey?: string;

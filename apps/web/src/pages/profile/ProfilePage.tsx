@@ -1,150 +1,379 @@
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, User, Mail, Shield, Calendar } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { getRoleDisplayName } from '@/lib/permissions'
+import { UnsavedChangesProvider, useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { UserAvatar } from '@/components/ui/user-avatar'
+import {
+  User,
+  Settings,
+  Shield,
+  Activity,
+  Camera,
+  Mail,
+  Calendar,
+  MapPin,
+  Building,
+  Briefcase,
+  Globe,
+  Github,
+  Linkedin,
+  Twitter
+} from 'lucide-react'
+import { ProfileForm } from '@/components/profile/ProfileForm'
+import { SecuritySettings } from '@/components/profile/SecuritySettings'
+import { PreferencesSettings } from '@/components/profile/PreferencesSettings'
+import { ActivityHistory } from '@/components/profile/ActivityHistory'
+import { AvatarUpload } from '@/components/profile/AvatarUpload'
 
-export function ProfilePage() {
+function ProfilePageContent() {
   const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState('profile')
+  const { checkUnsavedChanges, hasUnsavedChanges } = useUnsavedChangesContext()
+
+  // Protect against browser navigation
+  const { blocker } = useUnsavedChanges({
+    hasUnsavedChanges,
+    message: 'You have unsaved changes in your profile. Are you sure you want to leave?'
+  })
+
+  // Handle React Router navigation blocking
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      checkUnsavedChanges(() => {
+        blocker.proceed()
+      })
+    }
+  }, [blocker.state, checkUnsavedChanges, blocker])
+
+  const handleTabChange = (newTab: string) => {
+    if (newTab !== activeTab) {
+      checkUnsavedChanges(() => {
+        setActiveTab(newTab)
+      })
+    }
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-8">
-          <Button variant="outline" size="sm" asChild className="w-fit">
-            <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profile</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your account settings and preferences
-            </p>
-          </div>
-        </div>
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-6xl">
+        {/* Profile Header */}
+        <div className="mb-6 sm:mb-8">
+          <Card className="shadow-card-elevated">
+            <CardContent className="p-4 sm:pt-6">
+              {/* Mobile Layout */}
+              <div className="flex flex-col items-center gap-4 md:hidden">
+                {/* Avatar Section */}
+                <div className="relative flex-shrink-0">
+                  <UserAvatar
+                    src={user.profile?.avatarUrl}
+                    alt={user.email}
+                    email={user.email}
+                    firstName={user.firstName}
+                    lastName={user.lastName}
+                    size="lg"
+                    className="h-20 w-20"
+                  />
+                  <AvatarUpload>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full p-0"
+                    >
+                      <Camera className="h-3 w-3" />
+                    </Button>
+                  </AvatarUpload>
+                </div>
 
-        {/* Profile Information */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-        >
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Personal Information
-              </CardTitle>
-              <CardDescription>
-                Your basic account information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={user?.username || ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={user?.email || ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={user?.role === 'super_admin' ? 'default' : user?.role === 'admin' ? 'secondary' : 'outline'}>
-                      <Shield className="h-3 w-3 mr-1" />
-                      {user?.role ? getRoleDisplayName(user.role) : 'Unknown'}
+                {/* User Info */}
+                <div className="text-center space-y-3 w-full">
+                  <div className="space-y-2">
+                    <h1 className="text-xl font-bold break-words">
+                      {user.firstName && user.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user.email
+                      }
+                    </h1>
+                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                      {user.role}
                     </Badge>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Account Status</Label>
-                  <Badge variant={user?.isActive ? 'default' : 'destructive'}>
-                    {user?.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
+
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    {/* Only show email if it's different from the name */}
+                    {user.firstName && user.lastName && (
+                      <div className="flex items-center justify-center gap-1">
+                        <Mail className="h-3 w-3 flex-shrink-0" />
+                        <span className="break-all">{user.email}</span>
+                      </div>
+                    )}
+                    {user.profile?.company && (
+                      <div className="flex items-center justify-center gap-1">
+                        <Building className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{user.profile.company}</span>
+                      </div>
+                    )}
+                    {user.profile?.jobTitle && (
+                      <div className="flex items-center justify-center gap-1">
+                        <Briefcase className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{user.profile.jobTitle}</span>
+                      </div>
+                    )}
+                    {user.profile?.city && user.profile?.country && (
+                      <div className="flex items-center justify-center gap-1">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{user.profile.city}, {user.profile.country}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {user.profile?.bio && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {user.profile.bio}
+                    </p>
+                  )}
+
+                  {/* Social Links */}
+                  <div className="flex items-center justify-center gap-1 pt-2">
+                    {user.profile?.website && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.website} target="_blank" rel="noopener noreferrer">
+                          <Globe className="h-3 w-3" />
+                        </a>
+                      </Button>
+                    )}
+                    {user.profile?.githubUrl && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.githubUrl} target="_blank" rel="noopener noreferrer">
+                          <Github className="h-3 w-3" />
+                        </a>
+                      </Button>
+                    )}
+                    {user.profile?.linkedinUrl && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                          <Linkedin className="h-3 w-3" />
+                        </a>
+                      </Button>
+                    )}
+                    {user.profile?.twitterUrl && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.twitterUrl} target="_blank" rel="noopener noreferrer">
+                          <Twitter className="h-3 w-3" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* No edit button needed - forms are always editable */}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Member Since</Label>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
-                  </div>
+              {/* Desktop/Tablet Layout */}
+              <div className="hidden md:flex items-start gap-6">
+                {/* Avatar Section */}
+                <div className="relative flex-shrink-0">
+                  <UserAvatar
+                    src={user.profile?.avatarUrl}
+                    alt={user.email}
+                    email={user.email}
+                    firstName={user.firstName}
+                    lastName={user.lastName}
+                    size="xl"
+                    className="h-24 w-24 lg:h-32 lg:w-32"
+                  />
+                  <AvatarUpload>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  </AvatarUpload>
                 </div>
-                <div className="space-y-2">
-                  <Label>Last Updated</Label>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    {user?.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'Unknown'}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
 
-        {/* Account Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Actions</CardTitle>
-              <CardDescription>
-                Manage your account settings and security
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button variant="outline" disabled>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Change Email
-                  <span className="ml-auto text-xs text-muted-foreground">Coming Soon</span>
-                </Button>
-                <Button variant="outline" disabled>
-                  <Shield className="h-4 w-4 mr-2" />
-                  Change Password
-                  <span className="ml-auto text-xs text-muted-foreground">Coming Soon</span>
-                </Button>
-              </div>
-              
-              <div className="pt-4 border-t">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Need to update your information? Contact your administrator for assistance.
-                </p>
+                {/* User Info */}
+                <div className="flex-1 space-y-3 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl lg:text-3xl font-bold break-words">
+                      {user.firstName && user.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user.email
+                      }
+                    </h1>
+                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-sm">
+                      {user.role}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                    {/* Only show email if it's different from the name */}
+                    {user.firstName && user.lastName && (
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="break-all">{user.email}</span>
+                      </div>
+                    )}
+                    {user.profile?.company && (
+                      <div className="flex items-center gap-1">
+                        <Building className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{user.profile.company}</span>
+                      </div>
+                    )}
+                    {user.profile?.jobTitle && (
+                      <div className="flex items-center gap-1">
+                        <Briefcase className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{user.profile.jobTitle}</span>
+                      </div>
+                    )}
+                    {user.profile?.city && user.profile?.country && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{user.profile.city}, {user.profile.country}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {user.profile?.bio && (
+                    <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+                      {user.profile.bio}
+                    </p>
+                  )}
+
+                  {/* Social Links */}
+                  <div className="flex items-center gap-1 pt-2">
+                    {user.profile?.website && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.website} target="_blank" rel="noopener noreferrer">
+                          <Globe className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                    {user.profile?.githubUrl && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.githubUrl} target="_blank" rel="noopener noreferrer">
+                          <Github className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                    {user.profile?.linkedinUrl && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                          <Linkedin className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                    {user.profile?.twitterUrl && (
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                        <a href={user.profile.twitterUrl} target="_blank" rel="noopener noreferrer">
+                          <Twitter className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* No edit button needed - forms are always editable */}
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
+
+        {/* Profile Tabs */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
+          <TabsList className="tabs-list-enhanced grid w-full grid-cols-4 h-auto p-1.5">
+            <TabsTrigger value="profile" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+              <User className="h-4 w-4" />
+              <span className="text-xs sm:text-sm font-medium">Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="security" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+              <Shield className="h-4 w-4" />
+              <span className="text-xs sm:text-sm font-medium">Security</span>
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+              <Settings className="h-4 w-4" />
+              <span className="text-xs sm:text-sm font-medium">Settings</span>
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+              <Activity className="h-4 w-4" />
+              <span className="text-xs sm:text-sm font-medium">Activity</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile" className="space-y-4 sm:space-y-6">
+            <Card className="shadow-card">
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl">Personal Information</CardTitle>
+                <CardDescription className="text-sm">
+                  Update your personal details and profile information.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <ProfileForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-4 sm:space-y-6">
+            <Card className="shadow-card">
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl">Security Settings</CardTitle>
+                <CardDescription className="text-sm">
+                  Manage your password, two-factor authentication, and security preferences.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <SecuritySettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="preferences" className="space-y-4 sm:space-y-6">
+            <Card className="shadow-card">
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl">Preferences</CardTitle>
+                <CardDescription className="text-sm">
+                  Customize your application settings and preferences.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <PreferencesSettings />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-4 sm:space-y-6">
+            <Card className="shadow-card">
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl">Activity History</CardTitle>
+                <CardDescription className="text-sm">
+                  View your recent account activity and login history.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <ActivityHistory />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
+  )
+}
+
+export function ProfilePage() {
+  return (
+    <UnsavedChangesProvider>
+      <ProfilePageContent />
+    </UnsavedChangesProvider>
   )
 }

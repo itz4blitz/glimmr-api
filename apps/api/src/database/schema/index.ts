@@ -6,6 +6,7 @@ export * from './analytics';
 export * from './jobs';
 export * from './users';
 export * from './rbac';
+export * from './user-management';
 
 // Re-export for convenience
 import { hospitals } from './hospitals';
@@ -15,6 +16,14 @@ import { analytics } from './analytics';
 import { jobs, jobLogs } from './jobs';
 import { users } from './users';
 import { roles, permissions, userRoles, rolePermissions } from './rbac';
+import {
+  userProfiles,
+  userSessions,
+  userActivityLogs,
+  userPreferences,
+  passwordResetTokens,
+  userFiles
+} from './user-management';
 
 export const schema = {
   hospitals,
@@ -28,6 +37,12 @@ export const schema = {
   permissions,
   userRoles,
   rolePermissions,
+  userProfiles,
+  userSessions,
+  userActivityLogs,
+  userPreferences,
+  passwordResetTokens,
+  userFiles,
 };
 
 export type Schema = typeof schema;
