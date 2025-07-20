@@ -51,11 +51,12 @@ import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middl
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const isProduction = config.get('NODE_ENV') === 'production';
+        const logLevel = config.get('LOG_LEVEL', isProduction ? 'info' : 'debug');
 
         return {
           pinoHttp: {
             name: 'glimmr-api',
-            level: isProduction ? 'info' : 'debug',
+            level: logLevel,
             transport: !isProduction ? {
               target: 'pino-pretty',
               options: {

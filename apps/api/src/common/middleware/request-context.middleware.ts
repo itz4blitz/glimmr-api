@@ -34,28 +34,8 @@ export class RequestContextMiddleware implements NestMiddleware {
       const apiKey = req.headers['x-api-key'] as string;
       const contentLength = req.headers['content-length'];
 
-      // Add context to logger for this request (with error handling)
-      try {
-        this.logger.assign({
-          requestId,
-          userAgent: userAgent ? this.sanitizeUserAgent(userAgent) : undefined,
-          clientIp,
-          apiKey: apiKey ? this.maskApiKey(apiKey) : undefined,
-          contentLength: contentLength ? parseInt(contentLength, 10) : undefined,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (assignError) {
-        // If assign fails, just log the context directly
-        this.logger.debug({
-          msg: 'Request context (assign failed)',
-          requestId,
-          userAgent: userAgent ? this.sanitizeUserAgent(userAgent) : undefined,
-          clientIp,
-          apiKey: apiKey ? this.maskApiKey(apiKey) : undefined,
-          contentLength: contentLength ? parseInt(contentLength, 10) : undefined,
-          assignError: assignError instanceof Error ? assignError.message : 'Unknown error',
-        });
-      }
+      // Store context for this request (no need to assign to logger)
+      // The context will be automatically included via pinoHttp customProps
 
       // Track request start time for performance metrics
       const startTime = Date.now();

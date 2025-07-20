@@ -108,7 +108,7 @@ services:
       API_PORT: 3000
       API_PREFIX: api/v1
       API_RATE_LIMIT: 1000
-      LOG_LEVEL: debug
+      LOG_LEVEL: info
       BULL_REDIS_HOST: redis
       BULL_REDIS_PORT: 6379
       CACHE_TTL: 3600
