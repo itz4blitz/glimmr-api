@@ -320,6 +320,17 @@
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.3);
   }
 
+  /* Enhanced Select Content (Dropdown) */
+  [data-slot="select-content"].select-content-enhanced {
+    @apply bg-popover;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .dark [data-slot="select-content"].select-content-enhanced {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  }
+
 
 
   /* Ensure consistent scrollbar appearance */

@@ -203,16 +203,16 @@ export function ActivityHistory() {
             placeholder="Search activities..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 input-enhanced"
           />
         </div>
         <div className="flex gap-2 sm:gap-3">
           <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="flex-1 sm:w-[180px]">
+            <SelectTrigger className="flex-1 sm:w-[180px] select-enhanced">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Filter by action" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="select-content-enhanced">
               <SelectItem value="all">All Actions</SelectItem>
               {uniqueActions.map((action) => (
                 <SelectItem key={action} value={action}>
@@ -221,7 +221,7 @@ export function ActivityHistory() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={refreshActivities} disabled={isLoading} size="sm" className="px-3">
+          <Button variant="outline" onClick={refreshActivities} disabled={isLoading} size="sm" className="px-3 button-enhanced">
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} sm:mr-2`} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>

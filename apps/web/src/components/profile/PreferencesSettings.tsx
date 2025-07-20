@@ -163,7 +163,7 @@ export function PreferencesSettings() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Notifications */}
-        <Card>
+        <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
@@ -240,7 +240,7 @@ export function PreferencesSettings() {
         </Card>
 
         {/* Appearance */}
-        <Card>
+        <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Palette className="h-5 w-5" />
@@ -263,7 +263,7 @@ export function PreferencesSettings() {
                         <SelectValue placeholder="Select a theme" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="select-content-enhanced">
                       <SelectItem value="light">Light</SelectItem>
                       <SelectItem value="dark">Dark</SelectItem>
                       <SelectItem value="system">System</SelectItem>
@@ -280,7 +280,7 @@ export function PreferencesSettings() {
         </Card>
 
         {/* Localization */}
-        <Card>
+        <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
@@ -304,7 +304,7 @@ export function PreferencesSettings() {
                           <SelectValue placeholder="Select a language" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="select-content-enhanced">
                         {languages.map((language) => (
                           <SelectItem key={language.value} value={language.value}>
                             {language.label}
@@ -329,7 +329,7 @@ export function PreferencesSettings() {
                           <SelectValue placeholder="Select a timezone" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="select-content-enhanced">
                         {timezones.map((timezone) => (
                           <SelectItem key={timezone.value} value={timezone.value}>
                             {timezone.label}
@@ -356,7 +356,7 @@ export function PreferencesSettings() {
                           <SelectValue placeholder="Select date format" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="select-content-enhanced">
                         {dateFormats.map((format) => (
                           <SelectItem key={format.value} value={format.value}>
                             {format.label}
@@ -381,7 +381,7 @@ export function PreferencesSettings() {
                           <SelectValue placeholder="Select time format" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="select-content-enhanced">
                         <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
                         <SelectItem value="24h">24-hour</SelectItem>
                       </SelectContent>
