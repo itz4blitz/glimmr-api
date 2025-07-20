@@ -8,7 +8,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AnalyticsQueryDto, ExportQueryDto } from '../common/dto/query.dto';
 
-@ApiTags('analytics')
+@ApiTags('Analytics')
 @Controller('analytics')
 @ApiBearerAuth()
 @UseGuards(FlexibleAuthGuard, RolesGuard)

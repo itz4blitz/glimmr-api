@@ -44,7 +44,7 @@ describe('AppController', () => {
     it('should be decorated with @ApiTags for Swagger', () => {
       const metadata = Reflect.getMetadata('swagger/apiUseTags', AppController);
       expect(metadata).toBeDefined();
-      expect(metadata).toContain('api');
+      expect(metadata).toContain('API');
     });
 
     it('should have proper route mapping', () => {

@@ -59,17 +59,17 @@ async function bootstrap() {
       },
       'x-api-key'
     )
-    .addTag('api', 'Core API information and status')
-    .addTag('auth', 'Authentication and authorization')
+    .addTag('API', 'Core API information and status')
+    .addTag('Authentication', 'Authentication and authorization')
     .addTag('User Profile', 'User profile and preferences management')
     .addTag('Admin - Users', 'User administration and management')
     .addTag('Admin - System', 'System administration and configuration')
-    .addTag('hospitals', 'Hospital data management')
-    .addTag('prices', 'Pricing data operations')
-    .addTag('analytics', 'Analytics, insights, and reporting')
-    .addTag('jobs', 'Background job management and monitoring')
-    .addTag('odata', 'OData protocol endpoints')
-    .addTag('health', 'System health and monitoring')
+    .addTag('Hospitals', 'Hospital data management')
+    .addTag('Prices', 'Pricing data operations')
+    .addTag('Analytics', 'Analytics, insights, and reporting')
+    .addTag('Jobs', 'Background job management and monitoring')
+    .addTag('OData', 'OData protocol endpoints')
+    .addTag('Health', 'System health and monitoring')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

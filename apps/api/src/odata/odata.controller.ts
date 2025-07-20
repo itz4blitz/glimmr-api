@@ -9,7 +9,7 @@ import { ODataQueryDto } from '../common/dto/query.dto';
 import { RequestDto, ResponseDto } from '../common/dto/request.dto';
 import { ODataErrorDto } from './dto/odata-error.dto';
 
-@ApiTags('odata')
+@ApiTags('OData')
 @Controller('odata')
 @ApiSecurity('x-api-key')
 @UseGuards(ApiKeyAuthGuard, RolesGuard)

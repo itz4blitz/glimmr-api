@@ -328,7 +328,7 @@ describe('HealthController', () => {
     it('should be decorated with @ApiTags', () => {
       const metadata = Reflect.getMetadata('swagger/apiUseTags', HealthController);
       expect(metadata).toBeDefined();
-      expect(metadata).toContain('health');
+      expect(metadata).toContain('Health');
     });
 
     it('should have proper route mapping', () => {

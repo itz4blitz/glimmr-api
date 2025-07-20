@@ -42,27 +42,33 @@ describe('Bootstrap Configuration', () => {
 
     it('should add all required tags', () => {
       const config = new DocumentBuilder()
-        .addTag('api', 'Core API information and status')
-        .addTag('auth', 'Authentication and authorization')
-        .addTag('hospitals', 'Hospital data management')
-        .addTag('prices', 'Pricing data operations')
-        .addTag('analytics', 'Analytics, insights, and reporting')
-        .addTag('jobs', 'Background job management and monitoring')
-        .addTag('odata', 'OData protocol endpoints')
-        .addTag('health', 'System health and monitoring')
+        .addTag('API', 'Core API information and status')
+        .addTag('Authentication', 'Authentication and authorization')
+        .addTag('User Profile', 'User profile and preferences management')
+        .addTag('Admin - Users', 'User administration and management')
+        .addTag('Admin - System', 'System administration and configuration')
+        .addTag('Hospitals', 'Hospital data management')
+        .addTag('Prices', 'Pricing data operations')
+        .addTag('Analytics', 'Analytics, insights, and reporting')
+        .addTag('Jobs', 'Background job management and monitoring')
+        .addTag('OData', 'OData protocol endpoints')
+        .addTag('Health', 'System health and monitoring')
         .build();
 
-      expect(config.tags).toHaveLength(8);
+      expect(config.tags).toHaveLength(11);
 
       const tagNames = config.tags.map(tag => tag.name);
-      expect(tagNames).toContain('api');
-      expect(tagNames).toContain('auth');
-      expect(tagNames).toContain('hospitals');
-      expect(tagNames).toContain('prices');
-      expect(tagNames).toContain('analytics');
-      expect(tagNames).toContain('jobs');
-      expect(tagNames).toContain('odata');
-      expect(tagNames).toContain('health');
+      expect(tagNames).toContain('API');
+      expect(tagNames).toContain('Authentication');
+      expect(tagNames).toContain('User Profile');
+      expect(tagNames).toContain('Admin - Users');
+      expect(tagNames).toContain('Admin - System');
+      expect(tagNames).toContain('Hospitals');
+      expect(tagNames).toContain('Prices');
+      expect(tagNames).toContain('Analytics');
+      expect(tagNames).toContain('Jobs');
+      expect(tagNames).toContain('OData');
+      expect(tagNames).toContain('Health');
     });
 
     it('should create complete configuration as in main.ts', () => {
@@ -71,14 +77,17 @@ describe('Bootstrap Configuration', () => {
         .setDescription('Hospital pricing data aggregation and analytics platform')
         .setVersion('1.0')
         .addBearerAuth()
-        .addTag('api', 'Core API information and status')
-        .addTag('auth', 'Authentication and authorization')
-        .addTag('hospitals', 'Hospital data management')
-        .addTag('prices', 'Pricing data operations')
-        .addTag('analytics', 'Analytics, insights, and reporting')
-        .addTag('jobs', 'Background job management and monitoring')
-        .addTag('odata', 'OData protocol endpoints')
-        .addTag('health', 'System health and monitoring')
+        .addTag('API', 'Core API information and status')
+        .addTag('Authentication', 'Authentication and authorization')
+        .addTag('User Profile', 'User profile and preferences management')
+        .addTag('Admin - Users', 'User administration and management')
+        .addTag('Admin - System', 'System administration and configuration')
+        .addTag('Hospitals', 'Hospital data management')
+        .addTag('Prices', 'Pricing data operations')
+        .addTag('Analytics', 'Analytics, insights, and reporting')
+        .addTag('Jobs', 'Background job management and monitoring')
+        .addTag('OData', 'OData protocol endpoints')
+        .addTag('Health', 'System health and monitoring')
         .build();
 
       expect(config.info.title).toBe('Glimmr API');
