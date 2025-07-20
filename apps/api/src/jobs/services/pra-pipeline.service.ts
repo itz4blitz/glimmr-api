@@ -4,7 +4,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { QUEUE_NAMES } from '../queues/queue.config';
-import { PRAUnifiedScanJobData } from '../processors/pra-unified-scanner.processor';
+
+// Type definition for job data (processor removed)
+export interface PRAUnifiedScanJobData {
+  forceRefresh?: boolean;
+  testMode?: boolean;
+}
 
 @Injectable()
 export class PRAPipelineService {

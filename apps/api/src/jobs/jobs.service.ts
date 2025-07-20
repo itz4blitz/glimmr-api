@@ -3,29 +3,45 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, Job } from 'bullmq';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { QUEUE_NAMES } from './queues/queue.config';
-import { HospitalImportJobData } from './processors/hospital-import.processor';
-import { PriceFileDownloadJobData } from './processors/price-file-download.processor';
-import type { AnalyticsRefreshJobData } from './processors/analytics-refresh.processor';
+
+// Type definitions for job data (processors removed)
+export interface HospitalImportJobData {
+  state?: string;
+  forceRefresh?: boolean;
+  batchSize?: number;
+}
+
+export interface PriceFileDownloadJobData {
+  hospitalId: string;
+  fileId: string;
+  fileUrl: string;
+  filename: string;
+  filesuffix: string;
+  size: string;
+  retrieved: string;
+  forceReprocess?: boolean;
+}
+
+export interface AnalyticsRefreshJobData {
+  metricTypes?: string[];
+  timeRange?: {
+    start: string;
+    end: string;
+  };
+  forceRefresh?: boolean;
+  reportingPeriod?: string;
+  batchSize?: number;
+}
 
 @Injectable()
 export class JobsService {
   constructor(
-    @InjectQueue(QUEUE_NAMES.HOSPITAL_IMPORT)
-    private readonly hospitalImportQueue: Queue<HospitalImportJobData>,
-    @InjectQueue(QUEUE_NAMES.PRICE_FILE_DOWNLOAD)
-    private readonly priceFileDownloadQueue: Queue<PriceFileDownloadJobData>,
     @InjectQueue(QUEUE_NAMES.PRICE_UPDATE)
     private readonly priceUpdateQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.ANALYTICS_REFRESH)
-    private readonly analyticsRefreshQueue: Queue,
     @InjectQueue(QUEUE_NAMES.DATA_VALIDATION)
     private readonly dataValidationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.EXPORT_DATA)
     private readonly exportDataQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.PRA_UNIFIED_SCAN)
-    private readonly praUnifiedScanQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.PRA_FILE_DOWNLOAD)
-    private readonly praFileDownloadQueue: Queue,
     @InjectPinoLogger(JobsService.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -67,14 +83,9 @@ export class JobsService {
 
   private getAllQueues() {
     return [
-      { name: QUEUE_NAMES.HOSPITAL_IMPORT, queue: this.hospitalImportQueue },
-      { name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD, queue: this.priceFileDownloadQueue },
       { name: QUEUE_NAMES.PRICE_UPDATE, queue: this.priceUpdateQueue },
-      { name: QUEUE_NAMES.ANALYTICS_REFRESH, queue: this.analyticsRefreshQueue },
       { name: QUEUE_NAMES.DATA_VALIDATION, queue: this.dataValidationQueue },
       { name: QUEUE_NAMES.EXPORT_DATA, queue: this.exportDataQueue },
-      { name: QUEUE_NAMES.PRA_UNIFIED_SCAN, queue: this.praUnifiedScanQueue },
-      { name: QUEUE_NAMES.PRA_FILE_DOWNLOAD, queue: this.praFileDownloadQueue },
     ];
   }
 
@@ -222,51 +233,21 @@ export class JobsService {
     batchSize?: number;
     priority?: number;
   }) {
-    this.logger.info({
-      msg: 'Starting hospital import job',
+    this.logger.warn({
+      msg: 'Hospital import processor not implemented',
       importData,
     });
 
-    try {
-      const jobData: HospitalImportJobData = {
-        state: importData.state,
-        forceRefresh: importData.forceRefresh ?? false,
-        batchSize: importData.batchSize ?? 50,
-      };
-
-      const job = await this.hospitalImportQueue.add(
-        'hospital-import',
-        jobData,
-        {
-          priority: importData.priority ?? 5,
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 60000,
-          },
-          removeOnComplete: 10,
-          removeOnFail: 50,
-        },
-      );
-
-      return {
-        jobId: job.id,
-        status: 'queued',
-        message: 'Hospital import job has been queued successfully',
-        estimatedDuration: importData.state ? '5-15 minutes' : '30-60 minutes',
-        priority: importData.priority ?? 5,
-        data: jobData,
-        createdAt: new Date().toISOString(),
-        trackingUrl: `/jobs/${job.id}`,
-      };
-    } catch (error) {
-      this.logger.error({
-        msg: 'Failed to start hospital import job',
-        importData,
-        error: error.message,
-      });
-      throw error;
-    }
+    return {
+      jobId: null,
+      status: 'not_implemented',
+      message: 'Hospital import functionality is not currently implemented',
+      estimatedDuration: 'N/A',
+      priority: importData.priority ?? 5,
+      data: importData,
+      createdAt: new Date().toISOString(),
+      trackingUrl: null,
+    };
   }
 
   async startPriceUpdate(updateData: {
@@ -386,56 +367,21 @@ export class JobsService {
     forceReprocess?: boolean;
     priority?: number;
   }) {
-    this.logger.info({
-      msg: 'Starting price file download job',
+    this.logger.warn({
+      msg: 'Price file download processor not implemented',
       downloadData,
     });
 
-    try {
-      const jobData: PriceFileDownloadJobData = {
-        hospitalId: downloadData.hospitalId,
-        fileId: downloadData.fileId,
-        fileUrl: downloadData.fileUrl,
-        filename: downloadData.filename,
-        filesuffix: downloadData.filesuffix,
-        size: downloadData.size,
-        retrieved: downloadData.retrieved,
-        forceReprocess: downloadData.forceReprocess ?? false,
-      };
-
-      const job = await this.priceFileDownloadQueue.add(
-        `download-${downloadData.hospitalId}-${downloadData.fileId}`,
-        jobData,
-        {
-          priority: downloadData.priority ?? 5,
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 60000,
-          },
-          removeOnComplete: 10,
-          removeOnFail: 50,
-        },
-      );
-
-      return {
-        jobId: job.id,
-        status: 'queued',
-        message: 'Price file download job has been queued successfully',
-        estimatedDuration: '5-30 minutes',
-        priority: downloadData.priority ?? 5,
-        data: jobData,
-        createdAt: new Date().toISOString(),
-        trackingUrl: `/jobs/${job.id}`,
-      };
-    } catch (error) {
-      this.logger.error({
-        msg: 'Failed to start price file download job',
-        downloadData,
-        error: error.message,
-      });
-      throw error;
-    }
+    return {
+      jobId: null,
+      status: 'not_implemented',
+      message: 'Price file download functionality is not currently implemented',
+      estimatedDuration: 'N/A',
+      priority: downloadData.priority ?? 5,
+      data: downloadData,
+      createdAt: new Date().toISOString(),
+      trackingUrl: null,
+    };
   }
 
   /**
@@ -448,53 +394,22 @@ export class JobsService {
     batchSize?: number;
     priority?: number;
   } = {}) {
-    this.logger.info({
-      msg: 'Starting analytics refresh job',
+    this.logger.warn({
+      msg: 'Analytics refresh processor not implemented',
       options,
     });
 
-    try {
-      const jobData = {
-        metricTypes: options.metricTypes || ['all'],
-        forceRefresh: options.forceRefresh || false,
-        reportingPeriod: options.reportingPeriod || 'monthly',
-        batchSize: options.batchSize || 100,
-      };
-
-      const job = await this.analyticsRefreshQueue.add(
-        `analytics-refresh-${Date.now()}`,
-        jobData,
-        {
-          priority: options.priority || 3,
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 60000, // 1 minute
-          },
-          removeOnComplete: 5,
-          removeOnFail: 10,
-        },
-      );
-
-      return {
-        id: job.id,
-        jobId: job.id, // Support both for compatibility
-        status: 'queued',
-        message: 'Analytics refresh job has been queued successfully',
-        estimatedDuration: options.metricTypes ? '5-15 minutes' : '15-30 minutes',
-        priority: options.priority || 3,
-        data: jobData,
-        createdAt: new Date().toISOString(),
-        trackingUrl: `/jobs/${job.id}`,
-      };
-    } catch (error) {
-      this.logger.error({
-        msg: 'Failed to start analytics refresh job',
-        options,
-        error: error.message,
-      });
-      throw error;
-    }
+    return {
+      id: null,
+      jobId: null,
+      status: 'not_implemented',
+      message: 'Analytics refresh functionality is not currently implemented',
+      estimatedDuration: 'N/A',
+      priority: options.priority || 3,
+      data: options,
+      createdAt: new Date().toISOString(),
+      trackingUrl: null,
+    };
   }
 
   /**

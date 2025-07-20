@@ -31,8 +31,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Request logging is now handled by Pino HTTP middleware
-
   // Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
@@ -40,9 +38,7 @@ async function bootstrap() {
     transform: true,
   }));
 
-
-
-  // API prefix - since we're on api.glimmr.health subdomain, no prefix needed
+  // API prefix
   const apiPrefix = process.env.API_PREFIX || '';
   if (apiPrefix) {
     app.setGlobalPrefix(apiPrefix);

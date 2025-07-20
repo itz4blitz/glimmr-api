@@ -4,7 +4,6 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
-// import { RequestContextMiddleware } from './common/middleware';
 
 @Module({
   imports: [

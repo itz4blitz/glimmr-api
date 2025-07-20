@@ -7,8 +7,24 @@ import { DatabaseService } from '../../database/database.service';
 import { hospitals, priceTransparencyFiles } from '../../database/schema/index';
 import { eq, and, isNotNull, gte } from 'drizzle-orm';
 import { QUEUE_NAMES } from '../queues/queue.config';
-import { HospitalImportJobData } from '../processors/hospital-import.processor';
-import { PriceFileDownloadJobData } from '../processors/price-file-download.processor';
+
+// Type definitions for job data (processors removed)
+export interface HospitalImportJobData {
+  state?: string;
+  forceRefresh?: boolean;
+  batchSize?: number;
+}
+
+export interface PriceFileDownloadJobData {
+  hospitalId: string;
+  fileId: string;
+  fileUrl: string;
+  filename: string;
+  filesuffix: string;
+  size: string;
+  retrieved: string;
+  forceReprocess?: boolean;
+}
 
 @Injectable()
 export class HospitalMonitorService {

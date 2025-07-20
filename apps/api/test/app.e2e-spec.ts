@@ -46,14 +46,6 @@ describe('AppController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     databaseService = moduleFixture.get<DatabaseService>(DatabaseService);
-    
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import request from 'supertest';
-import { AppTestModule } from '../src/app.test.module';
-
-describe('AppController (e2e)', () => {
-  let app: INestApplication;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
