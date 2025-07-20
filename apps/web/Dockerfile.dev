@@ -1,0 +1,34 @@
+# Development Dockerfile for Glimmr Web App
+FROM node:20-alpine
+
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
+# Set working directory
+WORKDIR /app
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies with force to rebuild native modules
+RUN pnpm install --frozen-lockfile
+
+# Copy web app source
+COPY apps/web ./apps/web
+
+# Set working directory to web app
+WORKDIR /app/apps/web
+
+# Clean install to fix native modules
+RUN rm -rf node_modules package-lock.json
+RUN npm install
+
+# Expose port
+EXPOSE 5174
+
+# Start development server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5174"]
