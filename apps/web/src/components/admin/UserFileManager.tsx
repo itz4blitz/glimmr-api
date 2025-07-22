@@ -111,7 +111,7 @@ function FileRow({ file, onDelete, onDownload }: {
       <TableCell>
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Calendar className="h-3 w-3" />
-          {formatDistanceToNow(new Date(file.createdAt), { addSuffix: true })}
+          {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}
         </div>
       </TableCell>
       
@@ -164,8 +164,11 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
     userFiles, 
     loadUserFiles, 
     deleteUserFile, 
-    downloadUserFile 
+    downloadUserFile,
+    loading 
   } = useUserManagementStore()
+  
+  const isLoading = loading.userDetail
 
   useEffect(() => {
     loadUserFiles(userId)
@@ -183,7 +186,7 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
     await downloadUserFile(fileId)
   }
 
-  const activeFiles = userFiles.filter(file => file.isActive)
+  const activeFiles = userFiles?.filter(file => file.isActive) || []
   const totalSize = activeFiles.reduce((sum, file) => sum + file.fileSize, 0)
   const avatarFiles = activeFiles.filter(file => file.fileType === 'avatar')
   const documentFiles = activeFiles.filter(file => file.fileType === 'document')

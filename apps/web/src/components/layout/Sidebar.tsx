@@ -66,7 +66,14 @@ export function Sidebar() {
       name: 'Queue Dashboard',
       href: '/admin/queues',
       icon: Activity,
-      description: 'Monitor BullMQ queues'
+      description: 'Monitor Jobs'
+    },
+    {
+      name: 'Activity Logs',
+      href: '/admin/activity',
+      icon: FileText,
+      description: 'View system activity',
+      badge: 'New'
     },
     {
       name: 'System Settings',

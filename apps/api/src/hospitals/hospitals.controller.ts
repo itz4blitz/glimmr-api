@@ -142,4 +142,39 @@ export class HospitalsController {
       );
     }
   }
+
+  @Get(':id/price-files')
+  @RequirePermissions('hospitals:read')
+  @ApiOperation({ summary: 'Get price transparency files for a hospital' })
+  @ApiResponse({ status: 200, description: 'Hospital price files retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Hospital not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiResponse({ status: 503, description: 'Service unavailable - database connection failed' })
+  @ApiParam({ name: 'id', description: 'Hospital ID' })
+  async getHospitalPriceFiles(@Param('id') id: string) {
+    try {
+      return await this.hospitalsService.getHospitalPriceFiles(id);
+    } catch (error) {
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while fetching hospital price files',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }

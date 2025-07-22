@@ -28,12 +28,7 @@ export interface CleanupPolicy {
 export class JobCleanupService {
   private readonly defaultCleanupPolicies: Record<string, CleanupPolicy> = {
     // Conservative policies for data-sensitive queues
-    [QUEUE_NAMES.HOSPITAL_IMPORT]: {
-      completed: { maxAge: 7 * 24 * 60 * 60 * 1000, limit: 100 }, // 7 days, max 100
-      failed: { maxAge: 30 * 24 * 60 * 60 * 1000, limit: 50 }, // 30 days, max 50
-      stalled: { maxAge: 24 * 60 * 60 * 1000, limit: 20 }, // 1 day, max 20
-    },
-    [QUEUE_NAMES.PRICE_FILE_DOWNLOAD]: {
+    [QUEUE_NAMES.PRICE_FILE_PARSER]: {
       completed: { maxAge: 3 * 24 * 60 * 60 * 1000, limit: 50 }, // 3 days, max 50
       failed: { maxAge: 14 * 24 * 60 * 60 * 1000, limit: 100 }, // 14 days, max 100
       stalled: { maxAge: 12 * 60 * 60 * 1000, limit: 10 }, // 12 hours, max 10
@@ -48,11 +43,6 @@ export class JobCleanupService {
       completed: { maxAge: 12 * 60 * 60 * 1000, limit: 50 }, // 12 hours, max 50
       failed: { maxAge: 3 * 24 * 60 * 60 * 1000, limit: 25 }, // 3 days, max 25
       stalled: { maxAge: 2 * 60 * 60 * 1000, limit: 10 }, // 2 hours, max 10
-    },
-    [QUEUE_NAMES.DATA_VALIDATION]: {
-      completed: { maxAge: 6 * 60 * 60 * 1000, limit: 100 }, // 6 hours, max 100
-      failed: { maxAge: 24 * 60 * 60 * 1000, limit: 50 }, // 1 day, max 50
-      stalled: { maxAge: 1 * 60 * 60 * 1000, limit: 15 }, // 1 hour, max 15
     },
     [QUEUE_NAMES.EXPORT_DATA]: {
       completed: { maxAge: 2 * 60 * 60 * 1000, limit: 20 }, // 2 hours, max 20
@@ -73,16 +63,12 @@ export class JobCleanupService {
   };
 
   constructor(
-    @InjectQueue(QUEUE_NAMES.HOSPITAL_IMPORT)
-    private readonly hospitalImportQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.PRICE_FILE_DOWNLOAD)
-    private readonly priceFileDownloadQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.PRICE_FILE_PARSER)
+    private readonly priceFileParserQueue: Queue,
     @InjectQueue(QUEUE_NAMES.PRICE_UPDATE)
     private readonly priceUpdateQueue: Queue,
     @InjectQueue(QUEUE_NAMES.ANALYTICS_REFRESH)
     private readonly analyticsRefreshQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.DATA_VALIDATION)
-    private readonly dataValidationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.EXPORT_DATA)
     private readonly exportDataQueue: Queue,
     @InjectQueue(QUEUE_NAMES.PRA_UNIFIED_SCAN)
@@ -95,11 +81,9 @@ export class JobCleanupService {
 
   private getQueueMap(): Record<string, Queue> {
     return {
-      [QUEUE_NAMES.HOSPITAL_IMPORT]: this.hospitalImportQueue,
-      [QUEUE_NAMES.PRICE_FILE_DOWNLOAD]: this.priceFileDownloadQueue,
+      [QUEUE_NAMES.PRICE_FILE_PARSER]: this.priceFileParserQueue,
       [QUEUE_NAMES.PRICE_UPDATE]: this.priceUpdateQueue,
       [QUEUE_NAMES.ANALYTICS_REFRESH]: this.analyticsRefreshQueue,
-      [QUEUE_NAMES.DATA_VALIDATION]: this.dataValidationQueue,
       [QUEUE_NAMES.EXPORT_DATA]: this.exportDataQueue,
       [QUEUE_NAMES.PRA_UNIFIED_SCAN]: this.praUnifiedScanQueue,
       [QUEUE_NAMES.PRA_FILE_DOWNLOAD]: this.praFileDownloadQueue,

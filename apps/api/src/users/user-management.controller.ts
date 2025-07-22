@@ -250,18 +250,35 @@ export class UserManagementController {
   @Get(':id/activity')
   @Roles('admin', 'super_admin')
   @ApiOperation({ summary: 'Get user activity log' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'offset', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'User activity retrieved successfully' })
   async getUserActivity(
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
   ) {
-    return this.userManagementService.getUserActivity(id, {
-      limit: Math.min(Number(limit) || 50, 200), // Max 200 per request
-      offset: Number(offset) || 0,
+    const pageNum = Number(page) || 1;
+    const limitNum = Math.min(Number(limit) || 20, 200); // Max 200 per request
+    const offset = (pageNum - 1) * limitNum;
+    
+    // Get activities
+    const activities = await this.userManagementService.getUserActivity(id, {
+      limit: limitNum,
+      offset: offset,
     });
+    
+    // Get total count for pagination
+    const totalActivities = await this.userManagementService.getUserActivityCount(id);
+    const totalPages = Math.ceil(totalActivities / limitNum);
+    
+    return {
+      activities,
+      total: totalActivities,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+    };
   }
 
   @Post('bulk')
@@ -336,6 +353,15 @@ export class UserManagementController {
       results,
       errors,
     };
+  }
+
+  @Get(':id/files')
+  @ApiOperation({ summary: 'Get files for a specific user' })
+  @ApiResponse({ status: 200, description: 'User files retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserFiles(@Param('id', ParseUUIDPipe) id: string) {
+    const files = await this.userManagementService.getUserFiles(id);
+    return files;
   }
 
   // File serving endpoint

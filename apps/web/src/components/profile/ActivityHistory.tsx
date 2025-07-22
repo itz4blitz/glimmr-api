@@ -28,83 +28,26 @@ import {
   Trash2,
   Edit,
   Eye,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { apiClient } from '@/lib/api'
 
 interface ActivityLog {
   id: string
   action: string
   resourceType: string
   resourceId?: string
-  timestamp: Date
+  timestamp: string
   ipAddress: string
   userAgent: string
-  location: string
   success: boolean
   metadata?: any
+  errorMessage?: string
 }
 
-// Mock activity data
-const mockActivities: ActivityLog[] = [
-  {
-    id: '1',
-    action: 'login',
-    resourceType: 'auth',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-    ipAddress: '192.168.1.100',
-    userAgent: 'Chrome 120.0.0.0',
-    location: 'New York, NY',
-    success: true,
-  },
-  {
-    id: '2',
-    action: 'profile_update',
-    resourceType: 'profile',
-    resourceId: 'profile-123',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    ipAddress: '192.168.1.100',
-    userAgent: 'Chrome 120.0.0.0',
-    location: 'New York, NY',
-    success: true,
-    metadata: { updatedFields: ['firstName', 'lastName', 'bio'] },
-  },
-  {
-    id: '3',
-    action: 'avatar_upload',
-    resourceType: 'file',
-    resourceId: 'file-456',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-    ipAddress: '192.168.1.100',
-    userAgent: 'Chrome 120.0.0.0',
-    location: 'New York, NY',
-    success: true,
-    metadata: { fileName: 'avatar.jpg', fileSize: 245760 },
-  },
-  {
-    id: '4',
-    action: 'preferences_update',
-    resourceType: 'preferences',
-    resourceId: 'pref-789',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-    ipAddress: '192.168.1.100',
-    userAgent: 'Chrome 120.0.0.0',
-    location: 'New York, NY',
-    success: true,
-    metadata: { updatedFields: ['themePreference', 'notificationEmail'] },
-  },
-  {
-    id: '5',
-    action: 'login_failed',
-    resourceType: 'auth',
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-    ipAddress: '203.0.113.1',
-    userAgent: 'Firefox 119.0',
-    location: 'Unknown',
-    success: false,
-    metadata: { reason: 'invalid_password' },
-  },
-]
+
 
 const getActivityIcon = (action: string) => {
   if (action.includes('login')) return <Shield className="h-4 w-4" />
@@ -153,11 +96,12 @@ const getDeviceIcon = (userAgent: string) => {
 }
 
 export function ActivityHistory() {
-  const [activities] = useState<ActivityLog[]>(mockActivities)
-  const [filteredActivities, setFilteredActivities] = useState<ActivityLog[]>(mockActivities)
+  const [activities, setActivities] = useState<ActivityLog[]>([])
+  const [filteredActivities, setFilteredActivities] = useState<ActivityLog[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [actionFilter, setActionFilter] = useState('all')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Filter activities based on search term and action filter
   useEffect(() => {
@@ -166,8 +110,8 @@ export function ActivityHistory() {
     if (searchTerm) {
       filtered = filtered.filter(activity =>
         getActivityDescription(activity).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        activity.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        activity.ipAddress.includes(searchTerm)
+        activity.ipAddress?.includes(searchTerm) ||
+        activity.action.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
@@ -178,20 +122,60 @@ export function ActivityHistory() {
     setFilteredActivities(filtered)
   }, [activities, searchTerm, actionFilter])
 
+  // Fetch activities on component mount
+  useEffect(() => {
+    const fetchActivities = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await apiClient.get('/profile/activity')
+        setActivities(response.data.activities || [])
+      } catch (error) {
+        console.error('Failed to fetch activities:', error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch activities')
+        setActivities([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchActivities()
+  }, [])
+
   const refreshActivities = async () => {
     setIsLoading(true)
+    setError(null)
     try {
-      // Here you would call your API to fetch fresh activity data
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
-      // setActivities(newActivities)
+      const response = await apiClient.get('/profile/activity')
+      setActivities(response.data.activities || [])
     } catch (error) {
       console.error('Failed to refresh activities:', error)
+      setError(error instanceof Error ? error.message : 'Failed to refresh activities')
+      setActivities([])
     } finally {
       setIsLoading(false)
     }
   }
 
   const uniqueActions = Array.from(new Set(activities.map(a => a.action.split('_')[0])))
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Unable to Load Activity History</h3>
+            <p className="text-muted-foreground text-center mb-4">{error}</p>
+            <Button onClick={refreshActivities} disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -270,20 +254,20 @@ export function ActivityHistory() {
                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{formatDistanceToNow(activity.timestamp, { addSuffix: true })}</span>
+                        <span className="truncate">{formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {getDeviceIcon(activity.userAgent)}
-                        <span className="truncate">{activity.userAgent}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{activity.location}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Globe className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{activity.ipAddress}</span>
-                      </div>
+                      {activity.userAgent && (
+                        <div className="flex items-center gap-1">
+                          {getDeviceIcon(activity.userAgent)}
+                          <span className="truncate">{activity.userAgent}</span>
+                        </div>
+                      )}
+                      {activity.ipAddress && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{activity.ipAddress}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Additional metadata */}

@@ -11,10 +11,16 @@ describe('JwtStrategy', () => {
 
   const mockUser: User = {
     id: 'user-123',
-    username: 'testuser',
+    email: 'testuser@example.com',
     password: 'hashedpassword',
     role: 'api-user',
     apiKey: 'gapi_test123',
+    firstName: 'Test',
+    lastName: 'User',
+    isActive: true,
+    lastLoginAt: null,
+    emailVerified: false,
+    emailVerifiedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -51,7 +57,7 @@ describe('JwtStrategy', () => {
     it('should return user object when user exists', async () => {
       const payload = {
         sub: 'user-123',
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
       };
 
@@ -61,7 +67,7 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         id: mockUser.id,
-        username: mockUser.username,
+        email: mockUser.email,
         role: mockUser.role,
       });
       expect(usersService.findById).toHaveBeenCalledWith('user-123');
@@ -71,7 +77,7 @@ describe('JwtStrategy', () => {
       const adminUser = { ...mockUser, role: 'admin' as const };
       const payload = {
         sub: 'admin-123',
-        username: 'admin',
+        email: 'admin@example.com',
         role: 'admin',
       };
 
@@ -81,7 +87,7 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         id: adminUser.id,
-        username: adminUser.username,
+        email: adminUser.email,
         role: adminUser.role,
       });
     });
@@ -89,7 +95,7 @@ describe('JwtStrategy', () => {
     it('should handle user not found', async () => {
       const payload = {
         sub: 'nonexistent-123',
-        username: 'nonexistent',
+        email: 'nonexistent@example.com',
         role: 'api-user',
       };
 
@@ -101,7 +107,7 @@ describe('JwtStrategy', () => {
     it('should handle database errors', async () => {
       const payload = {
         sub: 'user-123',
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
       };
 
@@ -113,7 +119,7 @@ describe('JwtStrategy', () => {
     it('should extract user ID from sub field', async () => {
       const payload = {
         sub: 'different-id-456',
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
       };
 
@@ -127,7 +133,7 @@ describe('JwtStrategy', () => {
     it('should handle payload with additional fields', async () => {
       const payload = {
         sub: 'user-123',
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
         iat: 1234567890,
         exp: 1234567890,
@@ -140,7 +146,7 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         id: mockUser.id,
-        username: mockUser.username,
+        email: mockUser.email,
         role: mockUser.role,
       });
     });
@@ -148,7 +154,7 @@ describe('JwtStrategy', () => {
     it('should not include sensitive fields in response', async () => {
       const payload = {
         sub: 'user-123',
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
       };
 
@@ -165,7 +171,7 @@ describe('JwtStrategy', () => {
     it('should handle empty payload sub field', async () => {
       const payload = {
         sub: '',
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
       };
 
@@ -178,7 +184,7 @@ describe('JwtStrategy', () => {
     it('should handle undefined payload sub field', async () => {
       const payload = {
         sub: undefined as any,
-        username: 'testuser',
+        email: 'testuser@example.com',
         role: 'api-user',
       };
 

@@ -29,7 +29,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Request() req, @Body() loginDto: LoginDto) {
-    return this.authService.login(req.user);
+    return this.authService.login(req.user, req);
   }
 
   @ApiOperation({
@@ -39,8 +39,8 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 400, description: 'Username or email already exists' })
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Request() req) {
+    return this.authService.register(registerDto, req);
   }
 
   @ApiOperation({ summary: 'Get current user profile' })
@@ -61,5 +61,16 @@ export class AuthController {
   async generateApiKey(@Request() req) {
     const apiKey = await this.authService.generateApiKey(req.user.id);
     return { apiKey };
+  }
+
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiResponse({ status: 200, description: 'User logged out successfully' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Request() req) {
+    await this.authService.logout(req.user.id, req);
+    return { message: 'Logged out successfully' };
   }
 }

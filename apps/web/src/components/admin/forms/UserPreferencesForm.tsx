@@ -1,3 +1,4 @@
+import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -79,8 +80,8 @@ const timeFormats = [
 export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesFormProps) {
   const { updateUserPreferences } = useUserManagementStore()
 
-  // Prepare initial form data with defaults
-  const initialData: PreferencesUpdateData = {
+  // Prepare initial form data with defaults - use useMemo to prevent re-creation
+  const initialData: PreferencesUpdateData = React.useMemo(() => ({
     notificationEmail: user.preferences?.notificationEmail ?? true,
     notificationPush: user.preferences?.notificationPush ?? true,
     notificationSms: user.preferences?.notificationSms ?? false,
@@ -89,9 +90,17 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
     timezonePreference: user.preferences?.timezonePreference ?? 'UTC',
     dateFormat: user.preferences?.dateFormat ?? 'MM/DD/YYYY',
     timeFormat: user.preferences?.timeFormat ?? '12h',
-    privacySettings: user.preferences?.privacySettings ?? {},
-    dashboardLayout: user.preferences?.dashboardLayout ?? {}
-  }
+    privacySettings: user.preferences?.privacySettings ?? {
+      profileVisible: true,
+      activityTracking: true,
+      dataExport: true
+    },
+    dashboardLayout: user.preferences?.dashboardLayout ?? {
+      compact: false,
+      showSidebar: true,
+      autoRefresh: false
+    }
+  }), [user.preferences])
 
   const {
     formData,
@@ -112,7 +121,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -162,7 +171,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             Configure how the user receives notifications
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Email Notifications</Label>
@@ -215,7 +224,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             Customize the user interface appearance
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="theme">Theme</Label>
             <Select
@@ -248,8 +257,8 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             Language, timezone, and format preferences
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="language">Language</Label>
               <Select
@@ -289,7 +298,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dateFormat">Date Format</Label>
               <Select
@@ -342,7 +351,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             Control privacy and data sharing preferences
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Profile Visibility</Label>
@@ -352,12 +361,13 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.privacySettings?.profileVisible ?? true}
-              onCheckedChange={(checked) => 
-                setFieldValue('privacySettings', {
+              onCheckedChange={(checked) => {
+                const newSettings = {
                   ...formData.privacySettings,
                   profileVisible: checked
-                })
-              }
+                }
+                setFieldValue('privacySettings', newSettings)
+              }}
             />
           </div>
 
@@ -370,12 +380,13 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.privacySettings?.activityTracking ?? true}
-              onCheckedChange={(checked) => 
-                setFieldValue('privacySettings', {
+              onCheckedChange={(checked) => {
+                const newSettings = {
                   ...formData.privacySettings,
                   activityTracking: checked
-                })
-              }
+                }
+                setFieldValue('privacySettings', newSettings)
+              }}
             />
           </div>
 
@@ -388,12 +399,13 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.privacySettings?.dataExport ?? true}
-              onCheckedChange={(checked) => 
-                setFieldValue('privacySettings', {
+              onCheckedChange={(checked) => {
+                const newSettings = {
                   ...formData.privacySettings,
                   dataExport: checked
-                })
-              }
+                }
+                setFieldValue('privacySettings', newSettings)
+              }}
             />
           </div>
         </CardContent>
@@ -410,7 +422,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             Customize dashboard appearance and layout
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Compact Mode</Label>
@@ -420,12 +432,13 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.dashboardLayout?.compact ?? false}
-              onCheckedChange={(checked) => 
-                setFieldValue('dashboardLayout', {
+              onCheckedChange={(checked) => {
+                const newLayout = {
                   ...formData.dashboardLayout,
                   compact: checked
-                })
-              }
+                }
+                setFieldValue('dashboardLayout', newLayout)
+              }}
             />
           </div>
 
@@ -438,12 +451,13 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.dashboardLayout?.showSidebar ?? true}
-              onCheckedChange={(checked) => 
-                setFieldValue('dashboardLayout', {
+              onCheckedChange={(checked) => {
+                const newLayout = {
                   ...formData.dashboardLayout,
                   showSidebar: checked
-                })
-              }
+                }
+                setFieldValue('dashboardLayout', newLayout)
+              }}
             />
           </div>
 
@@ -456,12 +470,13 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.dashboardLayout?.autoRefresh ?? false}
-              onCheckedChange={(checked) => 
-                setFieldValue('dashboardLayout', {
+              onCheckedChange={(checked) => {
+                const newLayout = {
                   ...formData.dashboardLayout,
                   autoRefresh: checked
-                })
-              }
+                }
+                setFieldValue('dashboardLayout', newLayout)
+              }}
             />
           </div>
         </CardContent>

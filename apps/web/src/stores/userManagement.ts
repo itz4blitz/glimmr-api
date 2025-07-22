@@ -99,9 +99,9 @@ const initialPagination: PaginationState = {
 }
 
 const initialLoading: LoadingState = {
-  users: true, // Start with loading true to prevent flash on initial load
+  users: false,
   userDetail: false,
-  stats: true, // Start with loading true to prevent flash on initial load
+  stats: false,
   bulkAction: false,
   export: false,
   import: false
@@ -134,10 +134,11 @@ export const useUserManagementStore = create<UserManagementState>()(
       // User Management Actions
       loadUsers: async (params) => {
         const state = get()
-        if (state.loading.users) return // Prevent concurrent requests
+        
+        // Prevent concurrent requests
+        if (state.loading.users) return
 
         set(state => ({
-          loading: { ...state.loading, users: true },
           error: { ...state.error, users: null }
         }))
 
@@ -162,12 +163,10 @@ export const useUserManagementStore = create<UserManagementState>()(
               limit: response.limit,
               total: response.total,
               totalPages: response.totalPages
-            },
-            loading: { ...state.loading, users: false }
+            }
           }))
         } catch (error: any) {
           set(state => ({
-            loading: { ...state.loading, users: false },
             error: { ...state.error, users: error.message }
           }))
           toast.error('Failed to load users')
@@ -373,16 +372,17 @@ export const useUserManagementStore = create<UserManagementState>()(
       loadUserActivity: async (userId, page = 1) => {
         try {
           const response = await userManagementApi.getUserActivity(userId, { page, limit: 20 })
-          set({ userActivity: response.activities })
+          set({ userActivity: response.activities || [] })
         } catch (error: any) {
           toast.error('Failed to load user activity')
+          set({ userActivity: [] })
         }
       },
 
       loadUserFiles: async (userId) => {
         try {
           const files = await userManagementApi.getUserFiles(userId)
-          set({ userFiles: files })
+          set({ userFiles: files || [] })
         } catch (error: any) {
           // Don't show error for 404 - files endpoint may not be implemented yet
           if (error.response?.status !== 404) {

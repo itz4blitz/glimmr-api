@@ -92,9 +92,9 @@ export class UserManagementService {
 
     return {
       user: userResult.users,
-      profile: userResult.user_profiles || undefined,
-      preferences: userResult.user_preferences || undefined,
-      lastActivity: latestActivity || undefined,
+      profile: (userResult.user_profiles as UserProfile) || undefined,
+      preferences: (userResult.user_preferences as UserPreferences) || undefined,
+      lastActivity: (latestActivity as UserActivityLog) || undefined,
       fileCount: fileCountResult?.count || 0,
     };
   }
@@ -243,7 +243,18 @@ export class UserManagementService {
     }
 
     // Remove sensitive fields that shouldn't be updated directly
-    const { password, apiKey, ...safeUpdateData } = updateData;
+    const { password, apiKey, id: _, ...rawUpdateData } = updateData;
+
+    // Type-safe update data
+    const safeUpdateData: any = {};
+    if (rawUpdateData.email !== undefined) safeUpdateData.email = rawUpdateData.email;
+    if (rawUpdateData.firstName !== undefined) safeUpdateData.firstName = rawUpdateData.firstName;
+    if (rawUpdateData.lastName !== undefined) safeUpdateData.lastName = rawUpdateData.lastName;
+    if (rawUpdateData.role !== undefined) safeUpdateData.role = rawUpdateData.role;
+    if (rawUpdateData.isActive !== undefined) safeUpdateData.isActive = rawUpdateData.isActive;
+    if (rawUpdateData.emailVerified !== undefined) safeUpdateData.emailVerified = rawUpdateData.emailVerified;
+    if (rawUpdateData.emailVerifiedAt !== undefined) safeUpdateData.emailVerifiedAt = rawUpdateData.emailVerifiedAt;
+    if (rawUpdateData.lastLoginAt !== undefined) safeUpdateData.lastLoginAt = rawUpdateData.lastLoginAt;
 
     const [updatedUser] = await this.db
       .update(users)
@@ -355,7 +366,7 @@ export class UserManagementService {
     resourceId?: string;
     ipAddress?: string;
     userAgent?: string;
-    metadata?: any;
+    metadata?: Record<string, any>;
     success?: boolean;
     errorMessage?: string;
   }): Promise<UserActivityLog> {
@@ -363,26 +374,59 @@ export class UserManagementService {
       .insert(userActivityLogs)
       .values({
         ...activityData,
+        metadata: activityData.metadata ? JSON.stringify(activityData.metadata) : null,
         timestamp: new Date(),
       })
       .returning();
 
-    return activity;
+    return activity as UserActivityLog;
   }
 
   async getUserActivity(
-    userId: string, 
+    userId: string,
     options: { limit?: number; offset?: number } = {}
   ): Promise<UserActivityLog[]> {
     const { limit = 50, offset = 0 } = options;
 
-    return this.db
+    const activities = await this.db
       .select()
       .from(userActivityLogs)
       .where(eq(userActivityLogs.userId, userId))
       .orderBy(desc(userActivityLogs.timestamp))
       .limit(limit)
       .offset(offset);
+
+    return activities as UserActivityLog[];
+  }
+
+  async getUserActivityCount(userId: string): Promise<number> {
+    const [result] = await this.db
+      .select({ count: count() })
+      .from(userActivityLogs)
+      .where(eq(userActivityLogs.userId, userId));
+
+    return result?.count || 0;
+  }
+
+  // User Files
+  async getUserFiles(userId: string): Promise<any[]> {
+    const files = await this.db
+      .select()
+      .from(userFiles)
+      .where(and(eq(userFiles.userId, userId), eq(userFiles.isActive, true)))
+      .orderBy(desc(userFiles.uploadedAt));
+
+    return files.map(file => ({
+      id: file.id,
+      fileName: file.fileName,
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      fileSize: file.fileSize,
+      filePath: file.filePath,
+      uploadedAt: file.uploadedAt,
+      fileType: file.fileType,
+      metadata: file.metadata ? JSON.parse(file.metadata as string) : null,
+    }));
   }
 
   // User Statistics

@@ -7,13 +7,7 @@ import { DatabaseService } from '../../database/database.service';
 import { hospitals, priceTransparencyFiles } from '../../database/schema/index';
 import { eq, and, isNotNull, gte } from 'drizzle-orm';
 import { QUEUE_NAMES } from '../queues/queue.config';
-
-// Type definitions for job data (processors removed)
-export interface HospitalImportJobData {
-  state?: string;
-  forceRefresh?: boolean;
-  batchSize?: number;
-}
+import { PRAUnifiedScanJobData } from '../processors/pra-unified-scan.processor';
 
 export interface PriceFileDownloadJobData {
   hospitalId: string;
@@ -30,9 +24,9 @@ export interface PriceFileDownloadJobData {
 export class HospitalMonitorService {
   constructor(
     private readonly databaseService: DatabaseService,
-    @InjectQueue(QUEUE_NAMES.HOSPITAL_IMPORT)
-    private readonly hospitalImportQueue: Queue<HospitalImportJobData>,
-    @InjectQueue(QUEUE_NAMES.PRICE_FILE_DOWNLOAD)
+    @InjectQueue(QUEUE_NAMES.PRA_UNIFIED_SCAN)
+    private readonly praUnifiedScanQueue: Queue<PRAUnifiedScanJobData>,
+    @InjectQueue(QUEUE_NAMES.PRA_FILE_DOWNLOAD)
     private readonly priceFileDownloadQueue: Queue<PriceFileDownloadJobData>,
     @InjectPinoLogger(HospitalMonitorService.name)
     private readonly logger: PinoLogger,
@@ -48,11 +42,12 @@ export class HospitalMonitorService {
     });
 
     try {
-      await this.hospitalImportQueue.add(
+      await this.praUnifiedScanQueue.add(
         'daily-refresh',
         {
+          testMode: false,
+          states: [], // Empty array means all states
           forceRefresh: false,
-          batchSize: 50,
         },
         {
           priority: 10,
@@ -160,11 +155,12 @@ export class HospitalMonitorService {
     });
 
     try {
-      await this.hospitalImportQueue.add(
+      await this.praUnifiedScanQueue.add(
         'weekly-full-refresh',
         {
+          testMode: false,
+          states: [], // Empty array means all states
           forceRefresh: true,
-          batchSize: 25, // Smaller batches for full refresh
         },
         {
           priority: 5,
@@ -198,12 +194,12 @@ export class HospitalMonitorService {
     });
 
     try {
-      await this.hospitalImportQueue.add(
+      await this.praUnifiedScanQueue.add(
         `manual-import-${state}`,
         {
-          state,
+          testMode: false,
+          states: [state],
           forceRefresh,
-          batchSize: 50,
         },
         {
           priority: 20, // High priority for manual triggers

@@ -383,6 +383,51 @@ export class HospitalsService {
   }
 
   /**
+   * Get price transparency files for a hospital
+   */
+  async getHospitalPriceFiles(hospitalId: string) {
+    this.logger.info({
+      msg: 'Fetching price files for hospital',
+      hospitalId,
+      operation: 'getHospitalPriceFiles',
+    });
+
+    try {
+      const db = this.databaseService.db;
+      
+      // Import the price transparency files table
+      const { priceTransparencyFiles } = await import('../database/schema/price-transparency-files');
+      
+      // Get price files for the hospital
+      const files = await db
+        .select()
+        .from(priceTransparencyFiles)
+        .where(and(
+          eq(priceTransparencyFiles.hospitalId, hospitalId),
+          eq(priceTransparencyFiles.isActive, true)
+        ))
+        .orderBy(asc(priceTransparencyFiles.createdAt));
+
+      this.logger.info({
+        msg: 'Price files fetched successfully',
+        hospitalId,
+        fileCount: files.length,
+        operation: 'getHospitalPriceFiles',
+      });
+
+      return files;
+    } catch (error) {
+      this.logger.error({
+        msg: 'Failed to fetch hospital price files',
+        hospitalId,
+        error: error.message,
+        operation: 'getHospitalPriceFiles',
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get rate limit status from Patient Rights Advocate API
    */
   getPRARateLimitStatus() {

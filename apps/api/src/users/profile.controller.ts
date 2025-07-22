@@ -143,7 +143,7 @@ export class ProfileController {
   @ApiResponse({ status: 400, description: 'Invalid file or file too large' })
   async uploadAvatar(
     @Request() req: any,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -162,7 +162,7 @@ export class ProfileController {
       userId,
       action: 'avatar_upload',
       resourceType: 'file',
-      resourceId: uploadedFile.id,
+      resourceId: uploadedFile.id as string,
       metadata: {
         fileName: file.originalname,
         fileSize: file.size,
@@ -188,14 +188,14 @@ export class ProfileController {
     const currentAvatar = avatarFiles.find(f => f.isActive);
     
     if (currentAvatar) {
-      await this.profileService.deleteFile(userId, currentAvatar.id);
+      await this.profileService.deleteFile(userId, currentAvatar.id as string);
       
       // Log activity
       await this.userManagementService.logActivity({
         userId,
         action: 'avatar_remove',
         resourceType: 'file',
-        resourceId: currentAvatar.id,
+        resourceId: currentAvatar.id as string,
       });
     }
 
@@ -223,7 +223,7 @@ export class ProfileController {
   @ApiResponse({ status: 400, description: 'Invalid file or file too large' })
   async uploadFile(
     @Request() req: any,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -242,7 +242,7 @@ export class ProfileController {
       userId,
       action: 'file_upload',
       resourceType: 'file',
-      resourceId: uploadedFile.id,
+      resourceId: uploadedFile.id as string,
       metadata: {
         fileName: file.originalname,
         fileSize: file.size,
@@ -284,6 +284,7 @@ export class ProfileController {
   @ApiResponse({ status: 200, description: 'Activity log retrieved successfully' })
   async getCurrentUserActivity(@Request() req: any) {
     const userId = req.user.id;
-    return this.userManagementService.getUserActivity(userId, { limit: 50 });
+    const activities = await this.userManagementService.getUserActivity(userId, { limit: 50 });
+    return { activities };
   }
 }

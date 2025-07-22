@@ -2,7 +2,8 @@ import { Module, RequestMethod, NestModule, MiddlewareConsumer } from '@nestjs/c
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+// import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
@@ -16,6 +17,10 @@ import { DatabaseModule } from './database/database.module';
 import { ExternalApisModule } from './external-apis/external-apis.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { ActivityLoggingModule } from './activity/activity-logging.module';
+import { ActivityLoggingInterceptor } from './activity/activity-logging.interceptor';
 import { RequestContextMiddleware } from './common/middleware';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middleware';
@@ -124,6 +129,7 @@ import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middl
         };
       },
     }),
+    // EventEmitterModule.forRoot(),
     HealthModule,
     HospitalsModule,
     PricesModule,
@@ -135,6 +141,9 @@ import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middl
     ExternalApisModule,
     AuthModule,
     UsersModule,
+    NotificationsModule,
+    DashboardModule,
+    ActivityLoggingModule,
   ],
   controllers: [AppController],
   providers: [
@@ -142,6 +151,10 @@ import { BullBoardAuthMiddleware } from './auth/middleware/bull-board-auth.middl
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityLoggingInterceptor,
     },
   ],
 })

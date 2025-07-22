@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Users, 
-  UserCheck, 
-  UserX, 
-  Shield, 
-  Mail, 
-  TrendingUp, 
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Users,
+  UserCheck,
+  UserX,
+  Shield,
+  Mail,
+  TrendingUp,
   TrendingDown,
   Calendar,
-  Activity
+  Activity,
+  AlertTriangle
 } from 'lucide-react'
 
 interface UserStatsData {
@@ -25,18 +27,7 @@ interface UserStatsData {
   newUsersThisWeek: number
 }
 
-// Mock stats data
-const mockStats: UserStatsData = {
-  totalUsers: 1247,
-  activeUsers: 1156,
-  inactiveUsers: 91,
-  verifiedUsers: 1198,
-  unverifiedUsers: 49,
-  adminUsers: 12,
-  regularUsers: 1235,
-  newUsersThisMonth: 87,
-  newUsersThisWeek: 23,
-}
+
 
 interface StatCardProps {
   title: string
@@ -99,19 +90,26 @@ function StatCard({ title, value, description, icon, trend, badge }: StatCardPro
 }
 
 export function UserStats() {
-  const [stats, setStats] = useState<UserStatsData>(mockStats)
-
+  const [stats, setStats] = useState<UserStatsData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Here you would fetch real stats from your API
     const fetchStats = async () => {
       setIsLoading(true)
+      setError(null)
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setStats(mockStats)
+        // Fetch real stats from API
+        const response = await fetch('/api/v1/admin/users/stats')
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user stats: ${response.status}`)
+        }
+        const data = await response.json()
+        setStats(data)
       } catch (error) {
         console.error('Failed to fetch user stats:', error)
+        setError(error.message)
+        setStats(null)
       } finally {
         setIsLoading(false)
       }
@@ -119,6 +117,42 @@ export function UserStats() {
 
     fetchStats()
   }, [])
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-20" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Unable to Load User Statistics</h3>
+            <p className="text-muted-foreground text-center">
+              {error || 'Failed to fetch user statistics from the API'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const activePercentage = Math.round((stats.activeUsers / stats.totalUsers) * 100)
   const verifiedPercentage = Math.round((stats.verifiedUsers / stats.totalUsers) * 100)

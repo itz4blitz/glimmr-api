@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -154,13 +155,17 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
   const [page, setPage] = useState(1)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   
-  const { userActivity, loadUserActivity } = useUserManagementStore()
+  const { userActivity, loadUserActivity, loading } = useUserManagementStore()
 
   useEffect(() => {
-    loadUserActivity(userId, 1)
+    if (userId) {
+      loadUserActivity(userId, 1)
+    }
   }, [userId, loadUserActivity])
 
   const handleLoadMore = async () => {
+    if (!userId) return
+    
     setIsLoadingMore(true)
     try {
       await loadUserActivity(userId, page + 1)
@@ -173,12 +178,18 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
   }
 
   const handleRefresh = () => {
+    if (!userId) return
+    
     setPage(1)
     loadUserActivity(userId, 1)
   }
 
   const groupActivitiesByDate = (activities: ActivityLogType[]) => {
     const groups: Record<string, ActivityLogType[]> = {}
+    
+    if (!activities || !Array.isArray(activities)) {
+      return groups
+    }
     
     activities.forEach(activity => {
       const date = format(new Date(activity.timestamp), 'yyyy-MM-dd')
@@ -191,8 +202,9 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
     return groups
   }
 
-  const activityGroups = groupActivitiesByDate(userActivity)
+  const activityGroups = groupActivitiesByDate(userActivity || [])
   const sortedDates = Object.keys(activityGroups).sort((a, b) => b.localeCompare(a))
+
 
   return (
     <div className="space-y-6">
@@ -223,14 +235,14 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
             Recent Activity
           </CardTitle>
           <CardDescription>
-            {userActivity.length > 0 
+            {userActivity && userActivity.length > 0 
               ? `Showing ${userActivity.length} activities`
               : 'No activity found'
             }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {userActivity.length === 0 ? (
+          {!userActivity || userActivity.length === 0 ? (
             <div className="text-center py-8">
               <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Activity</h3>
@@ -292,28 +304,28 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {userActivity.filter(a => a.action === 'login').length}
+                {userActivity?.filter(a => a.action === 'login').length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Logins</div>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {userActivity.filter(a => a.action.includes('update')).length}
+                {userActivity?.filter(a => a.action.includes('update')).length || 0}
               </div>
               <div className="text-sm text-muted-foreground">Updates</div>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {userActivity.filter(a => a.action.includes('file')).length}
+                {userActivity?.filter(a => a.action.includes('file')).length || 0}
               </div>
               <div className="text-sm text-muted-foreground">File Actions</div>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
-                {userActivity.filter(a => a.action.includes('api')).length}
+                {userActivity?.filter(a => a.action.includes('api')).length || 0}
               </div>
               <div className="text-sm text-muted-foreground">API Actions</div>
             </div>

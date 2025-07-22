@@ -9,6 +9,7 @@ export const jobs = pgTable('jobs', {
   jobType: varchar('job_type', { length: 50 }).notNull(), // 'data_import', 'price_update', 'analytics_calculation'
   jobName: varchar('job_name', { length: 100 }).notNull(),
   description: text('description'),
+  queue: varchar('queue', { length: 50 }), // Queue name for BullMQ job tracking
   
   // Job status
   status: varchar('status', { length: 20 }).notNull().default('pending'), // 'pending', 'running', 'completed', 'failed', 'cancelled'

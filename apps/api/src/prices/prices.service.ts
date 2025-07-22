@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { eq, and, like, gte, lte, desc, asc, count, sql } from 'drizzle-orm';
+import { eq, and, like, gte, lte, desc, asc, count, sql, or, ilike, inArray } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
-import { prices, hospitals } from '../database/schema';
+import { prices, hospitals, analytics } from '../database/schema';
 
 @Injectable()
 export class PricesService {
@@ -364,5 +364,274 @@ export class PricesService {
       });
       throw error;
     }
+  }
+
+  async getHospitalPrices(hospitalId: string, params: {
+    serviceCode?: string;
+    serviceName?: string;
+    category?: string;
+    codeType?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const db = this.databaseService.db;
+    const { serviceCode, serviceName, category, codeType, limit = 50, offset = 0 } = params;
+
+    // Verify hospital exists
+    const [hospital] = await db
+      .select()
+      .from(hospitals)
+      .where(eq(hospitals.id, hospitalId));
+
+    if (!hospital) {
+      throw new NotFoundException(`Hospital not found: ${hospitalId}`);
+    }
+
+    // Build query
+    const conditions = [
+      eq(prices.hospitalId, hospitalId),
+      eq(prices.isActive, true),
+    ];
+
+    if (serviceCode) {
+      conditions.push(eq(prices.serviceCode, serviceCode));
+    }
+    if (serviceName) {
+      conditions.push(ilike(prices.description, `%${serviceName}%`));
+    }
+    if (category) {
+      conditions.push(eq(prices.category, category));
+    }
+    if (codeType) {
+      conditions.push(eq(prices.codeType, codeType));
+    }
+
+    // Get prices
+    const priceRecords = await db
+      .select({
+        id: prices.id,
+        code: prices.serviceCode,
+        codeType: prices.codeType,
+        description: prices.description,
+        category: prices.category,
+        grossCharge: prices.grossCharge,
+        discountedCashPrice: prices.discountedCashPrice,
+        minNegotiatedCharge: prices.minimumNegotiatedCharge,
+        maxNegotiatedCharge: prices.maximumNegotiatedCharge,
+        hasNegotiatedRates: prices.hasNegotiatedRates,
+        dataQuality: prices.dataQuality,
+        reportingPeriod: prices.reportingPeriod,
+        lastUpdated: prices.lastUpdated,
+      })
+      .from(prices)
+      .where(and(...conditions))
+      .orderBy(prices.category, prices.description)
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const [{ count: totalCount }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(prices)
+      .where(and(...conditions));
+
+    // Get summary statistics
+    const [stats] = await db
+      .select({
+        avgGrossCharge: sql<number>`avg(gross_charge)`,
+        minGrossCharge: sql<number>`min(gross_charge)`,
+        maxGrossCharge: sql<number>`max(gross_charge)`,
+        totalServices: sql<number>`count(distinct code)`,
+        pricesWithNegotiatedRates: sql<number>`count(*) filter (where has_negotiated_rates = true)`,
+      })
+      .from(prices)
+      .where(and(...conditions));
+
+    return {
+      hospital: {
+        id: hospital.id,
+        name: hospital.name,
+        city: hospital.city,
+        state: hospital.state,
+        zipCode: hospital.zipCode,
+      },
+      prices: priceRecords,
+      pagination: {
+        total: Number(totalCount),
+        limit,
+        offset,
+        hasMore: offset + limit < Number(totalCount),
+      },
+      statistics: {
+        averageGrossCharge: stats.avgGrossCharge,
+        minGrossCharge: stats.minGrossCharge,
+        maxGrossCharge: stats.maxGrossCharge,
+        totalServices: stats.totalServices,
+        negotiatedRateCoverage: stats.pricesWithNegotiatedRates 
+          ? (stats.pricesWithNegotiatedRates / Number(totalCount)) * 100 
+          : 0,
+      },
+    };
+  }
+
+  async searchPricesByZipcode(params: {
+    zipcode: string;
+    radius?: number;
+    serviceCode?: string;
+    serviceName?: string;
+    category?: string;
+    includeNegotiatedRates?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    const db = this.databaseService.db;
+    const {
+      zipcode,
+      radius = 10,
+      serviceCode,
+      serviceName,
+      category,
+      includeNegotiatedRates = false,
+      limit = 50,
+      offset = 0,
+    } = params;
+
+    if (!zipcode) {
+      throw new Error('Zipcode is required');
+    }
+
+    // Find hospitals within the radius
+    // This is a simplified version - in production, you'd use PostGIS or similar
+    const nearbyHospitals = await db
+      .select({
+        id: hospitals.id,
+        name: hospitals.name,
+        city: hospitals.city,
+        state: hospitals.state,
+        zipCode: hospitals.zipCode,
+        distance: sql<number>`0`, // Placeholder - would calculate actual distance
+      })
+      .from(hospitals)
+      .where(and(
+        eq(hospitals.isActive, true),
+        // Simplified zipcode matching - in production, use proper geospatial queries
+        sql`substring(${hospitals.zipCode}, 1, 3) = substring(${zipcode}, 1, 3)`
+      ))
+      .limit(100); // Get more hospitals to filter by services
+
+    if (nearbyHospitals.length === 0) {
+      return {
+        results: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
+    }
+
+    const hospitalIds = nearbyHospitals.map(h => h.id);
+
+    // Build price query
+    const priceConditions = [
+      inArray(prices.hospitalId, hospitalIds),
+      eq(prices.isActive, true),
+    ];
+
+    if (serviceCode) {
+      priceConditions.push(eq(prices.serviceCode, serviceCode));
+    }
+    if (serviceName) {
+      priceConditions.push(ilike(prices.description, `%${serviceName}%`));
+    }
+    if (category) {
+      priceConditions.push(eq(prices.category, category));
+    }
+    if (includeNegotiatedRates) {
+      priceConditions.push(eq(prices.hasNegotiatedRates, true));
+    }
+
+    // Get prices with hospital info
+    const priceResults = await db
+      .select({
+        priceId: prices.id,
+        code: prices.serviceCode,
+        codeType: prices.codeType,
+        description: prices.description,
+        category: prices.category,
+        grossCharge: prices.grossCharge,
+        discountedCashPrice: prices.discountedCashPrice,
+        minNegotiatedCharge: prices.minimumNegotiatedCharge,
+        maxNegotiatedCharge: prices.maximumNegotiatedCharge,
+        hasNegotiatedRates: prices.hasNegotiatedRates,
+        dataQuality: prices.dataQuality,
+        hospitalId: hospitals.id,
+        hospitalName: hospitals.name,
+        hospitalCity: hospitals.city,
+        hospitalState: hospitals.state,
+        hospitalZipCode: hospitals.zipCode,
+      })
+      .from(prices)
+      .innerJoin(hospitals, eq(prices.hospitalId, hospitals.id))
+      .where(and(...priceConditions))
+      .orderBy(prices.grossCharge)
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const [{ count: totalCount }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(prices)
+      .where(and(...priceConditions));
+
+    // Group by service and calculate statistics
+    const serviceStats = await db
+      .select({
+        code: prices.serviceCode,
+        description: sql<string>`max(${prices.description})`,
+        avgPrice: sql<number>`avg(${prices.grossCharge})`,
+        minPrice: sql<number>`min(${prices.grossCharge})`,
+        maxPrice: sql<number>`max(${prices.grossCharge})`,
+        hospitalCount: sql<number>`count(distinct ${prices.hospitalId})`,
+      })
+      .from(prices)
+      .where(and(...priceConditions))
+      .groupBy(prices.serviceCode);
+
+    return {
+      search: {
+        zipcode,
+        radius,
+        serviceCode,
+        serviceName,
+        category,
+      },
+      results: priceResults.map(r => ({
+        price: {
+          id: r.priceId,
+          code: r.code,
+          codeType: r.codeType,
+          description: r.description,
+          category: r.category,
+          grossCharge: r.grossCharge,
+          discountedCashPrice: r.discountedCashPrice,
+          minNegotiatedCharge: r.minNegotiatedCharge,
+          maxNegotiatedCharge: r.maxNegotiatedCharge,
+          hasNegotiatedRates: r.hasNegotiatedRates,
+          dataQuality: r.dataQuality,
+        },
+        hospital: {
+          id: r.hospitalId,
+          name: r.hospitalName,
+          city: r.hospitalCity,
+          state: r.hospitalState,
+          zipCode: r.hospitalZipCode,
+          distance: 0, // Placeholder
+        },
+      })),
+      statistics: serviceStats,
+      pagination: {
+        total: Number(totalCount),
+        limit,
+        offset,
+        hasMore: offset + limit < Number(totalCount),
+      },
+    };
   }
 }

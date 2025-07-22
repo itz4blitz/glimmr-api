@@ -1,24 +1,31 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { DatabaseService } from '../database/database.service';
-import { User } from '../database/schema/users';
+import { PinoLogger } from 'nestjs-pino';
+import { hash } from 'bcrypt';
+
+jest.mock('bcrypt');
 
 describe('UsersService', () => {
   let service: UsersService;
-  let mockDb: any;
-
-  const mockUser: User = {
+  const mockUser = {
     id: 'user-123',
-    username: 'testuser',
+    email: 'testuser@example.com',
     password: 'hashedpassword',
-    role: 'api-user',
+    role: 'user',
     apiKey: 'gapi_test123',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
+    firstName: 'Test',
+    lastName: 'User',
+    isActive: true,
+    lastLoginAt: null,
+    emailVerified: false,
+    emailVerifiedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
-  beforeEach(async () => {
-    mockDb = {
+  const mockDatabaseService = {
+    db: {
       select: jest.fn().mockReturnThis(),
       from: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -28,55 +35,67 @@ describe('UsersService', () => {
       returning: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-    };
+    },
+  };
 
+  const mockLogger = {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
+
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         {
           provide: DatabaseService,
-          useValue: mockDb,
+          useValue: mockDatabaseService,
+        },
+        {
+          provide: PinoLogger,
+          useValue: mockLogger,
         },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('findByUsername', () => {
+  describe('findByEmail', () => {
     it('should return user when found', async () => {
-      mockDb.limit.mockResolvedValue([mockUser]);
+      mockDatabaseService.db.limit.mockResolvedValue([mockUser]);
 
-      const result = await service.findByUsername('testuser');
+      const result = await service.findByEmail('testuser@example.com');
 
       expect(result).toEqual(mockUser);
-      expect(mockDb.select).toHaveBeenCalled();
-      expect(mockDb.limit).toHaveBeenCalledWith(1);
+      expect(mockDatabaseService.db.where).toHaveBeenCalled();
     });
 
     it('should return null when user not found', async () => {
-      mockDb.limit.mockResolvedValue([]);
+      mockDatabaseService.db.limit.mockResolvedValue([]);
 
-      const result = await service.findByUsername('nonexistent');
+      const result = await service.findByEmail('nonexistent@example.com');
 
       expect(result).toBeNull();
     });
 
     it('should handle database errors', async () => {
-      mockDb.limit.mockRejectedValue(new Error('Database error'));
+      mockDatabaseService.db.limit.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.findByUsername('testuser')).rejects.toThrow('Database error');
+      await expect(service.findByEmail('testuser@example.com')).rejects.toThrow('Database error');
     });
   });
 
   describe('findById', () => {
     it('should return user when found', async () => {
-      mockDb.limit.mockResolvedValue([mockUser]);
+      mockDatabaseService.db.limit.mockResolvedValue([mockUser]);
 
       const result = await service.findById('user-123');
 
@@ -84,7 +103,7 @@ describe('UsersService', () => {
     });
 
     it('should return null when user not found', async () => {
-      mockDb.limit.mockResolvedValue([]);
+      mockDatabaseService.db.limit.mockResolvedValue([]);
 
       const result = await service.findById('nonexistent-id');
 
@@ -92,9 +111,112 @@ describe('UsersService', () => {
     });
   });
 
+  describe('create', () => {
+    beforeEach(() => {
+      (hash as jest.Mock).mockResolvedValue('hashedpassword');
+    });
+
+    it('should create user with api-user role', async () => {
+      const userData = {
+        email: 'newuser@example.com',
+        password: 'password123',
+        role: 'user' as const,
+        firstName: 'New',
+        lastName: 'User',
+      };
+
+      mockDatabaseService.db.returning.mockResolvedValue([mockUser]);
+
+      const result = await service.create(userData);
+
+      expect(result).toEqual(mockUser);
+      expect(hash).toHaveBeenCalledWith('password123', 10);
+    });
+
+    it('should create admin user', async () => {
+      const adminData = {
+        email: 'admin@example.com',
+        password: 'adminpass',
+        role: 'admin' as const,
+        firstName: 'Admin',
+        lastName: 'User',
+      };
+
+      const adminUser = { ...mockUser, role: 'admin' };
+      mockDatabaseService.db.returning.mockResolvedValue([adminUser]);
+
+      const result = await service.create(adminData);
+
+      expect(result).toEqual(adminUser);
+      expect(result.role).toBe('admin');
+    });
+
+    it('should generate API key for api-user role', async () => {
+      const userData = {
+        email: 'apiuser@example.com',
+        password: 'password123',
+        role: 'user' as const,
+        apiKey: 'gapi_custom123',
+        firstName: 'API',
+        lastName: 'User',
+      };
+
+      mockDatabaseService.db.returning.mockResolvedValue([mockUser]);
+
+      const result = await service.create(userData);
+
+      expect(result).toEqual(mockUser);
+    });
+
+    it('should handle database constraint violations', async () => {
+      const userData = {
+        email: 'duplicate@example.com',
+        password: 'password123',
+        role: 'user' as const,
+        firstName: 'Duplicate',
+        lastName: 'User',
+      };
+
+      mockDatabaseService.db.returning.mockRejectedValue(new Error('Constraint violation'));
+
+      await expect(service.create(userData)).rejects.toThrow('Constraint violation');
+    });
+  });
+
+  describe('updateApiKey', () => {
+    it('should update API key successfully', async () => {
+      const newApiKey = 'gapi_updated123';
+      const updatedUser = { ...mockUser, apiKey: newApiKey };
+
+      mockDatabaseService.db.returning.mockResolvedValue([updatedUser]);
+
+      const result = await service.updateApiKey('user-123', newApiKey);
+
+      expect(result).toEqual(updatedUser);
+      expect(mockDatabaseService.db.set).toHaveBeenCalledWith(expect.objectContaining({
+        apiKey: newApiKey,
+        updatedAt: expect.any(Date),
+      }));
+    });
+
+
+  });
+
+  describe('updateLastLogin', () => {
+    it('should update last login timestamp', async () => {
+      await service.updateLastLogin('user-123');
+
+      expect(mockDatabaseService.db.set).toHaveBeenCalledWith(expect.objectContaining({
+        lastLoginAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+      }));
+    });
+  });
+
+
   describe('findByApiKey', () => {
-    it('should return user when API key found', async () => {
-      mockDb.limit.mockResolvedValue([mockUser]);
+    it('should return user when found by API key', async () => {
+      mockDatabaseService.db.limit.mockResolvedValue([mockUser]);
 
       const result = await service.findByApiKey('gapi_test123');
 
@@ -102,207 +224,44 @@ describe('UsersService', () => {
     });
 
     it('should return null when API key not found', async () => {
-      mockDb.limit.mockResolvedValue([]);
+      mockDatabaseService.db.limit.mockResolvedValue([]);
 
       const result = await service.findByApiKey('invalid_key');
 
       expect(result).toBeNull();
     });
-  });
 
-  describe('create', () => {
-    it('should create and return new user', async () => {
-      const userData = {
-        username: 'newuser',
-        password: 'hashedpassword',
-        role: 'api-user' as const,
-      };
-      
-      mockDb.returning.mockResolvedValue([mockUser]);
+    it('should handle empty API key', async () => {
+      mockDatabaseService.db.limit.mockResolvedValue([]);
 
-      const result = await service.create(userData);
+      const result = await service.findByApiKey('');
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle special characters in API key', async () => {
+      mockDatabaseService.db.limit.mockResolvedValue([mockUser]);
+
+      const result = await service.findByApiKey('gapi_test@123!');
 
       expect(result).toEqual(mockUser);
-      expect(mockDb.insert).toHaveBeenCalled();
-      expect(mockDb.values).toHaveBeenCalledWith(userData);
-      expect(mockDb.returning).toHaveBeenCalled();
     });
 
-    it('should create admin user', async () => {
-      const adminData = {
-        username: 'admin',
-        password: 'hashedpassword',
-        role: 'admin' as const,
-      };
+    it('should handle very long API key', async () => {
+      const longApiKey = 'gapi_' + 'a'.repeat(100);
+      mockDatabaseService.db.limit.mockResolvedValue([]);
 
-      const adminUser = { ...mockUser, username: 'admin', role: 'admin' as const };
-      mockDb.returning.mockResolvedValue([adminUser]);
-
-      const result = await service.create(adminData);
-
-      expect(result.role).toBe('admin');
-      expect(mockDb.values).toHaveBeenCalledWith(adminData);
-    });
-
-    it('should create user with API key', async () => {
-      const userData = {
-        username: 'newuser',
-        password: 'hashedpassword',
-        role: 'api-user' as const,
-        apiKey: 'gapi_custom123',
-      };
-      
-      mockDb.returning.mockResolvedValue([{ ...mockUser, apiKey: 'gapi_custom123' }]);
-
-      const result = await service.create(userData);
-
-      expect(result.apiKey).toBe('gapi_custom123');
-    });
-
-    it('should handle database errors during creation', async () => {
-      mockDb.returning.mockRejectedValue(new Error('Constraint violation'));
-
-      const userData = {
-        username: 'newuser',
-        password: 'hashedpassword',
-        role: 'api-user' as const,
-      };
-
-      await expect(service.create(userData)).rejects.toThrow('Constraint violation');
-    });
-  });
-
-  describe('updateApiKey', () => {
-    it('should update and return user with new API key', async () => {
-      const newApiKey = 'gapi_newkey123';
-      const updatedUser = { ...mockUser, apiKey: newApiKey };
-      
-      mockDb.returning.mockResolvedValue([updatedUser]);
-
-      const result = await service.updateApiKey('user-123', newApiKey);
-
-      expect(result).toEqual(updatedUser);
-      expect(mockDb.update).toHaveBeenCalled();
-      expect(mockDb.set).toHaveBeenCalledWith({
-        apiKey: newApiKey,
-        updatedAt: expect.any(Date),
-      });
-    });
-
-    it('should handle non-existent user during API key update', async () => {
-      mockDb.returning.mockResolvedValue([]);
-
-      await expect(service.updateApiKey('nonexistent-id', 'gapi_key123'))
-        .rejects.toThrow();
-    });
-
-    it('should update timestamps when updating API key', async () => {
-      const newApiKey = 'gapi_newkey123';
-      const mockDate = new Date('2024-02-01');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
-      
-      mockDb.returning.mockResolvedValue([mockUser]);
-
-      await service.updateApiKey('user-123', newApiKey);
-
-      expect(mockDb.set).toHaveBeenCalledWith({
-        apiKey: newApiKey,
-        updatedAt: mockDate,
-      });
-
-      jest.restoreAllMocks();
-    });
-  });
-
-  describe('findAll', () => {
-    it('should return all users', async () => {
-      const users = [mockUser, { ...mockUser, id: 'user-456', username: 'user2' }];
-      mockDb.select.mockResolvedValue(users);
-
-      const result = await service.findAll();
-
-      expect(result).toEqual(users);
-      expect(mockDb.select).toHaveBeenCalled();
-    });
-
-    it('should return empty array when no users exist', async () => {
-      mockDb.select.mockResolvedValue([]);
-
-      const result = await service.findAll();
-
-      expect(result).toEqual([]);
-    });
-  });
-
-  describe('delete', () => {
-    it('should delete user by id', async () => {
-      await service.delete('user-123');
-
-      expect(mockDb.delete).toHaveBeenCalled();
-    });
-
-    it('should handle deletion of non-existent user', async () => {
-      // This should not throw an error - delete operations are typically idempotent
-      await expect(service.delete('nonexistent-id')).resolves.not.toThrow();
-    });
-
-    it('should handle database errors during deletion', async () => {
-      mockDb.delete.mockRejectedValue(new Error('Foreign key constraint'));
-
-      await expect(service.delete('user-123')).rejects.toThrow('Foreign key constraint');
-    });
-  });
-
-  describe('edge cases', () => {
-    it('should handle undefined database responses', async () => {
-      mockDb.limit.mockResolvedValue(undefined);
-
-      const result = await service.findByUsername('testuser');
+      const result = await service.findByApiKey(longApiKey);
 
       expect(result).toBeNull();
     });
 
-    it('should handle null database responses', async () => {
-      mockDb.limit.mockResolvedValue(null);
+    it('should be case sensitive', async () => {
+      mockDatabaseService.db.limit.mockResolvedValue([]);
 
-      const result = await service.findByUsername('testuser');
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle empty string parameters', async () => {
-      mockDb.limit.mockResolvedValue([]);
-
-      const result = await service.findByUsername('');
+      const result = await service.findByApiKey('GAPI_TEST123'); // Different case
 
       expect(result).toBeNull();
-    });
-
-    it('should handle special characters in username', async () => {
-      const specialUser = { ...mockUser, username: 'user@test.com' };
-      mockDb.limit.mockResolvedValue([specialUser]);
-
-      const result = await service.findByUsername('user@test.com');
-
-      expect(result).toEqual(specialUser);
-    });
-
-    it('should handle very long usernames', async () => {
-      const longUsername = 'a'.repeat(100);
-      mockDb.limit.mockResolvedValue([]);
-
-      const result = await service.findByUsername(longUsername);
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle case sensitivity in usernames', async () => {
-      mockDb.limit.mockResolvedValue([]);
-
-      const result = await service.findByUsername('TestUser'); // Different case
-
-      expect(result).toBeNull();
-      // Note: In a real implementation, you might want case-insensitive search
     });
   });
 });

@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -14,18 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { UserAvatar } from '@/components/ui/user-avatar'
-import { Separator } from '@/components/ui/separator'
 import {
   User,
-  Mail,
-  Shield,
-  Key,
-  CheckCircle,
-  XCircle,
   Clock,
   Save,
-  X
+  X,
+  Shield
 } from 'lucide-react'
 import { useFormState } from '@/hooks/useFormState'
 import { useUserManagementStore } from '@/stores/userManagement'
@@ -158,96 +151,38 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
     }
   }
 
-  const getRoleBadgeVariant = (role: UserRole) => {
-    switch (role) {
-      case 'admin':
-        return 'default'
-      case 'super_admin':
-        return 'destructive'
-      default:
-        return 'secondary'
-    }
-  }
+
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <UserAvatar
-            src={user.profile?.avatarUrl}
-            alt={user.email}
-            email={user.email}
-            firstName={user.firstName}
-            lastName={user.lastName}
-            size="lg"
-          />
-          <div>
-            <h2 className="text-2xl font-bold">
-              {user.firstName && user.lastName 
-                ? `${user.firstName} ${user.lastName}`
-                : user.email
-              }
-            </h2>
-            <p className="text-muted-foreground">{user.email}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant={getRoleBadgeVariant(user.role || 'user')}>
-                <Shield className="h-3 w-3 mr-1" />
-                {user.role?.replace('_', ' ').toUpperCase() || 'USER'}
-              </Badge>
-              {user.isActive ? (
-                <Badge variant="default">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Active
-                </Badge>
-              ) : (
-                <Badge variant="secondary">
-                  <XCircle className="h-3 w-3 mr-1" />
-                  Inactive
-                </Badge>
-              )}
-              {user.emailVerified ? (
-                <Badge variant="outline">
-                  <Mail className="h-3 w-3 mr-1" />
-                  Verified
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-orange-600">
-                  <Mail className="h-3 w-3 mr-1" />
-                  Unverified
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={cancel}
-            disabled={isSubmitting}
-          >
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          <Button
-            onClick={save}
-            disabled={!canSave || isSubmitting}
-            className="min-w-[100px]"
-          >
-            {isSubmitting ? (
-              <>
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div>
+      {/* Save/Cancel Actions */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:justify-end">
+        <Button
+          variant="outline"
+          onClick={cancel}
+          disabled={isSubmitting}
+          className="w-full sm:w-auto"
+        >
+          <X className="h-4 w-4 mr-2" />
+          Cancel
+        </Button>
+        <Button
+          onClick={save}
+          disabled={!canSave || isSubmitting}
+          className="w-full sm:w-auto sm:min-w-[100px]"
+        >
+          {isSubmitting ? (
+            <>
+              <Clock className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save Changes
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Basic Information */}
@@ -261,14 +196,16 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
             Update the user's basic account information
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
               <Input
                 id="firstName"
                 value={formData.firstName || ''}
                 onChange={(e) => setFieldValue('firstName', e.target.value)}
+                className="input-enhanced"
+                placeholder="Enter first name"
               />
               {getFieldError('firstName') && (
                 <p className="text-sm text-destructive">{getFieldError('firstName')}</p>
@@ -280,6 +217,8 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 id="lastName"
                 value={formData.lastName || ''}
                 onChange={(e) => setFieldValue('lastName', e.target.value)}
+                className="input-enhanced"
+                placeholder="Enter last name"
               />
               {getFieldError('lastName') && (
                 <p className="text-sm text-destructive">{getFieldError('lastName')}</p>
@@ -294,13 +233,15 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
               type="email"
               value={formData.email || ''}
               onChange={(e) => setFieldValue('email', e.target.value)}
+              className="input-enhanced"
+              placeholder="Enter email address"
             />
             {getFieldError('email') && (
               <p className="text-sm text-destructive">{getFieldError('email')}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
               <Select
@@ -376,7 +317,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
             Additional profile details and contact information
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="bio">Bio</Label>
             <Textarea
@@ -385,10 +326,11 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
               onChange={(e) => setFieldValue('bio', e.target.value)}
               placeholder="Tell us about yourself..."
               rows={3}
+              className="textarea-enhanced"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input
@@ -397,6 +339,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.phoneNumber || ''}
                 onChange={(e) => setFieldValue('phoneNumber', e.target.value)}
                 placeholder="+1 (555) 123-4567"
+                className="input-enhanced"
               />
             </div>
             <div className="space-y-2">
@@ -406,11 +349,12 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 type="date"
                 value={formData.dateOfBirth || ''}
                 onChange={(e) => setFieldValue('dateOfBirth', e.target.value)}
+                className="input-enhanced"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="company">Company</Label>
               <Input
@@ -418,6 +362,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.company || ''}
                 onChange={(e) => setFieldValue('company', e.target.value)}
                 placeholder="Acme Corp"
+                className="input-enhanced"
               />
             </div>
             <div className="space-y-2">
@@ -427,11 +372,12 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.jobTitle || ''}
                 onChange={(e) => setFieldValue('jobTitle', e.target.value)}
                 placeholder="Software Engineer"
+                className="input-enhanced"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
               <Input
@@ -439,6 +385,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.city || ''}
                 onChange={(e) => setFieldValue('city', e.target.value)}
                 placeholder="San Francisco"
+                className="input-enhanced"
               />
             </div>
             <div className="space-y-2">
@@ -448,11 +395,10 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.country || ''}
                 onChange={(e) => setFieldValue('country', e.target.value)}
                 placeholder="United States"
+                className="input-enhanced"
               />
             </div>
           </div>
-
-          <Separator />
 
           <div className="space-y-4">
             <h4 className="text-sm font-medium">Social Links</h4>
@@ -465,10 +411,11 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.website || ''}
                 onChange={(e) => setFieldValue('website', e.target.value)}
                 placeholder="https://example.com"
+                className="input-enhanced"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="linkedinUrl">LinkedIn</Label>
                 <Input
@@ -477,6 +424,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                   value={formData.linkedinUrl || ''}
                   onChange={(e) => setFieldValue('linkedinUrl', e.target.value)}
                   placeholder="https://linkedin.com/in/username"
+                  className="input-enhanced"
                 />
               </div>
               <div className="space-y-2">
@@ -487,6 +435,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                   value={formData.twitterUrl || ''}
                   onChange={(e) => setFieldValue('twitterUrl', e.target.value)}
                   placeholder="https://twitter.com/username"
+                  className="input-enhanced"
                 />
               </div>
             </div>
@@ -499,6 +448,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
                 value={formData.githubUrl || ''}
                 onChange={(e) => setFieldValue('githubUrl', e.target.value)}
                 placeholder="https://github.com/username"
+                className="input-enhanced"
               />
             </div>
           </div>
@@ -509,15 +459,15 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
+            <Shield className="h-5 w-5" />
             Account Information
           </CardTitle>
           <CardDescription>
             Read-only account details and timestamps
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Created</Label>
               <p className="text-sm text-muted-foreground">
@@ -538,21 +488,7 @@ export function UserProfileForm({ user, onSave, onCancel }: UserProfileFormProps
             </div>
           </div>
 
-          {user.apiKey && (
-            <div className="space-y-2">
-              <Label>API Key</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={user.apiKey}
-                  readOnly
-                  className="font-mono text-xs"
-                />
-                <Button variant="outline" size="sm">
-                  Copy
-                </Button>
-              </div>
-            </div>
-          )}
+
         </CardContent>
       </Card>
     </div>

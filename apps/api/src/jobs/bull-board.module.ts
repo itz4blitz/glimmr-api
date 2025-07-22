@@ -11,11 +11,7 @@ import { QUEUE_NAMES } from './queues/queue.config';
       adapter: ExpressAdapter,
     }),
     BullBoardModule.forFeature({
-      name: QUEUE_NAMES.HOSPITAL_IMPORT,
-      adapter: BullMQAdapter,
-    }),
-    BullBoardModule.forFeature({
-      name: QUEUE_NAMES.PRICE_FILE_DOWNLOAD,
+      name: QUEUE_NAMES.PRICE_FILE_PARSER,
       adapter: BullMQAdapter,
     }),
     BullBoardModule.forFeature({
@@ -24,10 +20,6 @@ import { QUEUE_NAMES } from './queues/queue.config';
     }),
     BullBoardModule.forFeature({
       name: QUEUE_NAMES.ANALYTICS_REFRESH,
-      adapter: BullMQAdapter,
-    }),
-    BullBoardModule.forFeature({
-      name: QUEUE_NAMES.DATA_VALIDATION,
       adapter: BullMQAdapter,
     }),
     BullBoardModule.forFeature({

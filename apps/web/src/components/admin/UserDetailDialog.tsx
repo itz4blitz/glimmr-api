@@ -11,17 +11,16 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  User, 
-  Settings, 
-  Activity, 
-  Files, 
+import {
+  User,
+  Settings,
+  Activity,
+  Files,
   Shield,
   CheckCircle,
   XCircle,
   Mail,
   MailCheck,
-  Key,
   RotateCcw,
   Trash2,
   UserX,
@@ -56,19 +55,23 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
     deactivateUser,
     deleteUser,
     sendPasswordReset,
-    resendEmailVerification,
-    generateApiKey,
-    revokeApiKey
+    resendEmailVerification
   } = useUserManagementStore()
 
   // Load user data when dialog opens
   useEffect(() => {
     if (open && userId) {
       loadUserById(userId)
-      loadUserActivity(userId)
-      loadUserFiles(userId)
     }
-  }, [open, userId, loadUserById, loadUserActivity, loadUserFiles])
+  }, [open, userId, loadUserById])
+
+  // Load activity and files after user is loaded
+  useEffect(() => {
+    if (selectedUser?.id) {
+      loadUserActivity(selectedUser.id)
+      loadUserFiles(selectedUser.id)
+    }
+  }, [selectedUser?.id, loadUserActivity, loadUserFiles])
 
   // Reset tab when dialog closes
   useEffect(() => {
@@ -143,42 +146,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
     }
   }
 
-  const handleGenerateApiKey = async () => {
-    if (!selectedUser) return
-    
-    try {
-      const apiKey = await generateApiKey(selectedUser.id)
-      
-      // Copy to clipboard
-      await navigator.clipboard.writeText(apiKey)
-      toast.success('API key generated and copied to clipboard')
-      
-      // Reload user to get updated API key
-      loadUserById(selectedUser.id)
-    } catch (error) {
-      toast.error('Failed to generate API key')
-    }
-  }
 
-  const handleRevokeApiKey = async () => {
-    if (!selectedUser) return
-    
-    const confirmed = window.confirm(
-      'Are you sure you want to revoke this API key? This will break any integrations using it.'
-    )
-    
-    if (confirmed) {
-      try {
-        await revokeApiKey(selectedUser.id)
-        toast.success('API key revoked')
-        
-        // Reload user to get updated state
-        loadUserById(selectedUser.id)
-      } catch (error) {
-        toast.error('Failed to revoke API key')
-      }
-    }
-  }
 
   const getRoleBadgeVariant = (role: UserRole) => {
     switch (role) {
@@ -195,7 +163,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[90vw] w-[90vw] h-[95vh] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-3">
             {loading.userDetail ? (
@@ -263,7 +231,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
           
           {selectedUser && (
             <DialogDescription asChild>
-              <div className="flex items-center justify-between">
+              <div className="space-y-3">
                 <div className="text-sm text-muted-foreground">
                   Created {selectedUser.createdAt && !isNaN(new Date(selectedUser.createdAt).getTime())
                     ? formatDistanceToNow(new Date(selectedUser.createdAt), { addSuffix: true })
@@ -273,74 +241,63 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                     <> • Last login {formatDistanceToNow(new Date(selectedUser.lastLoginAt), { addSuffix: true })}</>
                   )}
                 </div>
-                
-                <div className="flex items-center gap-2">
+
+                <div className="flex flex-wrap items-center gap-2">
                   {!selectedUser.emailVerified && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleResendEmailVerification}
+                      className="text-xs"
                     >
-                      <Mail className="h-4 w-4 mr-2" />
-                      Resend Verification
+                      <Mail className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Resend Verification</span>
+                      <span className="sm:hidden">Verify</span>
                     </Button>
                   )}
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleSendPasswordReset}
+                    className="text-xs"
                   >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset Password
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Reset Password</span>
+                    <span className="sm:hidden">Reset</span>
                   </Button>
-                  
-                  {selectedUser.apiKey ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRevokeApiKey}
-                    >
-                      <Key className="h-4 w-4 mr-2" />
-                      Revoke API Key
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateApiKey}
-                    >
-                      <Key className="h-4 w-4 mr-2" />
-                      Generate API Key
-                    </Button>
-                  )}
-                  
+
                   {selectedUser.isActive ? (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleDeactivateUser}
+                      className="text-xs"
                     >
-                      <UserX className="h-4 w-4 mr-2" />
-                      Deactivate
+                      <UserX className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Deactivate</span>
+                      <span className="sm:hidden">Disable</span>
                     </Button>
                   ) : (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleActivateUser}
+                      className="text-xs"
                     >
-                      <UserCheck className="h-4 w-4 mr-2" />
-                      Activate
+                      <UserCheck className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Activate</span>
+                      <span className="sm:hidden">Enable</span>
                     </Button>
                   )}
-                  
+
                   <Button
                     variant="destructive"
                     size="sm"
                     onClick={handleDeleteUser}
+                    className="text-xs"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <Trash2 className="h-3 w-3 mr-1" />
                     Delete
                   </Button>
                 </div>
@@ -363,29 +320,29 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
               <Skeleton className="h-32 w-full" />
             </div>
           ) : selectedUser ? (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-4 flex-shrink-0">
-                <TabsTrigger value="profile" className="flex items-center gap-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col overflow-hidden">
+              <TabsList className="tabs-list-enhanced grid w-full grid-cols-4 h-auto p-1.5 flex-shrink-0">
+                <TabsTrigger value="profile" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
                   <User className="h-4 w-4" />
-                  Profile
+                  <span className="text-xs sm:text-sm font-medium">Profile</span>
                 </TabsTrigger>
-                <TabsTrigger value="preferences" className="flex items-center gap-2">
+                <TabsTrigger value="preferences" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
                   <Settings className="h-4 w-4" />
-                  Preferences
+                  <span className="text-xs sm:text-sm font-medium">Settings</span>
                 </TabsTrigger>
-                <TabsTrigger value="activity" className="flex items-center gap-2">
+                <TabsTrigger value="activity" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
                   <Activity className="h-4 w-4" />
-                  Activity
+                  <span className="text-xs sm:text-sm font-medium">Activity</span>
                 </TabsTrigger>
-                <TabsTrigger value="files" className="flex items-center gap-2">
+                <TabsTrigger value="files" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
                   <Files className="h-4 w-4" />
-                  Files
+                  <span className="text-xs sm:text-sm font-medium">Files</span>
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-auto">
-                <TabsContent value="profile" className="mt-0 h-full">
-                  <div className="p-6">
+              <div className="flex-1 overflow-hidden">
+                <TabsContent value="profile" className="mt-0 h-full overflow-auto">
+                  <div className="p-3 sm:p-4 pb-8 space-y-4 sm:space-y-6">
                     <UserProfileForm
                       user={selectedUser}
                       onSave={() => {
@@ -396,8 +353,8 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                   </div>
                 </TabsContent>
 
-                <TabsContent value="preferences" className="mt-0 h-full">
-                  <div className="p-6">
+                <TabsContent value="preferences" className="mt-0 h-full overflow-auto">
+                  <div className="p-3 sm:p-4 pb-8 space-y-4 sm:space-y-6">
                     <UserPreferencesForm
                       user={selectedUser}
                       onSave={() => {
@@ -408,15 +365,29 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                   </div>
                 </TabsContent>
 
-                <TabsContent value="activity" className="mt-0 h-full">
-                  <div className="p-6">
-                    <UserActivityLog userId={selectedUser.id} />
+                <TabsContent value="activity" className="mt-0 h-full overflow-auto">
+                  <div className="p-3 sm:p-4 pb-8 space-y-4 sm:space-y-6">
+                    {loading.userDetail ? (
+                      <div className="text-center py-8">
+                        <Skeleton className="h-8 w-64 mx-auto mb-4" />
+                        <Skeleton className="h-4 w-48 mx-auto" />
+                      </div>
+                    ) : selectedUser ? (
+                      <UserActivityLog userId={selectedUser.id} />
+                    ) : null}
                   </div>
                 </TabsContent>
 
-                <TabsContent value="files" className="mt-0 h-full">
-                  <div className="p-6">
-                    <UserFileManager userId={selectedUser.id} />
+                <TabsContent value="files" className="mt-0 h-full overflow-auto">
+                  <div className="p-3 sm:p-4 pb-8 space-y-4 sm:space-y-6">
+                    {loading.userDetail ? (
+                      <div className="text-center py-8">
+                        <Skeleton className="h-8 w-64 mx-auto mb-4" />
+                        <Skeleton className="h-4 w-48 mx-auto" />
+                      </div>
+                    ) : selectedUser ? (
+                      <UserFileManager userId={selectedUser.id} />
+                    ) : null}
                   </div>
                 </TabsContent>
               </div>

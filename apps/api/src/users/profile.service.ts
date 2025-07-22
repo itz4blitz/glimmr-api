@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { 
   users,
@@ -32,6 +32,7 @@ export interface ProfileUpdateData {
   linkedinUrl?: string;
   twitterUrl?: string;
   githubUrl?: string;
+  avatarUrl?: string | null;
 }
 
 export interface PreferencesUpdateData {
@@ -116,8 +117,8 @@ export class ProfileService {
     }
 
     return {
-      profile: profileResult.user_profiles,
-      preferences: profileResult.user_preferences || null,
+      profile: profileResult.user_profiles as UserProfile,
+      preferences: (profileResult.user_preferences || null) as UserPreferences | null,
     };
   }
 
@@ -213,7 +214,7 @@ export class ProfileService {
         updatedFields: Object.keys(preferencesData),
       });
 
-      return updatedPreferences;
+      return updatedPreferences as UserPreferences;
     } else {
       // Create new preferences
       const [newPreferences] = await this.db
@@ -229,7 +230,7 @@ export class ProfileService {
         userId,
       });
 
-      return newPreferences;
+      return newPreferences as UserPreferences;
     }
   }
 
@@ -292,7 +293,7 @@ export class ProfileService {
         fileSize: fileData.buffer.length,
       });
 
-      return savedFile;
+      return savedFile as UserFile;
     } catch (error) {
       // Clean up file if database save failed
       try {
@@ -373,11 +374,13 @@ export class ProfileService {
       whereConditions.push(eq(userFiles.fileType, fileType));
     }
 
-    return this.db
+    const files = await this.db
       .select()
       .from(userFiles)
       .where(and(...whereConditions))
-      .orderBy(eq(userFiles.uploadedAt, 'desc'));
+      .orderBy(desc(userFiles.uploadedAt));
+    
+    return files as UserFile[];
   }
 
   async getFileById(fileId: string): Promise<UserFile | null> {
@@ -392,7 +395,7 @@ export class ProfileService {
       )
       .limit(1);
 
-    return file || null;
+    return (file as UserFile) || null;
   }
 
   async getFileBuffer(file: UserFile): Promise<Buffer> {

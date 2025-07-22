@@ -9,6 +9,8 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { UserManagementPage } from '@/pages/admin/UserManagementPage'
+import { QueueDashboardPage } from '@/pages/admin/QueueDashboardPage'
+import { ActivityDashboardPage } from '@/pages/admin/ActivityDashboardPage'
 
 // Layout components
 import { RootLayout } from '@/components/layout/RootLayout'
@@ -74,12 +76,15 @@ export const router = createBrowserRouter([
             path: 'queues',
             element: (
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <div className="min-h-screen bg-background flex items-center justify-center">
-                  <div className="text-center">
-                    <h1 className="text-2xl font-bold mb-2">Queue Dashboard</h1>
-                    <p className="text-muted-foreground">Coming Soon</p>
-                  </div>
-                </div>
+                <QueueDashboardPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'activity',
+            element: (
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <ActivityDashboardPage />
               </ProtectedRoute>
             ),
           },

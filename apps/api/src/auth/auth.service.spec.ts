@@ -22,9 +22,8 @@ describe('AuthService', () => {
   let configService: jest.Mocked<ConfigService>;
   let rbacService: jest.Mocked<RbacService>;
 
-  const mockUser: User = {
+  const mockUser: any = {
     id: 'user-id-123',
-    username: 'testuser',
     password: 'hashedpassword',
     role: 'api-user',
     email: 'test@example.com',
@@ -33,13 +32,14 @@ describe('AuthService', () => {
     apiKey: 'gapi_test123',
     isActive: true,
     lastLoginAt: null,
+    emailVerified: false,
+    emailVerifiedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   const mockAdminUser: User = {
     id: 'admin-id-123',
-    username: 'admin',
     password: 'hashedpassword',
     role: 'admin',
     email: 'admin@example.com',
@@ -48,6 +48,8 @@ describe('AuthService', () => {
     apiKey: 'gapi_admin123',
     isActive: true,
     lastLoginAt: null,
+    emailVerified: false,
+    emailVerifiedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -59,7 +61,6 @@ describe('AuthService', () => {
         {
           provide: UsersService,
           useValue: {
-            findByUsername: jest.fn(),
             findByApiKey: jest.fn(),
             findByEmail: jest.fn(),
             create: jest.fn(),
@@ -100,19 +101,19 @@ describe('AuthService', () => {
       const plainPassword = 'testpassword';
       const userWithHashedPassword = { ...mockUser, password: 'hashedpassword' };
 
-      usersService.findByUsername.mockResolvedValue(userWithHashedPassword);
+      usersService.findByEmail.mockResolvedValue(userWithHashedPassword);
       bcrypt.compare.mockResolvedValue(true);
 
-      const result = await service.validateUser('testuser', plainPassword);
+      const result = await service.validateUser('test@example.com', plainPassword);
 
       expect(result).toEqual(userWithHashedPassword);
-      expect(usersService.findByUsername).toHaveBeenCalledWith('testuser');
+      expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
     });
 
     it('should return null when user does not exist', async () => {
-      usersService.findByUsername.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue(null);
 
-      const result = await service.validateUser('nonexistent', 'password');
+      const result = await service.validateUser('nonexistent@example.com', 'password');
 
       expect(result).toBeNull();
     });
@@ -120,10 +121,10 @@ describe('AuthService', () => {
     it('should return null when password is incorrect', async () => {
       const userWithHashedPassword = { ...mockUser, password: 'hashedpassword' };
 
-      usersService.findByUsername.mockResolvedValue(userWithHashedPassword);
+      usersService.findByEmail.mockResolvedValue(userWithHashedPassword);
       bcrypt.compare.mockResolvedValue(false);
 
-      const result = await service.validateUser('testuser', 'wrongpassword');
+      const result = await service.validateUser('test@example.com', 'wrongpassword');
 
       expect(result).toBeNull();
     });
@@ -171,9 +172,8 @@ describe('AuthService', () => {
         access_token: expectedToken,
         user: {
           id: mockUser.id,
-          username: mockUser.username,
-          role: mockUser.role,
           email: mockUser.email,
+          role: mockUser.role,
           firstName: mockUser.firstName,
           lastName: mockUser.lastName,
           roles: [],
@@ -183,7 +183,7 @@ describe('AuthService', () => {
 
       expect(jwtService.sign).toHaveBeenCalledWith({
         sub: mockUser.id,
-        username: mockUser.username,
+        email: mockUser.email,
         role: mockUser.role,
       });
     });
@@ -202,76 +202,75 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should create new user and return login response', async () => {
       const plainPassword = 'newpassword';
-      const username = 'newuser';
+      const email = 'newuser@example.com';
       const role = 'api-user';
 
-      usersService.findByUsername.mockResolvedValue(null); // User doesn't exist
+      usersService.findByEmail.mockResolvedValue(null); // User doesn't exist
       usersService.create.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue('new.jwt.token');
 
-      const registerDto = { username, password: plainPassword };
+      const registerDto = { email, password: plainPassword, firstName: 'New', lastName: 'User' };
       const result = await service.register(registerDto);
 
       expect(result).toEqual({
         access_token: 'new.jwt.token',
         user: {
           id: mockUser.id,
-          username: mockUser.username,
+          email: mockUser.email,
           role: mockUser.role,
         },
       });
 
-      expect(usersService.findByUsername).toHaveBeenCalledWith(username);
+      expect(usersService.findByEmail).toHaveBeenCalledWith(email);
       expect(usersService.create).toHaveBeenCalledWith({
-        username,
+        email,
         password: 'hashedpassword',
         role,
+        firstName: 'New',
+        lastName: 'User',
       });
     });
 
-    it('should throw error when username already exists', async () => {
-      usersService.findByUsername.mockResolvedValue(mockUser);
+    it('should throw error when email already exists', async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
 
       await expect(
-        service.register({ username: 'testuser', password: 'password' })
+        service.register({ email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
       ).rejects.toThrow(UnauthorizedException);
     });
 
     it('should default to api-user role when no role specified', async () => {
-      usersService.findByUsername.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue('jwt.token');
 
-      await service.register({ username: 'newuser', password: 'password' });
+      await service.register({ email: 'newuser@example.com', password: 'password', firstName: 'New', lastName: 'User' });
 
       expect(usersService.create).toHaveBeenCalledWith({
-        username: 'newuser',
+        email: 'newuser@example.com',
         password: 'hashedpassword',
         role: 'api-user',
-        email: undefined,
-        firstName: undefined,
-        lastName: undefined,
+        firstName: 'New',
+        lastName: 'User',
       });
     });
 
     it('should create users with api-user role by default (admin assignment done separately)', async () => {
-      usersService.findByUsername.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue('jwt.token');
 
       const result = await service.register({
-        username: 'newuser',
-        password: 'password',
         email: 'test@example.com',
+        password: 'password',
         firstName: 'Test',
         lastName: 'User'
       });
 
       expect(usersService.create).toHaveBeenCalledWith({
-        username: 'newuser',
+        email: 'test@example.com',
         password: 'hashedpassword',
         role: 'api-user', // Always defaults to api-user
-        email: 'test@example.com',
         firstName: 'Test',
         lastName: 'User',
       });

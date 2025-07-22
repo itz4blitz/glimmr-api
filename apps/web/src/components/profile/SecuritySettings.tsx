@@ -22,11 +22,9 @@ import {
   Shield, 
   Key, 
   Smartphone, 
-  Eye, 
-  EyeOff, 
-  Loader2, 
-  AlertTriangle,
-  CheckCircle,
+  Eye,
+  EyeOff,
+  Loader2,
   Clock
 } from 'lucide-react'
 
@@ -61,7 +59,7 @@ export function SecuritySettings() {
     },
   })
 
-  const onPasswordSubmit = async (data: PasswordFormData) => {
+  const onPasswordSubmit = async (_data: PasswordFormData) => {
     setIsLoading(true)
     try {
       // Here you would call your API to change the password
@@ -112,30 +110,14 @@ export function SecuritySettings() {
     }))
   }
 
-  // Mock session data
-  const activeSessions = [
-    {
-      id: '1',
-      device: 'Chrome on Windows',
-      location: 'New York, NY',
-      lastActive: '2 minutes ago',
-      current: true,
-    },
-    {
-      id: '2',
-      device: 'Safari on iPhone',
-      location: 'New York, NY',
-      lastActive: '1 hour ago',
-      current: false,
-    },
-    {
-      id: '3',
-      device: 'Firefox on macOS',
-      location: 'San Francisco, CA',
-      lastActive: '2 days ago',
-      current: false,
-    },
-  ]
+  // TODO: Fetch real session data from API
+  const activeSessions: Array<{
+    id: string;
+    device: string;
+    location: string;
+    lastActive: string;
+    current: boolean;
+  }> = []
 
   return (
     <div className="space-y-6">
@@ -342,7 +324,13 @@ export function SecuritySettings() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3 sm:space-y-4">
-            {activeSessions.map((session) => (
+            {activeSessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No active sessions found</p>
+                <p className="text-xs mt-1">Session management is not yet implemented</p>
+              </div>
+            ) : (
+              activeSessions.map((session) => (
               <div key={session.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border rounded-lg">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -367,7 +355,8 @@ export function SecuritySettings() {
                   </Button>
                 )}
               </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

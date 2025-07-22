@@ -13,8 +13,13 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token')
+    console.log('[API] Request to:', config.url)
+    console.log('[API] Token found:', !!token)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log('[API] Authorization header set')
+    } else {
+      console.log('[API] No token found in localStorage')
     }
     return config
   },
@@ -32,26 +37,15 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       
-      // Try to refresh token
-      try {
-        const refreshToken = localStorage.getItem('refresh_token')
-        if (refreshToken) {
-          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1'
-          const response = await axios.post(`${baseURL}/auth/refresh`, {
-            refresh_token: refreshToken
-          })
-          
-          const { access_token } = response.data
-          localStorage.setItem('auth_token', access_token)
-          
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return apiClient(originalRequest)
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('refresh_token')
+      // Since the backend doesn't have a refresh endpoint yet,
+      // clear auth and redirect to login
+      console.log('[API] 401 Unauthorized - clearing auth and redirecting to login')
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('auth-storage')
+      
+      // Only redirect if we're not already on the login page
+      if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login'
       }
     }

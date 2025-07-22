@@ -1,8 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Search, Command, ChevronRight } from 'lucide-react'
+import { Search, Command, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -14,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MobileNav } from './MobileNav'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useAuthStore } from '@/stores/auth'
 
 // Breadcrumb helper function
@@ -107,16 +107,7 @@ export function Header() {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-4 w-4" />
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              3
-            </Badge>
-            <span className="sr-only">Notifications</span>
-          </Button>
+          <NotificationBell />
 
           {/* Theme Toggle - Hidden on mobile (shown in mobile nav) */}
           <div className="hidden md:block">

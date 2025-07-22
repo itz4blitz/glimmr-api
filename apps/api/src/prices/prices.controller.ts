@@ -147,6 +147,137 @@ export class PricesController {
     }
   }
 
+  @Get('search/zipcode')
+  @RequirePermissions('prices:read')
+  @ApiOperation({ summary: 'Search prices by zipcode' })
+  @ApiResponse({ status: 200, description: 'Prices retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid parameters' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiQuery({ name: 'zipcode', required: true, description: 'Zipcode to search around' })
+  @ApiQuery({ name: 'radius', required: false, description: 'Search radius in miles (default: 10)' })
+  @ApiQuery({ name: 'serviceCode', required: false, description: 'Filter by service code' })
+  @ApiQuery({ name: 'serviceName', required: false, description: 'Filter by service name' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
+  @ApiQuery({ name: 'includeNegotiatedRates', required: false, description: 'Include only prices with negotiated rates' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return (default: 50)' })
+  @ApiQuery({ name: 'offset', required: false, description: 'Number of results to skip (default: 0)' })
+  async searchPricesByZipcode(
+    @Query('zipcode') zipcode: string,
+    @Query('radius') radius?: number,
+    @Query('serviceCode') serviceCode?: string,
+    @Query('serviceName') serviceName?: string,
+    @Query('category') category?: string,
+    @Query('includeNegotiatedRates') includeNegotiatedRates?: string | boolean,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    try {
+      if (!zipcode) {
+        throw new HttpException(
+          { 
+            message: 'Zipcode is required',
+            statusCode: HttpStatus.BAD_REQUEST,
+            error: 'Bad Request' 
+          },
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
+      return await this.pricesService.searchPricesByZipcode({
+        zipcode,
+        radius: radius ? Number(radius) : undefined,
+        serviceCode,
+        serviceName,
+        category,
+        includeNegotiatedRates: includeNegotiatedRates === 'true' || includeNegotiatedRates === true,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      });
+    } catch (error) {
+      if (error.status === HttpStatus.BAD_REQUEST) {
+        throw error;
+      }
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while searching prices',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get('hospital/:hospitalId')
+  @RequirePermissions('prices:read')
+  @ApiOperation({ summary: 'Get prices for a specific hospital' })
+  @ApiResponse({ status: 200, description: 'Hospital prices retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Hospital not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiParam({ name: 'hospitalId', description: 'Hospital ID' })
+  @ApiQuery({ name: 'serviceCode', required: false, description: 'Filter by service code' })
+  @ApiQuery({ name: 'serviceName', required: false, description: 'Filter by service name' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
+  @ApiQuery({ name: 'codeType', required: false, description: 'Filter by code type (CPT, DRG, HCPCS, etc.)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return (default: 50)' })
+  @ApiQuery({ name: 'offset', required: false, description: 'Number of results to skip (default: 0)' })
+  async getHospitalPrices(
+    @Param('hospitalId') hospitalId: string,
+    @Query('serviceCode') serviceCode?: string,
+    @Query('serviceName') serviceName?: string,
+    @Query('category') category?: string,
+    @Query('codeType') codeType?: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    try {
+      return await this.pricesService.getHospitalPrices(hospitalId, {
+        serviceCode,
+        serviceName,
+        category,
+        codeType,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      });
+    } catch (error) {
+      if (error.status === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
+      if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+        throw new HttpException(
+          { 
+            message: 'Database connection failed. Please try again later.',
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: 'Service Unavailable' 
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw new HttpException(
+        { 
+          message: 'Internal server error occurred while fetching hospital prices',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Internal Server Error' 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
   @Get(':id')
   @RequirePermissions('prices:read')
   @ApiOperation({ summary: 'Get price by ID' })

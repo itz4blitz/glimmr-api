@@ -36,6 +36,34 @@
       "when": 1752977368496,
       "tag": "0004_wide_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1753050246500,
+      "tag": "0005_parallel_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1753051200000,
+      "tag": "0006_job_management_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1753056000000,
+      "tag": "0008_add_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1753065180000,
+      "tag": "0009_fix_price_transparency_files_constraint",
+      "breakpoints": true
     }
   ]
 }
