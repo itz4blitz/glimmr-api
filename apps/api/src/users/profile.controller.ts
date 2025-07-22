@@ -12,9 +12,12 @@ import {
   UploadedFile,
   ParseUUIDPipe,
   BadRequestException,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ProfileService, ProfileUpdateData, PreferencesUpdateData } from './profile.service';
 import { UserManagementService } from './user-management.service';
@@ -282,9 +285,32 @@ export class ProfileController {
   @Get('activity')
   @ApiOperation({ summary: 'Get current user activity log' })
   @ApiResponse({ status: 200, description: 'Activity log retrieved successfully' })
-  async getCurrentUserActivity(@Request() req: any) {
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10, max: 100)' })
+  async getCurrentUserActivity(
+    @Request() req: any,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
     const userId = req.user.id;
-    const activities = await this.userManagementService.getUserActivity(userId, { limit: 50 });
-    return { activities };
+    
+    // Ensure limit is reasonable
+    const safeLimit = Math.min(Math.max(1, limit), 100);
+    const offset = (Math.max(1, page) - 1) * safeLimit;
+    
+    const { activities, total } = await this.userManagementService.getUserActivityPaginated(userId, { 
+      limit: safeLimit,
+      offset,
+    });
+    
+    return { 
+      activities,
+      pagination: {
+        page,
+        limit: safeLimit,
+        total,
+        totalPages: Math.ceil(total / safeLimit),
+      }
+    };
   }
 }

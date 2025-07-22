@@ -9,6 +9,7 @@ import { tap } from 'rxjs/operators';
 import { ActivityLoggingService } from './activity-logging.service';
 import { Request } from 'express';
 import { Reflector } from '@nestjs/core';
+import { shouldLogActivity, getActivityConfig, DEFAULT_ACTIVITY_CONFIG } from './activity-config';
 
 export const SKIP_ACTIVITY_LOG = 'skipActivityLog';
 export const ACTIVITY_ACTION = 'activityAction';
@@ -58,6 +59,14 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
             return;
           }
           
+          // Check if this action should be logged based on configuration
+          if (!shouldLogActivity(action)) {
+            return;
+          }
+          
+          // Get activity configuration
+          const activityConfig = getActivityConfig(action) || DEFAULT_ACTIVITY_CONFIG;
+          
           // Log the activity
           this.activityLoggingService.logActivity({
             userId: user?.id,
@@ -73,6 +82,8 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
               params: this.sanitizeParams(request.params),
               bodySize: request.body ? JSON.stringify(request.body).length : 0,
               userAgent: request.headers['user-agent'],
+              category: activityConfig.category,
+              importance: activityConfig.importance,
             },
             request,
             success: true,
@@ -82,6 +93,14 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
         },
         error: (error) => {
           const duration = Date.now() - startTime;
+          
+          // For failed requests, always log if it's a meaningful action
+          const failedAction = `${action}_failed`;
+          if (!shouldLogActivity(action) && !shouldLogActivity(failedAction)) {
+            return;
+          }
+          
+          const activityConfig = getActivityConfig(failedAction) || getActivityConfig(action) || DEFAULT_ACTIVITY_CONFIG;
           
           // Log failed requests
           this.activityLoggingService.logActivity({
@@ -99,6 +118,8 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
               query: this.sanitizeQuery(request.query),
               params: this.sanitizeParams(request.params),
               userAgent: request.headers['user-agent'],
+              category: activityConfig.category,
+              importance: activityConfig.importance,
             },
             request,
             success: false,
@@ -115,14 +136,32 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     // Extract meaningful action from method and path
     const pathParts = path.split('/').filter(p => p && !p.startsWith(':'));
     
-    // Special handling for common patterns
+    // Authentication & Security actions
     if (path.includes('/login')) return 'auth_login';
     if (path.includes('/logout')) return 'auth_logout';
     if (path.includes('/register')) return 'auth_register';
     if (path.includes('/refresh')) return 'auth_refresh';
     if (path.includes('/password-reset')) return 'password_reset';
+    if (path.includes('/password-change')) return 'password_change';
     if (path.includes('/verify-email')) return 'email_verify';
     if (path.includes('/resend-verification')) return 'email_resend_verification';
+    
+    // Profile and account actions
+    if (path.includes('/profile')) {
+      if (method === 'GET' && path.endsWith('/profile')) return 'profile_view';
+      if (method === 'PUT' && path.endsWith('/profile')) return 'profile_update';
+      if (path.includes('/activity')) return 'activity_view';
+      if (path.includes('/avatar') && method === 'POST') return 'avatar_upload';
+      if (path.includes('/avatar') && method === 'DELETE') return 'avatar_remove';
+      if (path.includes('/preferences')) return 'preferences_update';
+    }
+    
+    // File operations
+    if (path.includes('/files') || path.includes('/upload')) {
+      if (method === 'POST') return 'file_upload';
+      if (method === 'GET') return 'file_download';
+      if (method === 'DELETE') return 'file_delete';
+    }
     
     // Job-related actions
     if (path.includes('/jobs')) {
@@ -134,17 +173,27 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
       if (path.includes('/hospital-import')) return 'job_hospital_import';
     }
     
-    // User management actions
+    // User management actions (admin)
     if (path.includes('/users')) {
-      if (path.includes('/bulk')) return 'user_bulk_action';
+      if (path.includes('/bulk')) return 'bulk_operation';
       if (path.includes('/activate')) return 'user_activate';
       if (path.includes('/deactivate')) return 'user_deactivate';
       if (path.includes('/role')) return 'user_role_update';
-      if (path.includes('/profile')) return 'user_profile_update';
-      if (path.includes('/preferences')) return 'user_preferences_update';
-      if (path.includes('/export')) return 'user_export';
+      if (path.includes('/export')) return 'data_export';
       if (path.includes('/import')) return 'user_import';
       if (path.includes('/api-key')) return method === 'POST' ? 'api_key_generate' : 'api_key_revoke';
+    }
+    
+    // View actions (these will be filtered out by configuration)
+    if (method === 'GET') {
+      if (path.includes('/hospitals')) return 'hospitals_view';
+      if (path.includes('/prices')) return 'prices_view';
+      if (path.includes('/analytics')) return 'analytics_view';
+      if (path.includes('/notifications')) return 'notifications_view';
+      if (path.includes('/users') && !path.includes('/files')) return 'users_view';
+      if (path.includes('/jobs')) return 'jobs_view';
+      if (path.includes('/status')) return 'status_view';
+      if (path.includes('/stats')) return 'stats_view';
     }
     
     // Default pattern: resource_action
@@ -169,7 +218,14 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
       '/api/v1/activity/session',
       '/api/docs',
       '/favicon.ico',
+      '/api/v1/metrics',
+      '/api/v1/status',
     ];
+    
+    // Skip all GET requests that are just fetching lists or viewing data
+    if (path.match(/\/(activity|notifications|messages|logs)$/)) {
+      return true;
+    }
     
     return skipPaths.some(skip => path.includes(skip));
   }

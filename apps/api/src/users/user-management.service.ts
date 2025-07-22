@@ -408,6 +408,30 @@ export class UserManagementService {
     return result?.count || 0;
   }
 
+  async getUserActivityPaginated(
+    userId: string,
+    options: { limit?: number; offset?: number } = {}
+  ): Promise<{ activities: UserActivityLog[]; total: number }> {
+    const { limit = 10, offset = 0 } = options;
+    
+    // Get activities
+    const activities = await this.db
+      .select()
+      .from(userActivityLogs)
+      .where(eq(userActivityLogs.userId, userId))
+      .orderBy(desc(userActivityLogs.timestamp))
+      .limit(limit)
+      .offset(offset);
+    
+    // Get total count
+    const total = await this.getUserActivityCount(userId);
+    
+    return {
+      activities: activities as UserActivityLog[],
+      total,
+    };
+  }
+
   // User Files
   async getUserFiles(userId: string): Promise<any[]> {
     const files = await this.db
