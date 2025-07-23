@@ -136,6 +136,10 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     // Extract meaningful action from method and path
     const pathParts = path.split('/').filter(p => p && !p.startsWith(':'));
     
+    // System tracking actions (these should be filtered)
+    if (path.includes('/activity/page-view')) return 'page_view';
+    if (path.includes('/activity/session')) return 'session_activity';
+    
     // Authentication & Security actions
     if (path.includes('/login')) return 'auth_login';
     if (path.includes('/logout')) return 'auth_logout';
@@ -158,6 +162,8 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     
     // File operations
     if (path.includes('/files') || path.includes('/upload')) {
+      // Skip listing files - this is just viewing, not downloading
+      if (method === 'GET' && path.endsWith('/files')) return 'files_list_view';
       if (method === 'POST') return 'file_upload';
       if (method === 'GET') return 'file_download';
       if (method === 'DELETE') return 'file_delete';

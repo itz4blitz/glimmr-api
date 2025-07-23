@@ -28,7 +28,8 @@ export class UserManagementService {
 
   static async getUserById(id: string): Promise<UserWithProfile> {
     const response = await apiClient.get(`/users/${id}`)
-    return response.data
+    // Handle both response formats
+    return response.data.user || response.data
   }
 
   static async updateUser(id: string, data: UpdateUserDto): Promise<UserWithProfile> {

@@ -37,10 +37,12 @@ import {
   Edit,
   Eye,
   Clock,
-  Globe
+  Globe,
+  X
 } from 'lucide-react'
-import { formatDistanceToNow, format } from 'date-fns'
+import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 import { apiClient } from '@/lib/api'
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'
 
 interface ActivityLog {
   id: string
@@ -53,6 +55,11 @@ interface ActivityLog {
   success: boolean
   metadata?: any
   errorMessage?: string
+}
+
+interface DateRange {
+  from: Date | undefined
+  to: Date | undefined
 }
 
 type ActivityCategory = 'authentication' | 'account' | 'data' | 'administrative' | 'security' | 'system'
@@ -160,6 +167,7 @@ export function ActivityHistory() {
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [actionFilter, setActionFilter] = useState('all')
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
@@ -186,8 +194,25 @@ export function ActivityHistory() {
       filtered = filtered.filter(activity => activity.action.includes(actionFilter))
     }
 
+    if (dateRange.from || dateRange.to) {
+      filtered = filtered.filter(activity => {
+        const activityDate = new Date(activity.timestamp)
+        if (dateRange.from && dateRange.to) {
+          return isWithinInterval(activityDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to)
+          })
+        } else if (dateRange.from) {
+          return activityDate >= startOfDay(dateRange.from)
+        } else if (dateRange.to) {
+          return activityDate <= endOfDay(dateRange.to)
+        }
+        return true
+      })
+    }
+
     return filtered
-  }, [activities, searchTerm, actionFilter])
+  }, [activities, searchTerm, actionFilter, dateRange])
 
   // Fetch activities with pagination
   const fetchActivities = async (page: number = currentPage) => {
@@ -258,35 +283,64 @@ export function ActivityHistory() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search activities..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 input-enhanced"
-          />
-        </div>
-        <div className="flex gap-2 sm:gap-3">
-          <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="flex-1 sm:w-[180px] select-enhanced">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by action" />
-            </SelectTrigger>
-            <SelectContent className="select-content-enhanced">
-              <SelectItem value="all">All Actions</SelectItem>
-              {uniqueActions.map((action) => (
-                <SelectItem key={action} value={action}>
-                  {action.charAt(0).toUpperCase() + action.slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={refreshActivities} disabled={isLoading} size="sm" className="px-3 button-enhanced">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} sm:mr-2`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
+      <div className="space-y-2">
+        <div className="flex flex-col lg:flex-row gap-2">
+          {/* Search and Action Filter Row */}
+          <div className="flex flex-col sm:flex-row gap-2 flex-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search activities..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 input-enhanced"
+              />
+            </div>
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] select-enhanced">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by action" />
+              </SelectTrigger>
+              <SelectContent className="select-content-enhanced">
+                <SelectItem value="all">All Actions</SelectItem>
+                {uniqueActions.map((action) => (
+                  <SelectItem key={action} value={action}>
+                    {action.charAt(0).toUpperCase() + action.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Date Range and Refresh Row */}
+          <div className="flex gap-2">
+            <DatePickerWithRange
+              date={dateRange}
+              onDateChange={setDateRange}
+              className="flex-1 lg:w-[260px]"
+            />
+            {(dateRange.from || dateRange.to) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDateRange({ from: undefined, to: undefined })}
+                className="h-9 w-9 flex-shrink-0"
+                title="Clear dates"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              onClick={refreshActivities} 
+              disabled={isLoading} 
+              size="icon" 
+              className="h-9 w-9 flex-shrink-0 button-enhanced"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
       </div>
 

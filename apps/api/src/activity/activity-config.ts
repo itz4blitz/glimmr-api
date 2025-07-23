@@ -345,6 +345,27 @@ export const ACTIVITY_CONFIG: Record<string, ActivityConfig> = {
     description: 'Statistics viewed',
     shouldLog: false,
   },
+  'files_list_view': {
+    action: 'files_list_view',
+    category: ActivityCategory.DATA,
+    importance: ActivityImportance.NOISE,
+    description: 'Files list viewed',
+    shouldLog: false,
+  },
+  'page_view': {
+    action: 'page_view',
+    category: ActivityCategory.SYSTEM,
+    importance: ActivityImportance.NOISE,
+    description: 'Page viewed',
+    shouldLog: false,
+  },
+  'session_start': {
+    action: 'session_start',
+    category: ActivityCategory.AUTHENTICATION,
+    importance: ActivityImportance.LOW,
+    description: 'Session started',
+    shouldLog: true,
+  },
 };
 
 // Helper function to check if an action should be logged

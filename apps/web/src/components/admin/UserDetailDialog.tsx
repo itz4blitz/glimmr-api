@@ -61,13 +61,20 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
   // Load user data when dialog opens
   useEffect(() => {
     if (open && userId) {
-      loadUserById(userId)
+      console.log('UserDetailDialog: Loading user', userId)
+      loadUserById(userId).then(() => {
+        console.log('UserDetailDialog: User loaded')
+      }).catch((error) => {
+        console.error('UserDetailDialog: Failed to load user', error)
+      })
     }
   }, [open, userId, loadUserById])
 
   // Load activity and files after user is loaded
   useEffect(() => {
+    console.log('UserDetailDialog: selectedUser', selectedUser)
     if (selectedUser?.id) {
+      console.log('UserDetailDialog: Loading activity and files for', selectedUser.id)
       loadUserActivity(selectedUser.id)
       loadUserFiles(selectedUser.id)
     }
@@ -163,7 +170,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[90vw] w-[90vw] h-[95vh] max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[90vw] w-[90vw] h-[85vh] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-3">
             {loading.userDetail ? (
@@ -231,18 +238,19 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
           
           {selectedUser && (
             <DialogDescription asChild>
-              <div className="space-y-3">
-                <div className="text-sm text-muted-foreground">
-                  Created {selectedUser.createdAt && !isNaN(new Date(selectedUser.createdAt).getTime())
-                    ? formatDistanceToNow(new Date(selectedUser.createdAt), { addSuffix: true })
-                    : 'Unknown'
-                  }
-                  {selectedUser.lastLoginAt && !isNaN(new Date(selectedUser.lastLoginAt).getTime()) && (
-                    <> • Last login {formatDistanceToNow(new Date(selectedUser.lastLoginAt), { addSuffix: true })}</>
-                  )}
-                </div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    Created {selectedUser.createdAt && !isNaN(new Date(selectedUser.createdAt).getTime())
+                      ? formatDistanceToNow(new Date(selectedUser.createdAt), { addSuffix: true })
+                      : 'Unknown'
+                    }
+                    {selectedUser.lastLoginAt && !isNaN(new Date(selectedUser.lastLoginAt).getTime()) && (
+                      <> • Last login {formatDistanceToNow(new Date(selectedUser.lastLoginAt), { addSuffix: true })}</>
+                    )}
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                   {!selectedUser.emailVerified && (
                     <Button
                       variant="outline"
@@ -301,6 +309,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                     Delete
                   </Button>
                 </div>
+                </div>
               </div>
             </DialogDescription>
           )}
@@ -321,20 +330,20 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
             </div>
           ) : selectedUser ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col overflow-hidden">
-              <TabsList className="tabs-list-enhanced grid w-full grid-cols-4 h-auto p-1.5 flex-shrink-0">
-                <TabsTrigger value="profile" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+              <TabsList className="tabs-list-enhanced grid w-full grid-cols-4 h-auto p-1 flex-shrink-0">
+                <TabsTrigger value="profile" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-3">
                   <User className="h-4 w-4" />
                   <span className="text-xs sm:text-sm font-medium">Profile</span>
                 </TabsTrigger>
-                <TabsTrigger value="preferences" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+                <TabsTrigger value="preferences" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-3">
                   <Settings className="h-4 w-4" />
                   <span className="text-xs sm:text-sm font-medium">Settings</span>
                 </TabsTrigger>
-                <TabsTrigger value="activity" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+                <TabsTrigger value="activity" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-3">
                   <Activity className="h-4 w-4" />
                   <span className="text-xs sm:text-sm font-medium">Activity</span>
                 </TabsTrigger>
-                <TabsTrigger value="files" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+                <TabsTrigger value="files" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-3">
                   <Files className="h-4 w-4" />
                   <span className="text-xs sm:text-sm font-medium">Files</span>
                 </TabsTrigger>
@@ -365,29 +374,32 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                   </div>
                 </TabsContent>
 
-                <TabsContent value="activity" className="mt-0 h-full overflow-auto">
-                  <div className="p-3 sm:p-4 pb-8 space-y-4 sm:space-y-6">
-                    {loading.userDetail ? (
+                <TabsContent value="activity" className="mt-0 h-full overflow-hidden">
+                  <div className="p-2 h-full flex flex-col">
+                    {selectedUser && selectedUser.id ? (
+                      <UserActivityLog 
+                        key={selectedUser.id} 
+                        userId={selectedUser.id}
+                      />
+                    ) : (
                       <div className="text-center py-8">
                         <Skeleton className="h-8 w-64 mx-auto mb-4" />
                         <Skeleton className="h-4 w-48 mx-auto" />
                       </div>
-                    ) : selectedUser ? (
-                      <UserActivityLog userId={selectedUser.id} />
-                    ) : null}
+                    )}
                   </div>
                 </TabsContent>
 
                 <TabsContent value="files" className="mt-0 h-full overflow-auto">
                   <div className="p-3 sm:p-4 pb-8 space-y-4 sm:space-y-6">
-                    {loading.userDetail ? (
+                    {selectedUser && selectedUser.id ? (
+                      <UserFileManager key={selectedUser.id} userId={selectedUser.id} />
+                    ) : (
                       <div className="text-center py-8">
                         <Skeleton className="h-8 w-64 mx-auto mb-4" />
                         <Skeleton className="h-4 w-48 mx-auto" />
                       </div>
-                    ) : selectedUser ? (
-                      <UserFileManager userId={selectedUser.id} />
-                    ) : null}
+                    )}
                   </div>
                 </TabsContent>
               </div>

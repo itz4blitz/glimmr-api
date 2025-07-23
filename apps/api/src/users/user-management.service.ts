@@ -392,7 +392,7 @@ export class UserManagementService {
       .select()
       .from(userActivityLogs)
       .where(eq(userActivityLogs.userId, userId))
-      .orderBy(desc(userActivityLogs.timestamp))
+      .orderBy(desc(userActivityLogs.timestamp), desc(userActivityLogs.id))
       .limit(limit)
       .offset(offset);
 
@@ -419,7 +419,7 @@ export class UserManagementService {
       .select()
       .from(userActivityLogs)
       .where(eq(userActivityLogs.userId, userId))
-      .orderBy(desc(userActivityLogs.timestamp))
+      .orderBy(desc(userActivityLogs.timestamp), desc(userActivityLogs.id))
       .limit(limit)
       .offset(offset);
     

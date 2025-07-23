@@ -372,8 +372,10 @@ export const useUserManagementStore = create<UserManagementState>()(
       loadUserActivity: async (userId, page = 1) => {
         try {
           const response = await userManagementApi.getUserActivity(userId, { page, limit: 20 })
+          console.log('User activity response:', response)
           set({ userActivity: response.activities || [] })
         } catch (error: any) {
+          console.error('Failed to load user activity:', error)
           toast.error('Failed to load user activity')
           set({ userActivity: [] })
         }
