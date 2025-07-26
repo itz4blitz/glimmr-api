@@ -157,7 +157,7 @@ export function PreferencesSettings() {
     }
   };
 
-  const onSubmit = async (data: PreferencesFormData) => {
+  const onSubmit = async () => {
     await savePreferences();
     toast.success("Preferences updated successfully!", {
       description: "Your settings have been saved and applied.",

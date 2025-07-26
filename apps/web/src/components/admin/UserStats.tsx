@@ -122,7 +122,7 @@ export function UserStats() {
         setStats(data);
       } catch (error) {
         console.error("Failed to fetch user stats:", error);
-        setError(error.message);
+        setError(error instanceof Error ? error.message : "An error occurred");
         setStats(null);
       } finally {
         setIsLoading(false);

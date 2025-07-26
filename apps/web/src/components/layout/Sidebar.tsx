@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useSidebarStore } from "@/stores/sidebar";
 import { isAdmin, isSuperAdmin } from "@/lib/permissions";
+import { UserRole } from "@/types/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,12 +40,14 @@ export function Sidebar() {
       href: "/dashboard",
       icon: Home,
       description: "Overview and quick actions",
+      adminOnly: false,
     },
     {
       name: "Profile",
       href: "/profile",
       icon: User,
       description: "Manage your account",
+      adminOnly: false,
     },
     {
       name: "Analytics",
@@ -52,12 +55,14 @@ export function Sidebar() {
       icon: BarChart3,
       description: "View reports and insights",
       badge: "New",
+      adminOnly: false,
     },
     {
       name: "Documents",
       href: "/documents",
       icon: FileText,
       description: "Manage your files",
+      adminOnly: false,
     },
   ];
 
@@ -67,12 +72,14 @@ export function Sidebar() {
       href: "/admin/users",
       icon: Users,
       description: "Manage system users",
+      adminOnly: true,
     },
     {
       name: "Queue Dashboard",
       href: "/admin/queues",
       icon: Activity,
       description: "Monitor Jobs",
+      adminOnly: true,
     },
     {
       name: "Queue Analytics",
@@ -80,6 +87,7 @@ export function Sidebar() {
       icon: BarChart3,
       description: "Queue insights",
       badge: "New",
+      adminOnly: true,
     },
     {
       name: "Job Scheduler",
@@ -87,12 +95,14 @@ export function Sidebar() {
       icon: Clock,
       description: "Schedule jobs",
       badge: "New",
+      adminOnly: true,
     },
     {
       name: "Activity Logs",
       href: "/admin/activity",
       icon: FileText,
       description: "View system activity",
+      adminOnly: true,
     },
     {
       name: "System Settings",
@@ -109,6 +119,7 @@ export function Sidebar() {
       href: "/settings",
       icon: Settings,
       description: "App preferences",
+      adminOnly: false,
     },
   ];
 
@@ -134,7 +145,7 @@ export function Sidebar() {
     }
 
     const filteredItems = items.filter((item) => {
-      if (item.adminOnly && user && !isSuperAdmin(user.role)) {
+      if (item.adminOnly && user && !isSuperAdmin(user.role as UserRole)) {
         return false;
       }
       return true;
@@ -275,11 +286,11 @@ export function Sidebar() {
         <NavSection title="Main" items={navigation} />
 
         {/* Admin Navigation */}
-        {user && isAdmin(user.role) && (
+        {user && isAdmin(user.role as UserRole) && (
           <NavSection
             title="Administration"
             items={adminNavigation}
-            showForRole={(role) => isAdmin(role)}
+            showForRole={(role) => isAdmin(role as UserRole)}
           />
         )}
 

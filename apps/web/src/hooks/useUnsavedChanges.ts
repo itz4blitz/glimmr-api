@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from "react";
-import { useNavigate, useLocation, useBlocker } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 
 interface UseUnsavedChangesProps {
   hasUnsavedChanges: boolean;
@@ -13,7 +13,6 @@ export function useUnsavedChanges({
   message = "You have unsaved changes. Are you sure you want to leave?",
 }: UseUnsavedChangesProps) {
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Block React Router navigation when there are unsaved changes
   const blocker = useBlocker(

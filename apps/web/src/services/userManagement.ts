@@ -15,8 +15,6 @@ import type {
   UserFile,
   ExportOptions,
   ImportResult,
-  UserActivityLog,
-  UserRole,
 } from "@/types/userManagement";
 
 export class UserManagementService {

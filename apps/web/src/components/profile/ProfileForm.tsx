@@ -16,13 +16,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Save, X } from "lucide-react";
 
@@ -60,32 +53,6 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 interface ProfileFormProps {
   // No longer need editing state props
 }
-
-const timezones = [
-  { value: "UTC", label: "UTC" },
-  { value: "America/New_York", label: "Eastern Time" },
-  { value: "America/Chicago", label: "Central Time" },
-  { value: "America/Denver", label: "Mountain Time" },
-  { value: "America/Los_Angeles", label: "Pacific Time" },
-  { value: "Europe/London", label: "London" },
-  { value: "Europe/Paris", label: "Paris" },
-  { value: "Europe/Berlin", label: "Berlin" },
-  { value: "Asia/Tokyo", label: "Tokyo" },
-  { value: "Asia/Shanghai", label: "Shanghai" },
-  { value: "Australia/Sydney", label: "Sydney" },
-];
-
-const languages = [
-  { value: "en", label: "English" },
-  { value: "es", label: "Spanish" },
-  { value: "fr", label: "French" },
-  { value: "de", label: "German" },
-  { value: "it", label: "Italian" },
-  { value: "pt", label: "Portuguese" },
-  { value: "ja", label: "Japanese" },
-  { value: "ko", label: "Korean" },
-  { value: "zh", label: "Chinese" },
-];
 
 export function ProfileForm({}: ProfileFormProps) {
   const { user, updateUser } = useAuthStore();
@@ -206,7 +173,7 @@ export function ProfileForm({}: ProfileFormProps) {
     }
   };
 
-  const onSubmit = async (data: ProfileFormData) => {
+  const onSubmit = async () => {
     await saveProfile();
     toast.success("Profile updated successfully!", {
       description: "Your changes have been saved and are now visible.",
@@ -217,7 +184,7 @@ export function ProfileForm({}: ProfileFormProps) {
   // Register save function with context
   useEffect(() => {
     registerSaveFunction(saveProfile);
-  }, [registerSaveFunction]);
+  }, [registerSaveFunction, saveProfile]);
 
   const handleCancel = () => {
     form.reset();

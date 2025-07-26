@@ -16,31 +16,36 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Filter, Calendar as CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 
 interface UserFiltersProps {
   filters: {
+    search: string;
     role: string;
     status: string;
     emailVerified: string;
     dateRange: string;
   };
-  onFiltersChange: (filters: any) => void;
+  onFiltersChange: (filters: {
+    search: string;
+    role: string;
+    status: string;
+    emailVerified: string;
+    dateRange: string;
+  }) => void;
 }
 
 export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<{
-    from?: Date;
-    to?: Date;
-  }>({});
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   const activeFiltersCount = Object.values(filters).filter(
     (value) => value !== "all",
   ).length;
 
-  const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
+  const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range);
-    if (range.from && range.to) {
+    if (range?.from && range?.to) {
       onFiltersChange({
         ...filters,
         dateRange: `${format(range.from, "yyyy-MM-dd")}_${format(range.to, "yyyy-MM-dd")}`,
@@ -50,12 +55,13 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
 
   const clearFilters = () => {
     onFiltersChange({
+      search: filters.search,
       role: "all",
       status: "all",
       emailVerified: "all",
       dateRange: "all",
     });
-    setDateRange({});
+    setDateRange(undefined);
   };
 
   const clearSpecificFilter = (filterKey: string) => {
@@ -64,7 +70,7 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
       [filterKey]: "all",
     });
     if (filterKey === "dateRange") {
-      setDateRange({});
+      setDateRange(undefined);
     }
   };
 
@@ -127,7 +133,7 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
                     className="w-full justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
+                    {dateRange?.from ? (
                       dateRange.to ? (
                         <>
                           {format(dateRange.from, "LLL dd, y")} -{" "}
@@ -145,7 +151,7 @@ export function UserFilters({ filters, onFiltersChange }: UserFiltersProps) {
                   <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={dateRange.from}
+                    defaultMonth={dateRange?.from}
                     selected={dateRange}
                     onSelect={handleDateRangeChange}
                     numberOfMonths={2}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
@@ -77,7 +77,7 @@ interface LogEntry {
   queueName: string;
   level: "info" | "warning" | "error" | "success";
   message: string;
-  context?: any;
+  context?: Record<string, unknown>;
   timestamp: string;
   createdAt: string;
   status?: string;
@@ -106,7 +106,7 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  const fetchAllLogs = async () => {
+  const fetchAllLogs = useCallback(async () => {
     if (!isOpen) return;
 
     setIsLoading(true);
@@ -128,13 +128,13 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
         responseStructure: Object.keys(response.data)
       });
       setLogs(logsData);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch logs:", error);
       toast.error("Failed to load job logs");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isOpen, levelFilter, queueFilter, statusFilter, searchTerm]);
 
   useEffect(() => {
     if (isOpen) {
@@ -152,6 +152,7 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
     statusFilter,
     searchTerm,
     isAutoRefresh,
+    fetchAllLogs,
   ]);
 
   const filteredLogs = logs.filter((log) => {
@@ -428,25 +429,27 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
         toast.error("Failed to reset logs");
         setIsResetting(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to reset logs:", error);
 
       // Handle rate limiting with retry
-      if (error.response?.status === 429 && retryCount < 3) {
+      const err = error as { response?: { status?: number; data?: { message?: string } } };
+      if (err.response?.status === 429 && retryCount < 3) {
         const retryDelay = (retryCount + 1) * 2000; // 2s, 4s, 6s
         toast.info(
           `Rate limit reached. Retrying in ${retryDelay / 1000} seconds...`,
         );
         shouldRetry = true;
+        console.log('Will retry after delay:', shouldRetry);
 
         setTimeout(() => {
           handleResetLogs(retryCount + 1);
         }, retryDelay);
       } else {
         const errorMessage =
-          error.response?.status === 429
+          err.response?.status === 429
             ? "Too many requests. Please wait a moment and try again."
-            : error.response?.data?.message || "Failed to reset logs";
+            : err.response?.data?.message || "Failed to reset logs";
 
         toast.error(errorMessage);
         setIsResetting(false);
@@ -896,8 +899,10 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
                                           }
 
                                           // Check if it's in the data property
-                                          if (ctx?.data?.progress)
-                                            return ctx.data.progress;
+                                          if (ctx && typeof ctx === 'object' && 'data' in ctx) {
+                                            const data = ctx.data as { progress?: unknown };
+                                            if (data?.progress) return data.progress;
+                                          }
 
                                           return undefined;
                                         })()}

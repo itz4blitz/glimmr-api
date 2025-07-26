@@ -26,8 +26,6 @@ import { api } from "@/lib/api";
 import { 
   LineChart, 
   Line, 
-  AreaChart, 
-  Area, 
   BarChart, 
   Bar, 
   XAxis, 
@@ -111,7 +109,17 @@ export function QueueDashboard({
       
       // Transform the data to match expected format - API returns 'queues' array
       const queueData = response.data.queues || [];
-      const transformedData = queueData.map((queue: any) => ({
+      const transformedData = queueData.map((queue: {
+        name: string;
+        active?: number;
+        waiting?: number;
+        completed?: number;
+        failed?: number;
+        delayed?: number;
+        paused?: boolean;
+        processingRate?: number;
+        avgProcessingTime?: number;
+      }) => ({
         name: queue.name,
         displayName: queue.name.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
         health: queue.paused ? "paused" : "healthy",
@@ -131,8 +139,8 @@ export function QueueDashboard({
           avgProcessingTime: queue.avgProcessingTime || 0,
           p95ProcessingTime: (queue.avgProcessingTime || 0) * 1.5,
           p99ProcessingTime: (queue.avgProcessingTime || 0) * 2,
-          successRate: (queue.completed + queue.failed) > 0 
-            ? (queue.completed / (queue.completed + queue.failed)) * 100 
+          successRate: ((queue.completed || 0) + (queue.failed || 0)) > 0 
+            ? ((queue.completed || 0) / ((queue.completed || 0) + (queue.failed || 0))) * 100 
             : 0,
         },
         historicalData: [], // Real historical data should come from backend

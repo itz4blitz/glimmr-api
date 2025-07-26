@@ -44,6 +44,7 @@ export interface User {
   apiKey?: string;
   profile?: UserProfile;
   preferences?: UserPreferences;
+  activityCount?: number;
 }
 
 export const UserRole = {

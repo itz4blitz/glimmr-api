@@ -58,7 +58,7 @@ interface ActivityLog {
   ipAddress: string;
   userAgent: string;
   success: boolean;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   errorMessage?: string;
 }
 
@@ -67,14 +67,6 @@ interface DateRange {
   to: Date | undefined;
 }
 
-type ActivityCategory =
-  | "authentication"
-  | "account"
-  | "data"
-  | "administrative"
-  | "security"
-  | "system";
-type ActivityImportance = "high" | "medium" | "low";
 
 const getActivityIcon = (action: string, size = "h-4 w-4") => {
   const iconClass = size;
@@ -160,7 +152,7 @@ const getDeviceIcon = (userAgent: string) => {
   return <Monitor className="h-4 w-4" />;
 };
 
-const renderMetadataValue = (value: any): string => {
+const renderMetadataValue = (value: unknown): string => {
   if (value === null || value === undefined) return "-";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.join(", ");

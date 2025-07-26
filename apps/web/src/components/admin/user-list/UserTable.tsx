@@ -15,10 +15,8 @@ import type { UserSortField } from "@/types/userManagement";
 
 interface UserTableProps {
   users: User[];
-  loading: boolean;
   selectedUsers: string[];
   onUserSelect: (userId: string, selected: boolean) => void;
-  onSelectAll: (selected: boolean) => void;
   onUserClick: (userId: string) => void;
   onUserAction: (userId: string, action: string) => void;
   sortField: UserSortField;
@@ -28,10 +26,8 @@ interface UserTableProps {
 
 export function UserTable({
   users,
-  loading, // eslint-disable-line @typescript-eslint/no-unused-vars
   selectedUsers,
   onUserSelect,
-  onSelectAll, // eslint-disable-line @typescript-eslint/no-unused-vars
   onUserClick,
   onUserAction,
   sortField,

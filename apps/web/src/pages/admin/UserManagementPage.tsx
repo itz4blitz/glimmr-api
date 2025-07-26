@@ -77,7 +77,6 @@ function UserManagementPageContent() {
     loadUserStats,
     selectUser,
     deselectUser,
-    selectAllUsers,
     clearSelection,
   } = useUserManagementStore();
 
@@ -85,7 +84,7 @@ function UserManagementPageContent() {
   useEffect(() => {
     loadUsers();
     loadUserStats();
-  }, []); // Remove dependencies to prevent multiple calls
+  }, [loadUsers, loadUserStats]);
 
   // Update search term in store with debouncing
   useEffect(() => {
@@ -332,7 +331,6 @@ function UserManagementPageContent() {
                   <UserList
                     selectedUsers={selectedUserIds}
                     onUserSelect={handleUserSelect}
-                    onSelectAll={selectAllUsers}
                     onUserEdit={handleUserAction}
                   />
                 )}

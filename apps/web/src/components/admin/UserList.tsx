@@ -8,14 +8,12 @@ import type { UserSortField } from "@/types/userManagement";
 interface UserListProps {
   selectedUsers: string[];
   onUserSelect: (userId: string, selected: boolean) => void;
-  onSelectAll: (selected: boolean) => void;
   onUserEdit?: (userId: string) => void;
 }
 
 export function UserList({
   selectedUsers,
   onUserSelect,
-  onSelectAll,
   onUserEdit,
 }: UserListProps) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -68,7 +66,7 @@ export function UserList({
         case "deactivate":
           await deactivateUser(userId);
           break;
-        case "delete":
+        case "delete": {
           const confirmed = window.confirm(
             "Are you sure you want to delete this user?",
           );
@@ -76,6 +74,7 @@ export function UserList({
             await deleteUser(userId);
           }
           break;
+        }
       }
     } catch (error) {
       console.error(`Failed to ${action} user:`, error);
@@ -97,10 +96,8 @@ export function UserList({
       <div className="overflow-hidden">
         <UserTable
           users={users}
-          loading={loading.users}
           selectedUsers={selectedUsers}
           onUserSelect={onUserSelect}
-          onSelectAll={onSelectAll}
           onUserClick={setSelectedUserId}
           onUserAction={handleUserAction}
           sortField={sortField}

@@ -1,8 +1,10 @@
 import type {
   User,
-  UserRole,
   UserPreferences as AuthUserPreferences,
 } from "./auth";
+import { UserRole } from "./auth";
+
+export { UserRole };
 
 // API Request/Response Types
 export interface UserListParams {
@@ -37,6 +39,7 @@ export interface UserListItem {
   emailVerified: boolean;
   lastLoginAt?: string;
   createdAt: string;
+  updatedAt: string;
   profile?: {
     avatarUrl?: string;
     company?: string;
@@ -114,6 +117,7 @@ export interface UserFile {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  uploadedAt: string;
 }
 
 export interface UserWithProfile extends User {

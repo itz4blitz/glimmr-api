@@ -341,8 +341,12 @@ export function QueueAnalyticsPage() {
               </Select>
               {timeRange === "custom" && (
                 <DateRangePicker
-                  value={dateRange}
-                  onChange={(range) => range && setDateRange(range)}
+                  date={dateRange}
+                  onDateChange={(range) => {
+                    if (range.from && range.to) {
+                      setDateRange({ from: range.from, to: range.to });
+                    }
+                  }}
                 />
               )}
               <Select value={selectedQueue} onValueChange={setSelectedQueue}>

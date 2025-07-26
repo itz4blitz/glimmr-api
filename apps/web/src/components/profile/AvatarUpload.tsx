@@ -69,7 +69,7 @@ export function AvatarUpload({ children }: AvatarUploadProps) {
         ...user,
         profile: {
           ...user.profile,
-          avatarUrl: newAvatarUrl,
+          avatarUrl: newAvatarUrl || undefined,
         },
       });
 

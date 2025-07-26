@@ -57,7 +57,6 @@ import {
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { format, parseISO, addDays, addHours, addMinutes } from "date-fns";
-// @ts-expect-error - cronstrue types not available
 import cronstrue from "cronstrue";
 
 interface JobTemplate {
@@ -689,7 +688,7 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
                                 onValueChange={(value) =>
                                   setScheduleForm({
                                     ...scheduleForm,
-                                    intervalUnit: value,
+                                    intervalUnit: value as "minutes" | "hours" | "days",
                                   })
                                 }
                               >

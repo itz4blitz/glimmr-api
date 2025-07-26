@@ -3,8 +3,8 @@ import {
   useContext,
   useState,
   useCallback,
-  ReactNode,
 } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { UnsavedChangesModal } from "@/components/common/UnsavedChangesModal";
 
@@ -46,7 +46,7 @@ export function UnsavedChangesProvider({
   }, []);
 
   const checkUnsavedChanges = useCallback(
-    (onProceed: () => void, onCancel?: () => void) => {
+    (onProceed: () => void, _onCancel?: () => void) => {
       if (hasUnsavedChanges) {
         setPendingAction(() => onProceed);
         setIsModalOpen(true);

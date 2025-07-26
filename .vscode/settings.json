@@ -1,0 +1,45 @@
+{
+  // Enable TypeScript checking for the entire project
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  
+  // Enable ESLint for the entire project
+  "eslint.lintTask.enable": true,
+  "eslint.lintTask.options": "--cache --ext .js,.jsx,.ts,.tsx .",
+  
+  // Run ESLint on save
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  
+  // TypeScript preferences
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  
+  // Show all problems, not just for open files
+  "problems.showCurrentInStatus": true,
+  
+  // Enable TypeScript's semantic checking
+  "typescript.validate.enable": true,
+  "javascript.validate.enable": true,
+  
+  // Format on save
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  
+  // Exclude node_modules and build folders from file watching
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.turbo/**": true
+  },
+  
+  // Search exclusions
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.turbo": true,
+    "pnpm-lock.yaml": true
+  }
+}

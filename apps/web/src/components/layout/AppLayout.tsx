@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { useSidebarStore } from "@/stores/sidebar";
@@ -12,15 +12,6 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { isPending } = useNavigation();
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  // Only show initial animation once
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialLoad(false);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Keyboard shortcut to toggle sidebar (Ctrl/Cmd + B)
   useEffect(() => {

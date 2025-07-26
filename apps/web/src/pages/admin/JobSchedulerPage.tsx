@@ -49,12 +49,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/lib/api";
@@ -71,7 +65,7 @@ interface ScheduledJob {
   lastRun?: string;
   lastStatus?: "success" | "failed";
   description?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   options?: {
     priority?: number;
     delay?: number;
@@ -100,7 +94,7 @@ interface JobHistory {
   status: "running" | "completed" | "failed";
   duration?: number;
   error?: string;
-  result?: any;
+  result?: unknown;
 }
 
 const CRON_PRESETS = [
@@ -129,9 +123,9 @@ export function JobSchedulerPage() {
   const [loading, setLoading] = useState(true);
   const [scheduledJobs, setScheduledJobs] = useState<ScheduledJob[]>([]);
   const [jobHistory, setJobHistory] = useState<JobHistory[]>([]);
-  const [] = useState<ScheduledJob | null>(null);
+  // const [selectedJob, setSelectedJob] = useState<ScheduledJob | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [] = useState(false);
+  // const [showEditDialog, setShowEditDialog] = useState(false);
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
@@ -155,7 +149,20 @@ export function JobSchedulerPage() {
         params: { limit: 50 }
       });
       // Transform job data to match history format
-      const history = (response.data.data || []).map((job: any) => ({
+      const history = (response.data.data || []).map((job: {
+        id: string;
+        name?: string;
+        queueName?: string;
+        processedOn?: string;
+        createdAt?: string;
+        finishedOn?: string;
+        status?: string;
+        duration?: number;
+        error?: string;
+        result?: unknown;
+        failedReason?: string;
+        returnvalue?: unknown;
+      }) => ({
         id: job.id,
         jobId: job.id,
         jobName: job.name || job.queueName,
