@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
-import { AnalyticsController } from './analytics.controller';
-import { AnalyticsService } from './analytics.service';
-import { AuthModule } from '../auth/auth.module';
-import { QUEUE_NAMES } from '../jobs/queues/queue.config';
+import { Module } from "@nestjs/common";
+import { BullModule } from "@nestjs/bullmq";
+import { AnalyticsController } from "./analytics.controller";
+import { AnalyticsService } from "./analytics.service";
+import { AuthModule } from "../auth/auth.module";
+import { QUEUE_NAMES } from "../jobs/queues/queue.config";
 
 @Module({
   imports: [

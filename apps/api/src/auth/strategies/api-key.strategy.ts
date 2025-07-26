@@ -1,13 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import Strategy from 'passport-headerapikey';
-import { AuthService } from '../auth.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import Strategy from "passport-headerapikey";
+import { AuthService } from "../auth.service";
 
 @Injectable()
-export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
+export class ApiKeyStrategy extends PassportStrategy(Strategy, "api-key") {
   constructor(private authService: AuthService) {
     super(
-      { header: 'x-api-key', prefix: '' },
+      { header: "x-api-key", prefix: "" },
       true,
       async (apiKey: string, done) => {
         return this.validate(apiKey, done);
@@ -18,7 +18,7 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
   async validate(apiKey: string, done: (error: Error, data) => {}) {
     const user = await this.authService.validateApiKey(apiKey);
     if (!user) {
-      done(new UnauthorizedException('Invalid API key'), null);
+      done(new UnauthorizedException("Invalid API key"), null);
       return;
     }
     done(null, {

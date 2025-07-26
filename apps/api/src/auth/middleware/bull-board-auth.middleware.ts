@@ -1,8 +1,12 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth.service';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { Request, Response, NextFunction } from "express";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { AuthService } from "../auth.service";
 
 @Injectable()
 export class BullBoardAuthMiddleware implements NestMiddleware {
@@ -14,18 +18,22 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization;
-    const apiKey = req.headers['x-api-key'];
-    
+    const apiKey = req.headers["x-api-key"];
+
     try {
       let user = null;
 
       // Try JWT authentication first
-      if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      if (
+        authHeader &&
+        typeof authHeader === "string" &&
+        authHeader.startsWith("Bearer ")
+      ) {
         const token = authHeader.substring(7);
         const payload = this.jwtService.verify(token, {
-          secret: this.configService.get<string>('JWT_SECRET'),
+          secret: this.configService.get<string>("JWT_SECRET"),
         });
-        
+
         user = {
           id: payload.sub,
           username: payload.username,
@@ -33,7 +41,7 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
         };
       }
       // Try API key authentication
-      else if (apiKey && typeof apiKey === 'string') {
+      else if (apiKey && typeof apiKey === "string") {
         const validatedUser = await this.authService.validateApiKey(apiKey);
         if (validatedUser) {
           user = {
@@ -45,11 +53,11 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
       }
 
       // Check if user has admin role
-      if (!user || user.role !== 'admin') {
+      if (!user || user.role !== "admin") {
         res.status(401).json({
           statusCode: 401,
-          message: 'Admin access required for queue management',
-          error: 'Unauthorized',
+          message: "Admin access required for queue management",
+          error: "Unauthorized",
         });
         return;
       }
@@ -58,8 +66,8 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
     } catch (error) {
       res.status(401).json({
         statusCode: 401,
-        message: 'Invalid credentials',
-        error: 'Unauthorized',
+        message: "Invalid credentials",
+        error: "Unauthorized",
       });
       return;
     }

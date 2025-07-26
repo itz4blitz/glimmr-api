@@ -1,7 +1,10 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from "@nestjs/common";
 
 export class BusinessLogicException extends HttpException {
-  constructor(message: string, statusCode: HttpStatus = HttpStatus.BAD_REQUEST) {
+  constructor(
+    message: string,
+    statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
+  ) {
     super(message, statusCode);
   }
 }
@@ -30,7 +33,7 @@ export class InvalidFileFormatException extends BusinessLogicException {
 export class ExternalServiceException extends BusinessLogicException {
   constructor(serviceName: string, message?: string) {
     super(
-      `External service ${serviceName} error${message ? `: ${message}` : ''}`,
+      `External service ${serviceName} error${message ? `: ${message}` : ""}`,
       HttpStatus.BAD_GATEWAY,
     );
   }
@@ -40,7 +43,7 @@ export class RateLimitExceededException extends BusinessLogicException {
   constructor(service: string, retryAfter?: number) {
     super(
       `Rate limit exceeded for ${service}${
-        retryAfter ? `. Retry after ${retryAfter} seconds` : ''
+        retryAfter ? `. Retry after ${retryAfter} seconds` : ""
       }`,
       HttpStatus.TOO_MANY_REQUESTS,
     );
@@ -50,7 +53,7 @@ export class RateLimitExceededException extends BusinessLogicException {
 export class DatabaseOperationException extends BusinessLogicException {
   constructor(operation: string, details?: string) {
     super(
-      `Database operation failed: ${operation}${details ? `. ${details}` : ''}`,
+      `Database operation failed: ${operation}${details ? `. ${details}` : ""}`,
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
@@ -60,7 +63,7 @@ export class ValidationException extends BusinessLogicException {
   constructor(field: string, value: any, reason?: string) {
     super(
       `Validation failed for field '${field}' with value '${value}'${
-        reason ? `: ${reason}` : ''
+        reason ? `: ${reason}` : ""
       }`,
       HttpStatus.UNPROCESSABLE_ENTITY,
     );
@@ -79,7 +82,7 @@ export class ConfigurationException extends BusinessLogicException {
 export class JobProcessingException extends BusinessLogicException {
   constructor(jobName: string, message?: string) {
     super(
-      `Job processing failed: ${jobName}${message ? `. ${message}` : ''}`,
+      `Job processing failed: ${jobName}${message ? `. ${message}` : ""}`,
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }

@@ -1,35 +1,34 @@
-import { Button } from '@/components/ui/button'
-import {
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationData {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 interface UserTablePaginationProps {
-  pagination: PaginationData
-  loading: boolean
-  onPageChange: (page: number) => void
+  pagination: PaginationData;
+  loading: boolean;
+  onPageChange: (page: number) => void;
 }
 
 export function UserTablePagination({
   pagination,
   loading,
-  onPageChange
+  onPageChange,
 }: UserTablePaginationProps) {
   if (pagination.totalPages <= 1) {
-    return null
+    return null;
   }
 
   return (
     <div className="flex items-center justify-between p-6 bg-gradient-to-r from-muted/20 to-muted/10 border-t border-border/20">
       <div className="text-sm text-muted-foreground font-medium">
-        Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} users
+        Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+        {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+        {pagination.total} users
       </div>
       <div className="flex items-center gap-3">
         <Button
@@ -57,5 +56,5 @@ export function UserTablePagination({
         </Button>
       </div>
     </div>
-  )
+  );
 }

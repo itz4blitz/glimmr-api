@@ -1,73 +1,76 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, Save, RefreshCw } from 'lucide-react'
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle 
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { toast } from 'sonner'
-import { apiClient } from '@/lib/api'
+import { useState, useEffect } from "react";
+import { Save, RefreshCw } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { apiClient } from "@/lib/api";
 
 interface QueueConfig {
-  queueName: string
-  displayName: string
-  description: string | null
-  isEnabled: boolean
-  maxConcurrency: number
-  defaultJobOptions: any
-  removeOnComplete: number
-  removeOnFail: number
-  rateLimitMax: number | null
-  rateLimitDuration: number | null
-  alertOnFailureCount: number
-  alertOnQueueSize: number
+  queueName: string;
+  displayName: string;
+  description: string | null;
+  isEnabled: boolean;
+  maxConcurrency: number;
+  defaultJobOptions: Record<string, unknown>;
+  removeOnComplete: number;
+  removeOnFail: number;
+  rateLimitMax: number | null;
+  rateLimitDuration: number | null;
+  alertOnFailureCount: number;
+  alertOnQueueSize: number;
 }
 
 interface QueueConfigModalProps {
-  isOpen: boolean
-  onClose: () => void
-  queueName: string | null
+  isOpen: boolean;
+  onClose: () => void;
+  queueName: string | null;
 }
 
-export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModalProps) {
-  const [config, setConfig] = useState<QueueConfig | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
+export function QueueConfigModal({
+  isOpen,
+  onClose,
+  queueName,
+}: QueueConfigModalProps) {
+  const [config, setConfig] = useState<QueueConfig | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen && queueName) {
-      fetchConfig()
-    }
-  }, [isOpen, queueName])
+    const fetchConfig = async () => {
+      if (!queueName) return;
 
-  const fetchConfig = async () => {
-    if (!queueName) return
-    
-    setIsLoading(true)
-    try {
-      const response = await apiClient.get(`/jobs/configuration/${queueName}`)
-      setConfig(response.data)
-    } catch (error: any) {
-      console.error('Failed to fetch queue configuration:', error)
-      toast.error('Failed to fetch queue configuration')
-    } finally {
-      setIsLoading(false)
+      setIsLoading(true);
+      try {
+        const response = await apiClient.get(`/jobs/configuration/${queueName}`);
+        setConfig(response.data);
+      } catch (error) {
+        console.error("Failed to fetch queue configuration:", error);
+        toast.error("Failed to fetch queue configuration");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isOpen && queueName) {
+      fetchConfig();
     }
-  }
+  }, [isOpen, queueName]);
 
   const handleSave = async () => {
-    if (!config || !queueName) return
-    
-    setIsSaving(true)
+    if (!config || !queueName) return;
+
+    setIsSaving(true);
     try {
       const response = await apiClient.put(`/jobs/configuration/${queueName}`, {
         displayName: config.displayName,
@@ -80,27 +83,37 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
         rateLimitDuration: config.rateLimitDuration,
         alertOnFailureCount: config.alertOnFailureCount,
         alertOnQueueSize: config.alertOnQueueSize,
-      })
-      setConfig(response.data)
-      toast.success('Queue configuration updated successfully')
-    } catch (error: any) {
-      console.error('Failed to save queue configuration:', error)
-      toast.error('Failed to save queue configuration')
+      });
+      setConfig(response.data);
+      toast.success("Queue configuration updated successfully");
+    } catch (error) {
+      console.error("Failed to save queue configuration:", error);
+      toast.error("Failed to save queue configuration");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleReset = async () => {
-    await fetchConfig()
-    toast.info('Configuration reset to current values')
-  }
+    if (!queueName) return;
 
-  if (!isOpen || !config) return null
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get(`/jobs/configuration/${queueName}`);
+      setConfig(response.data);
+      toast.info("Configuration reset to current values");
+    } catch (error) {
+      console.error("Failed to fetch queue configuration:", error);
+      toast.error("Failed to fetch queue configuration");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen || !config) return null;
 
   return (
-    <AnimatePresence>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">
@@ -111,7 +124,10 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue="general" className="flex-1 overflow-hidden flex flex-col">
+          <Tabs
+            defaultValue="general"
+            className="flex-1 overflow-hidden flex flex-col"
+          >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -125,7 +141,9 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                   <Input
                     id="displayName"
                     value={config.displayName}
-                    onChange={(e) => setConfig({ ...config, displayName: e.target.value })}
+                    onChange={(e) =>
+                      setConfig({ ...config, displayName: e.target.value })
+                    }
                   />
                 </div>
 
@@ -133,8 +151,10 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    value={config.description || ''}
-                    onChange={(e) => setConfig({ ...config, description: e.target.value })}
+                    value={config.description || ""}
+                    onChange={(e) =>
+                      setConfig({ ...config, description: e.target.value })
+                    }
                     placeholder="Optional description for this queue"
                   />
                 </div>
@@ -149,7 +169,9 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                   <Switch
                     id="isEnabled"
                     checked={config.isEnabled}
-                    onCheckedChange={(checked) => setConfig({ ...config, isEnabled: checked })}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, isEnabled: checked })
+                    }
                   />
                 </div>
               </TabsContent>
@@ -163,7 +185,12 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                     min="1"
                     max="100"
                     value={config.maxConcurrency}
-                    onChange={(e) => setConfig({ ...config, maxConcurrency: parseInt(e.target.value) || 1 })}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        maxConcurrency: parseInt(e.target.value) || 1,
+                      })
+                    }
                   />
                   <p className="text-sm text-muted-foreground">
                     Maximum number of jobs processed simultaneously
@@ -172,14 +199,21 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="removeOnComplete">Keep Completed Jobs</Label>
+                    <Label htmlFor="removeOnComplete">
+                      Keep Completed Jobs
+                    </Label>
                     <Input
                       id="removeOnComplete"
                       type="number"
                       min="0"
                       max="1000"
                       value={config.removeOnComplete}
-                      onChange={(e) => setConfig({ ...config, removeOnComplete: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          removeOnComplete: parseInt(e.target.value) || 0,
+                        })
+                      }
                     />
                     <p className="text-sm text-muted-foreground">
                       Number of completed jobs to keep
@@ -194,7 +228,12 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                       min="0"
                       max="1000"
                       value={config.removeOnFail}
-                      onChange={(e) => setConfig({ ...config, removeOnFail: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          removeOnFail: parseInt(e.target.value) || 0,
+                        })
+                      }
                     />
                     <p className="text-sm text-muted-foreground">
                       Number of failed jobs to keep
@@ -212,25 +251,35 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                         type="number"
                         min="1"
                         placeholder="No limit"
-                        value={config.rateLimitMax || ''}
-                        onChange={(e) => setConfig({ 
-                          ...config, 
-                          rateLimitMax: e.target.value ? parseInt(e.target.value) : null 
-                        })}
+                        value={config.rateLimitMax || ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            rateLimitMax: e.target.value
+                              ? parseInt(e.target.value)
+                              : null,
+                          })
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="rateLimitDuration">Per Duration (ms)</Label>
+                      <Label htmlFor="rateLimitDuration">
+                        Per Duration (ms)
+                      </Label>
                       <Input
                         id="rateLimitDuration"
                         type="number"
                         min="1000"
                         placeholder="Duration in ms"
-                        value={config.rateLimitDuration || ''}
-                        onChange={(e) => setConfig({ 
-                          ...config, 
-                          rateLimitDuration: e.target.value ? parseInt(e.target.value) : null 
-                        })}
+                        value={config.rateLimitDuration || ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            rateLimitDuration: e.target.value
+                              ? parseInt(e.target.value)
+                              : null,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -242,14 +291,21 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
 
               <TabsContent value="alerts" className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="alertOnFailureCount">Alert on Failure Count</Label>
+                  <Label htmlFor="alertOnFailureCount">
+                    Alert on Failure Count
+                  </Label>
                   <Input
                     id="alertOnFailureCount"
                     type="number"
                     min="1"
                     max="100"
                     value={config.alertOnFailureCount}
-                    onChange={(e) => setConfig({ ...config, alertOnFailureCount: parseInt(e.target.value) || 5 })}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        alertOnFailureCount: parseInt(e.target.value) || 5,
+                      })
+                    }
                   />
                   <p className="text-sm text-muted-foreground">
                     Send alert when this many jobs fail consecutively
@@ -264,7 +320,12 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
                     min="10"
                     max="10000"
                     value={config.alertOnQueueSize}
-                    onChange={(e) => setConfig({ ...config, alertOnQueueSize: parseInt(e.target.value) || 100 })}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        alertOnQueueSize: parseInt(e.target.value) || 100,
+                      })
+                    }
                   />
                   <p className="text-sm text-muted-foreground">
                     Send alert when queue size exceeds this threshold
@@ -284,24 +345,16 @@ export function QueueConfigModal({ isOpen, onClose, queueName }: QueueConfigModa
               Reset
             </Button>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                disabled={isSaving}
-              >
+              <Button variant="outline" onClick={onClose} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isLoading || isSaving}
-              >
+              <Button onClick={handleSave} disabled={isLoading || isSaving}>
                 <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-    </AnimatePresence>
-  )
+    </Dialog>
+  );
 }

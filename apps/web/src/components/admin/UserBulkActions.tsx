@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +16,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 import {
   UserCheck,
@@ -27,152 +27,155 @@ import {
   Mail,
   X,
   AlertTriangle,
-  Loader2
-} from 'lucide-react'
-import { useUserManagementStore } from '@/stores/userManagement'
-import type { BulkUserActionDto } from '@/types/userManagement'
-import { UserRole } from '@/types/auth'
+  Loader2,
+} from "lucide-react";
+import { useUserManagementStore } from "@/stores/userManagement";
+import type { BulkUserActionDto } from "@/types/userManagement";
+import { UserRole } from "@/types/auth";
 
 interface UserBulkActionsProps {
-  selectedUserIds: string[]
-  onClear: () => void
+  selectedUserIds: string[];
+  onClear: () => void;
 }
 
-export function UserBulkActions({ selectedUserIds, onClear }: UserBulkActionsProps) {
-  const [selectedAction, setSelectedAction] = useState('')
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [pendingAction, setPendingAction] = useState('')
+export function UserBulkActions({
+  selectedUserIds,
+  onClear,
+}: UserBulkActionsProps) {
+  const [selectedAction, setSelectedAction] = useState("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState("");
 
-  const { bulkAction, loading } = useUserManagementStore()
-  const selectedCount = selectedUserIds.length
+  const { bulkAction, loading } = useUserManagementStore();
+  const selectedCount = selectedUserIds.length;
 
   const handleActionSelect = (action: string) => {
-    setSelectedAction(action)
+    setSelectedAction(action);
 
     // Actions that require confirmation
-    const destructiveActions = ['delete', 'deactivate', 'remove_admin']
+    const destructiveActions = ["delete", "deactivate", "remove_admin"];
     if (destructiveActions.includes(action)) {
-      setPendingAction(action)
-      setShowConfirmDialog(true)
+      setPendingAction(action);
+      setShowConfirmDialog(true);
     } else {
-      executeAction(action)
+      executeAction(action);
     }
-  }
+  };
 
   const executeAction = async (action: string) => {
     try {
-      let bulkActionData: BulkUserActionDto
+      let bulkActionData: BulkUserActionDto;
 
       switch (action) {
-        case 'activate':
+        case "activate":
           bulkActionData = {
             userIds: selectedUserIds,
-            action: 'activate'
-          }
-          break
-        case 'deactivate':
+            action: "activate",
+          };
+          break;
+        case "deactivate":
           bulkActionData = {
             userIds: selectedUserIds,
-            action: 'deactivate'
-          }
-          break
-        case 'delete':
+            action: "deactivate",
+          };
+          break;
+        case "delete":
           bulkActionData = {
             userIds: selectedUserIds,
-            action: 'delete'
-          }
-          break
-        case 'make_admin':
+            action: "delete",
+          };
+          break;
+        case "make_admin":
           bulkActionData = {
             userIds: selectedUserIds,
-            action: 'activate', // Activate and set role
-            role: UserRole.ADMIN
-          }
-          break
-        case 'remove_admin':
+            action: "activate", // Activate and set role
+            role: UserRole.ADMIN,
+          };
+          break;
+        case "remove_admin":
           bulkActionData = {
             userIds: selectedUserIds,
-            action: 'activate', // Keep active but change role
-            role: UserRole.USER
-          }
-          break
+            action: "activate", // Keep active but change role
+            role: UserRole.USER,
+          };
+          break;
         default:
-          throw new Error(`Unknown action: ${action}`)
+          throw new Error(`Unknown action: ${action}`);
       }
 
-      await bulkAction(bulkActionData)
-      onClear()
+      await bulkAction(bulkActionData);
+      onClear();
     } catch (error) {
-      console.error('Bulk action failed:', error)
+      console.error("Bulk action failed:", error);
     } finally {
-      setSelectedAction('')
-      setShowConfirmDialog(false)
-      setPendingAction('')
+      setSelectedAction("");
+      setShowConfirmDialog(false);
+      setPendingAction("");
     }
-  }
+  };
 
   const getActionDetails = (action: string) => {
     switch (action) {
-      case 'activate':
+      case "activate":
         return {
-          title: 'Activate Users',
+          title: "Activate Users",
           description: `Are you sure you want to activate ${selectedCount} selected user(s)? They will be able to access the system.`,
           icon: <UserCheck className="h-4 w-4" />,
-          variant: 'default' as const
-        }
-      case 'deactivate':
+          variant: "default" as const,
+        };
+      case "deactivate":
         return {
-          title: 'Deactivate Users',
+          title: "Deactivate Users",
           description: `Are you sure you want to deactivate ${selectedCount} selected user(s)? They will lose access to the system.`,
           icon: <UserX className="h-4 w-4" />,
-          variant: 'destructive' as const
-        }
-      case 'delete':
+          variant: "destructive" as const,
+        };
+      case "delete":
         return {
-          title: 'Delete Users',
+          title: "Delete Users",
           description: `Are you sure you want to permanently delete ${selectedCount} selected user(s)? This action cannot be undone.`,
           icon: <Trash2 className="h-4 w-4" />,
-          variant: 'destructive' as const
-        }
-      case 'verify_email':
+          variant: "destructive" as const,
+        };
+      case "verify_email":
         return {
-          title: 'Verify Email Addresses',
+          title: "Verify Email Addresses",
           description: `Mark email addresses as verified for ${selectedCount} selected user(s).`,
           icon: <Mail className="h-4 w-4" />,
-          variant: 'default' as const
-        }
-      case 'send_verification':
+          variant: "default" as const,
+        };
+      case "send_verification":
         return {
-          title: 'Send Verification Emails',
+          title: "Send Verification Emails",
           description: `Send verification emails to ${selectedCount} selected user(s).`,
           icon: <Mail className="h-4 w-4" />,
-          variant: 'default' as const
-        }
-      case 'make_admin':
+          variant: "default" as const,
+        };
+      case "make_admin":
         return {
-          title: 'Grant Admin Role',
+          title: "Grant Admin Role",
           description: `Grant administrator privileges to ${selectedCount} selected user(s).`,
           icon: <Shield className="h-4 w-4" />,
-          variant: 'default' as const
-        }
-      case 'remove_admin':
+          variant: "default" as const,
+        };
+      case "remove_admin":
         return {
-          title: 'Remove Admin Role',
+          title: "Remove Admin Role",
           description: `Remove administrator privileges from ${selectedCount} selected user(s).`,
           icon: <Shield className="h-4 w-4" />,
-          variant: 'destructive' as const
-        }
+          variant: "destructive" as const,
+        };
       default:
         return {
-          title: 'Confirm Action',
+          title: "Confirm Action",
           description: `Perform action on ${selectedCount} selected user(s).`,
           icon: <AlertTriangle className="h-4 w-4" />,
-          variant: 'default' as const
-        }
+          variant: "default" as const,
+        };
     }
-  }
+  };
 
-  const actionDetails = getActionDetails(pendingAction)
+  const actionDetails = getActionDetails(pendingAction);
 
   return (
     <>
@@ -265,18 +268,24 @@ export function UserBulkActions({ selectedUserIds, onClear }: UserBulkActionsPro
             <AlertDialogAction
               onClick={() => executeAction(pendingAction)}
               disabled={loading.bulkAction}
-              className={actionDetails.variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+              className={
+                actionDetails.variant === "destructive"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : ""
+              }
             >
               {loading.bulkAction ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                actionDetails.variant === 'destructive' && <AlertTriangle className="h-4 w-4 mr-2" />
+                actionDetails.variant === "destructive" && (
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                )
               )}
-              {loading.bulkAction ? 'Processing...' : 'Confirm'}
+              {loading.bulkAction ? "Processing..." : "Confirm"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

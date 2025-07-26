@@ -1,22 +1,27 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Injectable } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { DatabaseService } from '../../database/database.service';
-import { StorageService } from '../../storage/storage.service';
-import { QUEUE_NAMES } from '../queues/queue.config';
-import { priceTransparencyFiles, prices, jobs as jobsTable, jobLogs } from '../../database/schema';
-import { eq } from 'drizzle-orm';
-import * as Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-import { Readable } from 'stream';
-import * as zlib from 'zlib';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Job } from "bullmq";
+import { Injectable } from "@nestjs/common";
+import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { DatabaseService } from "../../database/database.service";
+import { StorageService } from "../../storage/storage.service";
+import { QUEUE_NAMES } from "../queues/queue.config";
+import {
+  priceTransparencyFiles,
+  prices,
+  jobs as jobsTable,
+  jobLogs,
+} from "../../database/schema";
+import { eq } from "drizzle-orm";
+import * as Papa from "papaparse";
+import * as XLSX from "xlsx";
+import { Readable } from "stream";
+import * as zlib from "zlib";
 // @ts-ignore - Types not available in container
-import * as tar from 'tar-stream';
+import * as tar from "tar-stream";
 // @ts-ignore - Types not available in container
-import * as unzipper from 'unzipper';
+import * as unzipper from "unzipper";
 
 export interface PriceFileParseJobData {
   hospitalId: string;
@@ -40,10 +45,17 @@ interface PriceRecord {
 }
 
 @Injectable()
-@Processor(QUEUE_NAMES.PRICE_FILE_PARSER)
+@Processor(QUEUE_NAMES.PRICE_FILE_PARSER, {
+  concurrency: 1, // Process 1 file at a time to prevent memory issues
+  lockDuration: 3600000, // 60 minutes for very large files
+  maxStalledCount: 3,
+  stalledInterval: 30000, // Check for stalled jobs every 30 seconds
+})
 export class PriceFileParserProcessor extends WorkerHost {
-  private readonly BATCH_SIZE = 1000;
-  private readonly MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+  private readonly BATCH_SIZE = 500; // Reduced batch size for better memory management
+  private readonly MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB - support larger files
+  private readonly PROGRESS_UPDATE_INTERVAL = 5000; // Update progress every 5 seconds
+  private lastProgressUpdate = 0;
 
   constructor(
     @InjectPinoLogger(PriceFileParserProcessor.name)
@@ -62,7 +74,7 @@ export class PriceFileParserProcessor extends WorkerHost {
     let jobRecord: any;
 
     this.logger.info({
-      msg: 'Starting file parsing',
+      msg: "Starting file parsing",
       jobId: job.id,
       hospitalId,
       fileId,
@@ -73,67 +85,189 @@ export class PriceFileParserProcessor extends WorkerHost {
 
     if (!storageKey) {
       this.logger.error({
-        msg: 'Storage key is missing',
+        msg: "Storage key is missing",
         jobData: job.data,
       });
-      throw new Error('Storage key is required for file parsing');
+      throw new Error("Storage key is required for file parsing");
     }
 
     try {
       // Create job record
       const db = this.databaseService.db;
-      const [newJob] = await db.insert(jobsTable).values({
-        jobType: 'data_import',
-        jobName: `Parse: ${filename}`,
-        description: `Parsing price transparency file ${filename}`,
-        status: 'running',
-        queue: QUEUE_NAMES.PRICE_FILE_PARSER,
-        priority: job.opts.priority || 0,
-        startedAt: new Date(),
-        inputData: JSON.stringify(job.data),
-        createdBy: 'system',
-      }).returning();
+      const [newJob] = await db
+        .insert(jobsTable)
+        .values({
+          jobType: "data_import",
+          jobName: `Parse: ${filename}`,
+          description: `Parsing price transparency file ${filename}`,
+          status: "running",
+          queue: QUEUE_NAMES.PRICE_FILE_PARSER,
+          priority: job.opts.priority || 0,
+          startedAt: new Date(),
+          inputData: JSON.stringify(job.data),
+          createdBy: "system",
+        })
+        .returning();
       jobRecord = newJob;
 
-      await this.logJobEvent(jobRecord.id, 'info', 'Job started', { fileType, filename });
-      await job.updateProgress({ percentage: 5, message: 'Downloading file from storage' });
+      await this.logJobEvent(jobRecord.id, "info", "Job started", {
+        fileType,
+        filename,
+      });
+      await job.updateProgress({
+        percentage: 5,
+        message: "Verifying file record",
+      });
+
+      // First check if the file record exists
+      const [fileRecord] = await db
+        .select()
+        .from(priceTransparencyFiles)
+        .where(eq(priceTransparencyFiles.id, fileId));
+
+      if (!fileRecord) {
+        this.logger.warn({
+          msg: "File record not found - likely a stale job",
+          fileId,
+          hospitalId,
+          filename,
+          jobId: job.id,
+        });
+
+        // Mark as completed to prevent retry
+        await this.updateJobSuccess(jobRecord.id, {
+          skipped: true,
+          reason: "File record not found - stale job",
+          fileId,
+          duration: Date.now() - startTime,
+        });
+
+        return {
+          skipped: true,
+          reason: "File record not found - this is a stale job",
+        };
+      }
+
+      await job.updateProgress({
+        percentage: 8,
+        message: "Downloading file from storage",
+      });
 
       // Update file status
       await db
         .update(priceTransparencyFiles)
         .set({
-          processingStatus: 'processing',
+          processingStatus: "processing",
           updatedAt: new Date(),
         })
         .where(eq(priceTransparencyFiles.id, fileId));
 
       // Download file from storage
-      const fileStream = await this.storageService.downloadToStream(storageKey);
-      
-      await job.updateProgress({ percentage: 10, message: 'Detecting file format' });
+      let fileStream;
+      try {
+        fileStream = await this.storageService.downloadToStream(storageKey);
+      } catch (storageError) {
+        this.logger.error({
+          msg: "Failed to download file from storage",
+          error: storageError.message,
+          storageKey,
+          fileId,
+        });
+
+        // Check if it's a 404 (file not found in storage)
+        if (storageError.statusCode === 404 || storageError.message?.includes("NoSuchKey")) {
+          await this.updateJobSuccess(jobRecord.id, {
+            skipped: true,
+            reason: "File not found in storage",
+            storageKey,
+            duration: Date.now() - startTime,
+          });
+
+          // Update file record to indicate missing file
+          await db
+            .update(priceTransparencyFiles)
+            .set({
+              processingStatus: "failed",
+              errorMessage: "File not found in storage",
+              updatedAt: new Date(),
+            })
+            .where(eq(priceTransparencyFiles.id, fileId));
+
+          return {
+            skipped: true,
+            reason: "File not found in storage",
+          };
+        }
+
+        throw storageError;
+      }
+
+      await job.updateProgress({
+        percentage: 10,
+        message: "Detecting file format",
+      });
 
       // Parse file based on type
       let extractedRecords: PriceRecord[] = [];
       const detectedType = this.detectFileType(filename, fileType);
 
       switch (detectedType) {
-        case 'csv':
+        case "csv":
           extractedRecords = await this.parseCSV(fileStream, job, jobRecord.id);
           break;
-        case 'json':
-          extractedRecords = await this.parseJSON(fileStream, job, jobRecord.id);
+        case "json":
+          extractedRecords = await this.parseJSON(
+            fileStream,
+            job,
+            jobRecord.id,
+          );
           break;
-        case 'excel':
-          extractedRecords = await this.parseExcel(fileStream, job, jobRecord.id);
+        case "excel":
+          extractedRecords = await this.parseExcel(
+            fileStream,
+            job,
+            jobRecord.id,
+          );
           break;
-        case 'zip':
-          extractedRecords = await this.parseZip(fileStream, job, jobRecord.id, hospitalId, fileId);
+        case "zip":
+          extractedRecords = await this.parseZip(
+            fileStream,
+            job,
+            jobRecord.id,
+            hospitalId,
+            fileId,
+          );
+          break;
+        case "xml":
+          extractedRecords = await this.parseXML(
+            fileStream,
+            job,
+            jobRecord.id,
+          );
           break;
         default:
-          throw new Error(`Unsupported file type: ${detectedType}`);
+          // Try CSV as fallback
+          this.logger.warn({
+            msg: "Unknown file type, attempting CSV parse",
+            detectedType,
+            filename,
+          });
+          try {
+            extractedRecords = await this.parseCSV(fileStream, job, jobRecord.id);
+          } catch (csvError) {
+            // If CSV fails, try JSON
+            this.logger.warn({
+              msg: "CSV parse failed, attempting JSON parse",
+              error: csvError.message,
+            });
+            extractedRecords = await this.parseJSON(fileStream, job, jobRecord.id);
+          }
       }
 
-      await job.updateProgress({ percentage: 80, message: 'Storing extracted records' });
+      await job.updateProgress({
+        percentage: 80,
+        message: "Storing extracted records",
+      });
 
       // Store records in batches
       const totalRecords = extractedRecords.length;
@@ -142,21 +276,29 @@ export class PriceFileParserProcessor extends WorkerHost {
 
       for (let i = 0; i < totalRecords; i += this.BATCH_SIZE) {
         const batch = extractedRecords.slice(i, i + this.BATCH_SIZE);
-        
-        const priceRecords = batch.map(record => ({
+
+        const priceRecords = batch.map((record) => ({
           hospitalId,
           fileId,
           code: record.code,
           codeType: record.codeType || this.detectCodeType(record.code),
           description: record.description,
           grossCharge: String(record.grossCharge),
-          discountedCashPrice: record.discountedCashPrice ? String(record.discountedCashPrice) : null,
-          minimumNegotiatedCharge: record.minNegotiatedRate ? String(record.minNegotiatedRate) : null,
-          maximumNegotiatedCharge: record.maxNegotiatedRate ? String(record.maxNegotiatedRate) : null,
-          payerSpecificNegotiatedCharges: record.payerRates ? JSON.stringify(record.payerRates) : null,
+          discountedCashPrice: record.discountedCashPrice
+            ? String(record.discountedCashPrice)
+            : null,
+          minimumNegotiatedCharge: record.minNegotiatedRate
+            ? String(record.minNegotiatedRate)
+            : null,
+          maximumNegotiatedCharge: record.maxNegotiatedRate
+            ? String(record.maxNegotiatedRate)
+            : null,
+          payerSpecificNegotiatedCharges: record.payerRates
+            ? JSON.stringify(record.payerRates)
+            : null,
           rawData: JSON.stringify(record.rawData || {}),
           reportingPeriod: this.extractReportingPeriod(filename),
-          dataSource: 'price_transparency_file',
+          dataSource: "price_transparency_file",
           isActive: true,
         }));
 
@@ -164,7 +306,8 @@ export class PriceFileParserProcessor extends WorkerHost {
         createdRecords += priceRecords.length;
         processedRecords += batch.length;
 
-        const progress = 80 + Math.round((processedRecords / totalRecords) * 15);
+        const progress =
+          80 + Math.round((processedRecords / totalRecords) * 15);
         await job.updateProgress({
           percentage: progress,
           message: `Stored ${processedRecords}/${totalRecords} records`,
@@ -184,30 +327,36 @@ export class PriceFileParserProcessor extends WorkerHost {
             priority: 3,
             attempts: 3,
             backoff: {
-              type: 'exponential',
+              type: "exponential",
               delay: 5000,
             },
-          }
+          },
         );
       }
 
-      await job.updateProgress({ percentage: 95, message: 'Updating file status' });
+      await job.updateProgress({
+        percentage: 95,
+        message: "Updating file status",
+      });
 
       // Update file record
       await db
         .update(priceTransparencyFiles)
         .set({
-          processingStatus: 'completed',
+          processingStatus: "completed",
           processedAt: new Date(),
           recordCount: totalRecords,
           updatedAt: new Date(),
         })
         .where(eq(priceTransparencyFiles.id, fileId));
 
-      await job.updateProgress({ percentage: 100, message: 'Parsing completed' });
+      await job.updateProgress({
+        percentage: 100,
+        message: "Parsing completed",
+      });
 
       const duration = Date.now() - startTime;
-      
+
       // Update job record
       await this.updateJobSuccess(jobRecord.id, {
         totalRecords,
@@ -217,7 +366,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       });
 
       this.logger.info({
-        msg: 'File parsing completed',
+        msg: "File parsing completed",
         jobId: job.id,
         fileId,
         totalRecords,
@@ -230,25 +379,27 @@ export class PriceFileParserProcessor extends WorkerHost {
         createdRecords,
         duration,
       };
-
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
       this.logger.error({
-        msg: 'File parsing failed',
+        msg: "File parsing failed",
         jobId: job.id,
         fileId,
         error: error.message,
         stack: error.stack,
+        duration,
       });
 
       if (jobRecord) {
-        await this.updateJobFailure(jobRecord.id, error);
+        await this.updateJobFailure(jobRecord.id, error, duration);
       }
 
       // Update file status
       await this.databaseService.db
         .update(priceTransparencyFiles)
         .set({
-          processingStatus: 'failed',
+          processingStatus: "failed",
           errorMessage: error.message,
           updatedAt: new Date(),
         })
@@ -259,64 +410,123 @@ export class PriceFileParserProcessor extends WorkerHost {
   }
 
   private detectFileType(filename: string, providedType: string): string {
-    const ext = filename.toLowerCase().split('.').pop();
-    
-    if (providedType && providedType !== 'unknown') {
+    // If providedType is valid and not unknown, use it
+    if (providedType && providedType !== "unknown" && providedType !== "") {
       return providedType;
     }
 
+    // Extract extension more reliably
+    const lowerFilename = filename.toLowerCase();
+    let ext = "";
+    
+    // Handle cases like .csv.gz, .json.zip etc
+    if (lowerFilename.includes(".")) {
+      const parts = lowerFilename.split(".");
+      // Check for compressed files
+      if (parts.length > 2 && ["gz", "zip", "tar", "bz2", "7z", "rar"].includes(parts[parts.length - 1])) {
+        // Use the extension before compression extension
+        ext = parts[parts.length - 2];
+        // Mark as compressed for special handling
+        if (["gz", "zip", "tar", "bz2", "7z", "rar"].includes(parts[parts.length - 1])) {
+          return "zip"; // Handle all compressed files as zip type
+        }
+      } else {
+        ext = parts[parts.length - 1];
+      }
+    }
+
+    // Map extension to file type
     switch (ext) {
-      case 'csv':
-        return 'csv';
-      case 'json':
-        return 'json';
-      case 'xlsx':
-      case 'xls':
-        return 'excel';
-      case 'zip':
-        return 'zip';
+      case "csv":
+      case "txt":
+        return "csv";
+      case "json":
+      case "js":
+        return "json";
+      case "xlsx":
+      case "xls":
+      case "xlsm":
+        return "excel";
+      case "zip":
+      case "gz":
+      case "tar":
+      case "7z":
+      case "rar":
+      case "bz2":
+        return "zip";
+      case "xml":
+        return "xml";
       default:
-        // Try to detect by content
-        return 'csv'; // Default to CSV
+        // Try to detect by content if possible
+        if (filename.includes("json") || filename.includes("JSON")) {
+          return "json";
+        } else if (filename.includes("xls") || filename.includes("XLS")) {
+          return "excel";
+        }
+        
+        // Default to CSV for unknown types since most hospital files are CSV
+        this.logger.warn({
+          msg: "Unknown file type, defaulting to CSV",
+          filename,
+          detectedExt: ext,
+          providedType
+        });
+        return "csv";
     }
   }
 
   private async parseCSV(
     stream: NodeJS.ReadableStream,
     job: Job,
-    jobId: string
+    jobId: string,
   ): Promise<PriceRecord[]> {
     return new Promise((resolve, reject) => {
       const records: PriceRecord[] = [];
       let rowCount = 0;
       let headerMap: Record<string, string> = {};
 
+      // Create the parser
       const parser = Papa.parse(Papa.NODE_STREAM_INPUT, {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
+        delimiter: ",", // Explicitly set delimiter
+        quoteChar: '"',
+        escapeChar: '"',
+        delimitersToGuess: [",", "\t", "|", ";"], // Auto-detect delimiter
         transformHeader: (header) => {
           // Normalize header names
-          const normalized = header.trim().toLowerCase()
-            .replace(/\s+/g, '_')
-            .replace(/[^a-z0-9_]/g, '');
-          
+          const normalized = header
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "_")
+            .replace(/[^a-z0-9_]/g, "");
+
           // Map common variations
-          if (normalized.includes('code') && !normalized.includes('type')) {
-            headerMap[normalized] = 'code';
-          } else if (normalized.includes('description') || normalized.includes('desc')) {
-            headerMap[normalized] = 'description';
-          } else if (normalized.includes('gross') && normalized.includes('charge')) {
-            headerMap[normalized] = 'grossCharge';
-          } else if (normalized.includes('cash') && normalized.includes('price')) {
-            headerMap[normalized] = 'discountedCashPrice';
+          if (normalized.includes("code") && !normalized.includes("type")) {
+            headerMap[normalized] = "code";
+          } else if (
+            normalized.includes("description") ||
+            normalized.includes("desc")
+          ) {
+            headerMap[normalized] = "description";
+          } else if (
+            normalized.includes("gross") &&
+            normalized.includes("charge")
+          ) {
+            headerMap[normalized] = "grossCharge";
+          } else if (
+            normalized.includes("cash") &&
+            normalized.includes("price")
+          ) {
+            headerMap[normalized] = "discountedCashPrice";
           }
-          
+
           return normalized;
         },
         step: (row: any) => {
           rowCount++;
-          
+
           try {
             const record = this.extractPriceRecord(row.data, headerMap);
             if (record && record.code && record.description) {
@@ -324,21 +534,39 @@ export class PriceFileParserProcessor extends WorkerHost {
             }
           } catch (error) {
             this.logger.warn({
-              msg: 'Failed to parse CSV row',
+              msg: "Failed to parse CSV row",
               row: rowCount,
               error: error.message,
             });
           }
 
           if (rowCount % 1000 === 0) {
-            job.updateProgress({
-              percentage: 10 + Math.min(60, Math.round((rowCount / 100000) * 60)),
-              message: `Parsed ${rowCount} rows`,
-            });
+            const now = Date.now();
+            if (now - this.lastProgressUpdate > this.PROGRESS_UPDATE_INTERVAL) {
+              this.lastProgressUpdate = now;
+              
+              const progressPercentage = 10 + Math.min(60, Math.round((rowCount / 100000) * 60));
+              
+              // Update progress and extend lock to prevent timeout
+              Promise.all([
+                job.updateProgress({
+                  percentage: progressPercentage,
+                  message: `Parsed ${rowCount} rows, ${records.length} valid records`,
+                }).catch(() => {}), // Don't fail on progress update
+                // Extend lock by 5 minutes to prevent stalling
+                job.token ? job.extendLock(job.token, 300000).catch(err => {
+                  this.logger.warn({
+                    msg: "Failed to extend job lock",
+                    error: err.message,
+                    rowCount,
+                  });
+                }) : Promise.resolve()
+              ]);
+            }
           }
         },
         complete: () => {
-          this.logJobEvent(jobId, 'info', 'CSV parsing completed', {
+          this.logJobEvent(jobId, "info", "CSV parsing completed", {
             totalRows: rowCount,
             extractedRecords: records.length,
           });
@@ -346,8 +574,8 @@ export class PriceFileParserProcessor extends WorkerHost {
         },
       });
 
-      parser.on('error', (error: Error) => {
-        this.logJobEvent(jobId, 'error', 'CSV parsing error', {
+      parser.on("error", (error: Error) => {
+        this.logJobEvent(jobId, "error", "CSV parsing error", {
           error: error.message,
           row: rowCount,
         });
@@ -361,25 +589,25 @@ export class PriceFileParserProcessor extends WorkerHost {
   private async parseJSON(
     stream: NodeJS.ReadableStream,
     job: Job,
-    jobId: string
+    jobId: string,
   ): Promise<PriceRecord[]> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      
-      stream.on('data', (chunk) => chunks.push(chunk));
-      stream.on('error', reject);
-      stream.on('end', async () => {
+
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("error", reject);
+      stream.on("end", async () => {
         try {
           const buffer = Buffer.concat(chunks);
-          const text = buffer.toString('utf-8');
+          const text = buffer.toString("utf-8");
           const data = JSON.parse(text);
 
-          await this.logJobEvent(jobId, 'info', 'JSON file loaded', {
+          await this.logJobEvent(jobId, "info", "JSON file loaded", {
             size: buffer.length,
           });
 
           const records: PriceRecord[] = [];
-          
+
           // Handle different JSON structures
           if (Array.isArray(data)) {
             // Direct array of price records
@@ -408,13 +636,13 @@ export class PriceFileParserProcessor extends WorkerHost {
             }
           }
 
-          await this.logJobEvent(jobId, 'info', 'JSON parsing completed', {
+          await this.logJobEvent(jobId, "info", "JSON parsing completed", {
             extractedRecords: records.length,
           });
 
           resolve(records);
         } catch (error) {
-          await this.logJobEvent(jobId, 'error', 'JSON parsing failed', {
+          await this.logJobEvent(jobId, "error", "JSON parsing failed", {
             error: error.message,
           });
           reject(error);
@@ -426,28 +654,28 @@ export class PriceFileParserProcessor extends WorkerHost {
   private async parseExcel(
     stream: NodeJS.ReadableStream,
     job: Job,
-    jobId: string
+    jobId: string,
   ): Promise<PriceRecord[]> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      
-      stream.on('data', (chunk) => chunks.push(chunk));
-      stream.on('error', reject);
-      stream.on('end', async () => {
+
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("error", reject);
+      stream.on("end", async () => {
         try {
           const buffer = Buffer.concat(chunks);
-          const workbook = XLSX.read(buffer, { type: 'buffer' });
+          const workbook = XLSX.read(buffer, { type: "buffer" });
 
-          await this.logJobEvent(jobId, 'info', 'Excel file loaded', {
+          await this.logJobEvent(jobId, "info", "Excel file loaded", {
             sheets: workbook.SheetNames,
           });
 
           const records: PriceRecord[] = [];
-          
+
           // Process each sheet
           for (const sheetName of workbook.SheetNames) {
             const sheet = workbook.Sheets[sheetName];
-            const data = XLSX.utils.sheet_to_json(sheet, { 
+            const data = XLSX.utils.sheet_to_json(sheet, {
               raw: false,
               defval: null,
             });
@@ -465,14 +693,14 @@ export class PriceFileParserProcessor extends WorkerHost {
             }
           }
 
-          await this.logJobEvent(jobId, 'info', 'Excel parsing completed', {
+          await this.logJobEvent(jobId, "info", "Excel parsing completed", {
             sheets: workbook.SheetNames.length,
             extractedRecords: records.length,
           });
 
           resolve(records);
         } catch (error) {
-          await this.logJobEvent(jobId, 'error', 'Excel parsing failed', {
+          await this.logJobEvent(jobId, "error", "Excel parsing failed", {
             error: error.message,
           });
           reject(error);
@@ -486,21 +714,90 @@ export class PriceFileParserProcessor extends WorkerHost {
     job: Job,
     jobId: string,
     hospitalId: string,
-    fileId: string
+    fileId: string,
   ): Promise<PriceRecord[]> {
-    // For ZIP files, we'll extract and queue each file separately
-    await this.logJobEvent(jobId, 'info', 'ZIP file parsing not yet implemented');
+    const records: PriceRecord[] = [];
     
-    // TODO: Implement ZIP extraction and queue individual files
+    try {
+      await this.logJobEvent(jobId, "info", "Starting ZIP file extraction");
+      
+      // For now, we'll treat ZIP files as containers and extract the first CSV/JSON file
+      // In a production system, you would extract all files and process them separately
+      const parseStream = stream.pipe(unzipper.Parse());
+      
+      for await (const entry of parseStream) {
+        const fileName = entry.path;
+        const type = this.detectFileType(fileName, "unknown");
+        
+        this.logger.info({
+          msg: "Found file in ZIP",
+          fileName,
+          type,
+        });
+        
+        if (type === "csv" || type === "json" || type === "excel") {
+          await job.updateProgress({
+            percentage: 15,
+            message: `Extracting ${fileName} from ZIP`,
+          });
+          
+          // Process the first supported file
+          if (type === "csv") {
+            const csvRecords = await this.parseCSV(entry, job, jobId);
+            records.push(...csvRecords);
+          } else if (type === "json") {
+            const jsonRecords = await this.parseJSON(entry, job, jobId);
+            records.push(...jsonRecords);
+          }
+          
+          // Only process the first file for now
+          break;
+        } else {
+          entry.autodrain();
+        }
+      }
+      
+      await this.logJobEvent(jobId, "info", "ZIP extraction completed", {
+        extractedRecords: records.length,
+      });
+      
+      return records;
+    } catch (error) {
+      await this.logJobEvent(jobId, "error", "ZIP extraction failed", {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  private async parseXML(
+    stream: NodeJS.ReadableStream,
+    job: Job,
+    jobId: string,
+  ): Promise<PriceRecord[]> {
+    // XML parsing is not implemented yet
+    // Most hospitals use CSV or JSON, so this is lower priority
+    await this.logJobEvent(
+      jobId,
+      "warn",
+      "XML file format not supported, skipping",
+    );
     return [];
   }
 
-  private extractPriceRecord(data: any, headerMap?: Record<string, string>): PriceRecord | null {
+  private extractPriceRecord(
+    data: any,
+    headerMap?: Record<string, string>,
+  ): PriceRecord | null {
     try {
       // Map fields using headerMap or direct field names
       const getField = (fieldNames: string[]): any => {
         for (const field of fieldNames) {
-          if (data[field] !== undefined && data[field] !== null && data[field] !== '') {
+          if (
+            data[field] !== undefined &&
+            data[field] !== null &&
+            data[field] !== ""
+          ) {
             return data[field];
           }
           // Check headerMap
@@ -515,9 +812,21 @@ export class PriceFileParserProcessor extends WorkerHost {
         return null;
       };
 
-      const code = getField(['code', 'billing_code', 'procedure_code', 'cpt_code', 'drg_code', 'hcpcs_code']);
-      const description = getField(['description', 'desc', 'procedure_description', 'service_description']);
-      
+      const code = getField([
+        "code",
+        "billing_code",
+        "procedure_code",
+        "cpt_code",
+        "drg_code",
+        "hcpcs_code",
+      ]);
+      const description = getField([
+        "description",
+        "desc",
+        "procedure_description",
+        "service_description",
+      ]);
+
       if (!code || !description) {
         return null;
       }
@@ -526,16 +835,24 @@ export class PriceFileParserProcessor extends WorkerHost {
         code: String(code).trim(),
         description: String(description).trim(),
         codeType: this.detectCodeType(code),
-        grossCharge: this.parseNumber(getField(['gross_charge', 'standard_charge', 'charge', 'price'])),
-        discountedCashPrice: this.parseNumber(getField(['cash_price', 'discounted_cash_price', 'self_pay'])),
-        minNegotiatedRate: this.parseNumber(getField(['min_negotiated_rate', 'minimum_negotiated_charge'])),
-        maxNegotiatedRate: this.parseNumber(getField(['max_negotiated_rate', 'maximum_negotiated_charge'])),
+        grossCharge: this.parseNumber(
+          getField(["gross_charge", "standard_charge", "charge", "price"]),
+        ),
+        discountedCashPrice: this.parseNumber(
+          getField(["cash_price", "discounted_cash_price", "self_pay"]),
+        ),
+        minNegotiatedRate: this.parseNumber(
+          getField(["min_negotiated_rate", "minimum_negotiated_charge"]),
+        ),
+        maxNegotiatedRate: this.parseNumber(
+          getField(["max_negotiated_rate", "maximum_negotiated_charge"]),
+        ),
         payerRates: this.extractPayerRates(data),
         rawData: data,
       };
     } catch (error) {
       this.logger.debug({
-        msg: 'Failed to extract price record',
+        msg: "Failed to extract price record",
         error: error.message,
         data,
       });
@@ -547,13 +864,13 @@ export class PriceFileParserProcessor extends WorkerHost {
     try {
       const code = data.code || data.billing_code;
       const description = data.description;
-      
+
       if (!code || !description) {
         return null;
       }
 
       const payerRates: Record<string, any> = {};
-      
+
       // Extract payer-specific rates
       if (data.standard_charges) {
         for (const charge of data.standard_charges) {
@@ -580,7 +897,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       };
     } catch (error) {
       this.logger.debug({
-        msg: 'Failed to extract CMS price record',
+        msg: "Failed to extract CMS price record",
         error: error.message,
       });
       return null;
@@ -589,14 +906,16 @@ export class PriceFileParserProcessor extends WorkerHost {
 
   private extractPayerRates(data: any): Record<string, any> | undefined {
     const payerRates: Record<string, any> = {};
-    
+
     // Look for payer-specific columns
     for (const [key, value] of Object.entries(data)) {
-      if (typeof key === 'string' && value != null) {
+      if (typeof key === "string" && value != null) {
         // Common patterns for payer rates
-        if (key.toLowerCase().includes('insurance') || 
-            key.toLowerCase().includes('payer') ||
-            key.toLowerCase().includes('plan')) {
+        if (
+          key.toLowerCase().includes("insurance") ||
+          key.toLowerCase().includes("payer") ||
+          key.toLowerCase().includes("plan")
+        ) {
           const rate = this.parseNumber(value);
           if (rate > 0) {
             payerRates[key] = { rate };
@@ -609,33 +928,36 @@ export class PriceFileParserProcessor extends WorkerHost {
   }
 
   private detectCodeType(code: string): string {
-    if (!code) return 'unknown';
-    
+    if (!code) return "unknown";
+
     const upperCode = code.toUpperCase();
-    
-    if (/^\d{5}$/.test(code) || upperCode.startsWith('CPT')) {
-      return 'CPT';
-    } else if (/^\d{3}$/.test(code) || upperCode.startsWith('DRG')) {
-      return 'DRG';
-    } else if (/^[A-Z]\d{4}$/.test(upperCode) || upperCode.startsWith('HCPCS')) {
-      return 'HCPCS';
-    } else if (/^[A-Z]\d{2}/.test(upperCode) || upperCode.includes('ICD')) {
-      return 'ICD-10';
+
+    if (/^\d{5}$/.test(code) || upperCode.startsWith("CPT")) {
+      return "CPT";
+    } else if (/^\d{3}$/.test(code) || upperCode.startsWith("DRG")) {
+      return "DRG";
+    } else if (
+      /^[A-Z]\d{4}$/.test(upperCode) ||
+      upperCode.startsWith("HCPCS")
+    ) {
+      return "HCPCS";
+    } else if (/^[A-Z]\d{2}/.test(upperCode) || upperCode.includes("ICD")) {
+      return "ICD-10";
     }
-    
-    return 'other';
+
+    return "other";
   }
 
   private parseNumber(value: any): number | undefined {
-    if (value == null || value === '') {
+    if (value == null || value === "") {
       return undefined;
     }
-    
+
     // Handle string numbers with currency symbols
-    if (typeof value === 'string') {
-      value = value.replace(/[$,]/g, '').trim();
+    if (typeof value === "string") {
+      value = value.replace(/[$,]/g, "").trim();
     }
-    
+
     const num = Number(value);
     return isNaN(num) ? undefined : num;
   }
@@ -652,20 +974,20 @@ export class PriceFileParserProcessor extends WorkerHost {
     for (const pattern of datePatterns) {
       const match = filename.match(pattern);
       if (match) {
-        return match[1].replace(/_/g, '-');
+        return match[1].replace(/_/g, "-");
       }
     }
 
     // Default to current year-month
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   }
 
   private async logJobEvent(
     jobId: string,
     level: string,
     message: string,
-    data?: any
+    data?: any,
   ): Promise<void> {
     try {
       await this.databaseService.db.insert(jobLogs).values({
@@ -676,7 +998,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to log job event',
+        msg: "Failed to log job event",
         error: error.message,
         jobId,
         level,
@@ -685,12 +1007,15 @@ export class PriceFileParserProcessor extends WorkerHost {
     }
   }
 
-  private async updateJobSuccess(jobId: string, outputData: any): Promise<void> {
+  private async updateJobSuccess(
+    jobId: string,
+    outputData: any,
+  ): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)
       .set({
-        status: 'completed',
+        status: "completed",
         completedAt: new Date(),
         duration: outputData.duration,
         outputData: JSON.stringify(outputData),
@@ -701,25 +1026,32 @@ export class PriceFileParserProcessor extends WorkerHost {
       })
       .where(eq(jobsTable.id, jobId));
 
-    await this.logJobEvent(jobId, 'info', 'Job completed successfully', outputData);
+    await this.logJobEvent(
+      jobId,
+      "info",
+      "Job completed successfully",
+      outputData,
+    );
   }
 
-  private async updateJobFailure(jobId: string, error: Error): Promise<void> {
+  private async updateJobFailure(jobId: string, error: Error, duration?: number): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)
       .set({
-        status: 'failed',
+        status: "failed",
         completedAt: new Date(),
+        duration,
         errorMessage: error.message,
         errorStack: error.stack,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
 
-    await this.logJobEvent(jobId, 'error', 'Job failed', {
+    await this.logJobEvent(jobId, "error", "Job failed", {
       error: error.message,
       stack: error.stack,
+      duration,
     });
   }
 }

@@ -1,19 +1,25 @@
-import { motion } from 'framer-motion'
-import { Card, CardContent } from '@/components/ui/card'
-import { BarChart3, Zap, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  BarChart3,
+  Zap,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+} from "lucide-react";
 
 interface OverallStats {
-  totalJobs: number
-  activeJobs: number
-  completedJobs: number
-  failedJobs: number
-  successRate: number
-  totalQueues: number
-  healthyQueues: number
+  totalJobs: number;
+  activeJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  successRate: number;
+  totalQueues: number;
+  healthyQueues: number;
 }
 
 interface OverallStatsProps {
-  stats: OverallStats
+  stats: OverallStats;
 }
 
 export function OverallStats({ stats }: OverallStatsProps) {
@@ -28,9 +34,15 @@ export function OverallStats({ stats }: OverallStatsProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Jobs</p>
-                <p className="text-2xl font-bold">{stats.totalJobs.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-1">Across {stats.totalQueues} queues</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Total Jobs
+                </p>
+                <p className="text-2xl font-bold">
+                  {stats.totalJobs.toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Across {stats.totalQueues} queues
+                </p>
               </div>
               <BarChart3 className="h-8 w-8 text-blue-500" />
             </div>
@@ -47,9 +59,15 @@ export function OverallStats({ stats }: OverallStatsProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active Jobs</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.activeJobs}</p>
-                <p className="text-xs text-muted-foreground mt-1">Currently processing</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Active Jobs
+                </p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {stats.activeJobs}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Currently processing
+                </p>
               </div>
               <Zap className="h-8 w-8 text-orange-500" />
             </div>
@@ -66,9 +84,15 @@ export function OverallStats({ stats }: OverallStatsProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Success Rate</p>
-                <p className="text-2xl font-bold text-green-600">{stats.successRate}%</p>
-                <p className="text-xs text-muted-foreground mt-1">Last 24 hours</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Success Rate
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {stats.successRate}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Last 24 hours
+                </p>
               </div>
               <TrendingUp className="h-8 w-8 text-green-500" />
             </div>
@@ -85,9 +109,15 @@ export function OverallStats({ stats }: OverallStatsProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Failed Jobs</p>
-                <p className="text-2xl font-bold text-red-600">{stats.failedJobs}</p>
-                <p className="text-xs text-muted-foreground mt-1">Require attention</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Failed Jobs
+                </p>
+                <p className="text-2xl font-bold text-red-600">
+                  {stats.failedJobs}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Require attention
+                </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-500" />
             </div>
@@ -104,9 +134,15 @@ export function OverallStats({ stats }: OverallStatsProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Healthy Queues</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.healthyQueues}/{stats.totalQueues}</p>
-                <p className="text-xs text-muted-foreground mt-1">System status</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Healthy Queues
+                </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {stats.healthyQueues}/{stats.totalQueues}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  System status
+                </p>
               </div>
               <CheckCircle className="h-8 w-8 text-purple-500" />
             </div>
@@ -114,5 +150,5 @@ export function OverallStats({ stats }: OverallStatsProps) {
         </Card>
       </motion.div>
     </div>
-  )
+  );
 }

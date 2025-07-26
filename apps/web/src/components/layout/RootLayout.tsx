@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet } from "react-router-dom";
 // import { ActivityTracker } from '@/components/ActivityTracker'
 
 export function RootLayout() {
@@ -7,5 +7,5 @@ export function RootLayout() {
       {/* <ActivityTracker /> - Disabled to prevent session spam */}
       <Outlet />
     </div>
-  )
+  );
 }

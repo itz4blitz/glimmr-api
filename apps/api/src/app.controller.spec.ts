@@ -1,8 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
 
-describe('AppController', () => {
+describe("AppController", () => {
   let appController: AppController;
   let appService: AppService;
 
@@ -16,39 +16,39 @@ describe('AppController', () => {
     appService = app.get<AppService>(AppService);
   });
 
-  describe('root endpoint', () => {
-    it('should be defined', () => {
+  describe("root endpoint", () => {
+    it("should be defined", () => {
       expect(appController).toBeDefined();
     });
 
-    it('should return api info', () => {
+    it("should return api info", () => {
       const result = appController.getApiInfo();
       expect(result).toBeDefined();
-      expect(typeof result).toBe('object');
+      expect(typeof result).toBe("object");
     });
 
-    it('should call AppService.getApiInfo()', () => {
-      const getApiInfoSpy = jest.spyOn(appService, 'getApiInfo');
+    it("should call AppService.getApiInfo()", () => {
+      const getApiInfoSpy = jest.spyOn(appService, "getApiInfo");
       appController.getApiInfo();
       expect(getApiInfoSpy).toHaveBeenCalled();
     });
 
-    it('should return the same value as AppService.getApiInfo()', () => {
+    it("should return the same value as AppService.getApiInfo()", () => {
       const serviceResult = appService.getApiInfo();
       const controllerResult = appController.getApiInfo();
       expect(controllerResult).toEqual(serviceResult);
     });
   });
 
-  describe('API documentation', () => {
-    it('should be decorated with @ApiTags for Swagger', () => {
-      const metadata = Reflect.getMetadata('swagger/apiUseTags', AppController);
+  describe("API documentation", () => {
+    it("should be decorated with @ApiTags for Swagger", () => {
+      const metadata = Reflect.getMetadata("swagger/apiUseTags", AppController);
       expect(metadata).toBeDefined();
-      expect(metadata).toContain('API');
+      expect(metadata).toContain("API");
     });
 
-    it('should have proper route mapping', () => {
-      const routeMetadata = Reflect.getMetadata('path', AppController);
+    it("should have proper route mapping", () => {
+      const routeMetadata = Reflect.getMetadata("path", AppController);
       expect(routeMetadata).toBeDefined();
     });
   });

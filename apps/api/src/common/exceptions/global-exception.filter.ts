@@ -5,11 +5,11 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
-import { ValidationError } from 'class-validator';
-import { ErrorResponseDto } from './error-response.dto';
-import { ERROR_CODES } from './error-codes';
+} from "@nestjs/common";
+import { Request, Response } from "express";
+import { ValidationError } from "class-validator";
+import { ErrorResponseDto } from "./error-response.dto";
+import { ERROR_CODES } from "./error-codes";
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -21,7 +21,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const errorResponse = this.createErrorResponse(exception, request);
-    
+
     // Log the error with appropriate level
     this.logError(exception, errorResponse, request);
 
@@ -34,13 +34,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   ): ErrorResponseDto {
     const timestamp = new Date().toISOString();
     const path = request.url;
-    const traceId = request.headers['x-trace-id'] as string;
+    const traceId = request.headers["x-trace-id"] as string;
 
     // Handle NestJS HttpException
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      
+
       return {
         statusCode: status,
         message: this.extractMessage(exceptionResponse),
@@ -56,7 +56,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (this.isValidationError(exception)) {
       return {
         statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-        message: 'Validation failed',
+        message: "Validation failed",
         error: ERROR_CODES.VALIDATION_ERROR,
         timestamp,
         path,
@@ -69,49 +69,58 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (this.isDatabaseError(exception)) {
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Database operation failed',
+        message: "Database operation failed",
         error: ERROR_CODES.DATABASE_QUERY_ERROR,
         timestamp,
         path,
-        details: process.env.NODE_ENV === 'development' ? { originalError: exception.message } : undefined,
+        details:
+          process.env.NODE_ENV === "development"
+            ? { originalError: exception.message }
+            : undefined,
         traceId,
       };
     }
 
     // Handle generic errors
-    const isProduction = process.env.NODE_ENV === 'production';
-    
+    const isProduction = process.env.NODE_ENV === "production";
+
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: isProduction ? 'Internal server error' : exception.message || 'Unknown error',
+      message: isProduction
+        ? "Internal server error"
+        : exception.message || "Unknown error",
       error: ERROR_CODES.INTERNAL_SERVER_ERROR,
       timestamp,
       path,
-      details: isProduction ? undefined : { 
-        stack: exception.stack,
-        name: exception.name,
-      },
+      details: isProduction
+        ? undefined
+        : {
+            stack: exception.stack,
+            name: exception.name,
+          },
       traceId,
     };
   }
 
   private extractMessage(exceptionResponse: any): string {
-    if (typeof exceptionResponse === 'string') {
+    if (typeof exceptionResponse === "string") {
       return exceptionResponse;
     }
-    
+
     if (exceptionResponse?.message) {
       if (Array.isArray(exceptionResponse.message)) {
-        return exceptionResponse.message.join(', ');
+        return exceptionResponse.message.join(", ");
       }
       return exceptionResponse.message;
     }
-    
-    return 'An error occurred';
+
+    return "An error occurred";
   }
 
-  private extractDetails(exceptionResponse: any): Record<string, any> | undefined {
-    if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+  private extractDetails(
+    exceptionResponse: any,
+  ): Record<string, any> | undefined {
+    if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
       const { message, statusCode, error, ...details } = exceptionResponse;
       return Object.keys(details).length > 0 ? details : undefined;
     }
@@ -149,16 +158,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (!(exception instanceof HttpException)) {
       return false;
     }
-    
+
     if (exception.getStatus() !== HttpStatus.UNPROCESSABLE_ENTITY) {
       return false;
     }
-    
+
     const response = exception.getResponse();
-    if (typeof response !== 'object' || response === null) {
+    if (typeof response !== "object" || response === null) {
       return false;
     }
-    
+
     const responseObj = response as any;
     return responseObj.message && Array.isArray(responseObj.message);
   }
@@ -166,23 +175,25 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private isDatabaseError(exception: any): boolean {
     return (
       exception?.code &&
-      (exception.code.startsWith('23') || // PostgreSQL constraint violations
-        exception.code.startsWith('42') || // PostgreSQL syntax errors
-        exception.code === 'ECONNREFUSED' || // Connection refused
-        exception.code === 'ENOTFOUND' || // DNS resolution failed
-        exception.name === 'QueryFailedError' || // TypeORM/Drizzle query errors
-        exception.name === 'ConnectionError')
+      (exception.code.startsWith("23") || // PostgreSQL constraint violations
+        exception.code.startsWith("42") || // PostgreSQL syntax errors
+        exception.code === "ECONNREFUSED" || // Connection refused
+        exception.code === "ENOTFOUND" || // DNS resolution failed
+        exception.name === "QueryFailedError" || // TypeORM/Drizzle query errors
+        exception.name === "ConnectionError")
     );
   }
 
-  private formatValidationErrors(errors: any[]): Record<string, any> | undefined {
+  private formatValidationErrors(
+    errors: any[],
+  ): Record<string, any> | undefined {
     if (!Array.isArray(errors)) {
       return undefined;
     }
 
     return {
       validationErrors: errors.map((error) => {
-        if (typeof error === 'string') {
+        if (typeof error === "string") {
           return { message: error };
         }
         return error;
@@ -198,7 +209,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const context = {
       method: request.method,
       url: request.url,
-      userAgent: request.headers['user-agent'],
+      userAgent: request.headers["user-agent"],
       ip: request.ip,
       traceId: errorResponse.traceId,
       statusCode: errorResponse.statusCode,
@@ -207,20 +218,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (errorResponse.statusCode >= 500) {
       this.logger.error({
-        msg: 'Internal server error',
+        msg: "Internal server error",
         error: exception.message,
         stack: exception.stack,
         ...context,
       });
     } else if (errorResponse.statusCode >= 400) {
       this.logger.warn({
-        msg: 'Client error',
+        msg: "Client error",
         error: exception.message,
         ...context,
       });
     } else {
       this.logger.debug({
-        msg: 'Exception handled',
+        msg: "Exception handled",
         error: exception.message,
         ...context,
       });

@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { HospitalsController } from './hospitals.controller';
-import { HospitalsService } from './hospitals.service';
-import { HospitalFilterQueryDto } from '../common/dto/query.dto';
-import { RbacService } from '../auth/rbac.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { HttpException, HttpStatus } from "@nestjs/common";
+import { HospitalsController } from "./hospitals.controller";
+import { HospitalsService } from "./hospitals.service";
+import { HospitalFilterQueryDto } from "../common/dto/query.dto";
+import { RbacService } from "../auth/rbac.service";
 
-describe('HospitalsController', () => {
+describe("HospitalsController", () => {
   let controller: HospitalsController;
   let hospitalsService: HospitalsService;
 
@@ -17,7 +17,7 @@ describe('HospitalsController', () => {
 
   const mockRbacService = {
     hasPermission: jest.fn().mockReturnValue(true),
-    getUserPermissions: jest.fn().mockReturnValue(['hospitals:read']),
+    getUserPermissions: jest.fn().mockReturnValue(["hospitals:read"]),
   };
 
   beforeEach(async () => {
@@ -43,35 +43,35 @@ describe('HospitalsController', () => {
     jest.clearAllMocks();
   });
 
-  describe('Controller Initialization', () => {
-    it('should be defined', () => {
+  describe("Controller Initialization", () => {
+    it("should be defined", () => {
       expect(controller).toBeDefined();
     });
 
-    it('should be an instance of HospitalsController', () => {
+    it("should be an instance of HospitalsController", () => {
       expect(controller).toBeInstanceOf(HospitalsController);
     });
 
-    it('should have hospitalsService injected', () => {
+    it("should have hospitalsService injected", () => {
       expect(hospitalsService).toBeDefined();
     });
   });
 
-  describe('getHospitals', () => {
+  describe("getHospitals", () => {
     const mockHospitalResponse = {
       data: [
         {
-          id: '1',
-          name: 'Test Hospital',
-          state: 'CA',
-          city: 'Los Angeles',
-          address: '123 Main St',
-          phone: '555-0123',
-          website: 'https://test.com',
+          id: "1",
+          name: "Test Hospital",
+          state: "CA",
+          city: "Los Angeles",
+          address: "123 Main St",
+          phone: "555-0123",
+          website: "https://test.com",
           bedCount: 100,
-          ownership: 'Private',
-          hospitalType: 'General',
-          lastUpdated: new Date('2024-01-01'),
+          ownership: "Private",
+          hospitalType: "General",
+          lastUpdated: new Date("2024-01-01"),
         },
       ],
       total: 1,
@@ -79,10 +79,10 @@ describe('HospitalsController', () => {
       offset: 0,
     };
 
-    it('should return hospitals successfully with all filters', async () => {
+    it("should return hospitals successfully with all filters", async () => {
       const query: HospitalFilterQueryDto = {
-        state: 'CA',
-        city: 'Los Angeles',
+        state: "CA",
+        city: "Los Angeles",
         limit: 10,
         offset: 0,
       };
@@ -95,8 +95,8 @@ describe('HospitalsController', () => {
       expect(result).toEqual(mockHospitalResponse);
     });
 
-    it('should return hospitals with partial filters', async () => {
-      const query: HospitalFilterQueryDto = { state: 'CA' };
+    it("should return hospitals with partial filters", async () => {
+      const query: HospitalFilterQueryDto = { state: "CA" };
 
       mockHospitalsService.getHospitals.mockResolvedValue(mockHospitalResponse);
 
@@ -106,7 +106,7 @@ describe('HospitalsController', () => {
       expect(result).toEqual(mockHospitalResponse);
     });
 
-    it('should return hospitals with no filters', async () => {
+    it("should return hospitals with no filters", async () => {
       const query: HospitalFilterQueryDto = {};
 
       mockHospitalsService.getHospitals.mockResolvedValue({
@@ -121,8 +121,8 @@ describe('HospitalsController', () => {
       expect(result.total).toBe(0);
     });
 
-    it('should return empty results when no hospitals found', async () => {
-      const query: HospitalFilterQueryDto = { state: 'XX' };
+    it("should return empty results when no hospitals found", async () => {
+      const query: HospitalFilterQueryDto = { state: "XX" };
       const emptyResponse = {
         data: [],
         total: 0,
@@ -137,8 +137,8 @@ describe('HospitalsController', () => {
       expect(result).toEqual(emptyResponse);
     });
 
-    it('should handle city filter only', async () => {
-      const query: HospitalFilterQueryDto = { city: 'Miami' };
+    it("should handle city filter only", async () => {
+      const query: HospitalFilterQueryDto = { city: "Miami" };
 
       mockHospitalsService.getHospitals.mockResolvedValue(mockHospitalResponse);
 
@@ -148,7 +148,7 @@ describe('HospitalsController', () => {
       expect(result).toEqual(mockHospitalResponse);
     });
 
-    it('should handle pagination parameters', async () => {
+    it("should handle pagination parameters", async () => {
       const query: HospitalFilterQueryDto = { limit: 25, offset: 50 };
 
       mockHospitalsService.getHospitals.mockResolvedValue({
@@ -164,12 +164,14 @@ describe('HospitalsController', () => {
       expect(result.offset).toBe(50);
     });
 
-    it('should throw SERVICE_UNAVAILABLE when database connection fails with ECONNREFUSED', async () => {
+    it("should throw SERVICE_UNAVAILABLE when database connection fails with ECONNREFUSED", async () => {
       const query: HospitalFilterQueryDto = {};
-      const connectionError = new Error('ECONNREFUSED');
+      const connectionError = new Error("ECONNREFUSED");
       mockHospitalsService.getHospitals.mockRejectedValue(connectionError);
 
-      await expect(controller.getHospitals(query)).rejects.toThrow(HttpException);
+      await expect(controller.getHospitals(query)).rejects.toThrow(
+        HttpException,
+      );
 
       try {
         await controller.getHospitals(query);
@@ -177,19 +179,21 @@ describe('HospitalsController', () => {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
         expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
+          message: "Database connection failed. Please try again later.",
           statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
+          error: "Service Unavailable",
         });
       }
     });
 
-    it('should throw SERVICE_UNAVAILABLE when database connection fails with connect error', async () => {
+    it("should throw SERVICE_UNAVAILABLE when database connection fails with connect error", async () => {
       const query: HospitalFilterQueryDto = {};
-      const connectionError = new Error('connect timeout');
+      const connectionError = new Error("connect timeout");
       mockHospitalsService.getHospitals.mockRejectedValue(connectionError);
 
-      await expect(controller.getHospitals(query)).rejects.toThrow(HttpException);
+      await expect(controller.getHospitals(query)).rejects.toThrow(
+        HttpException,
+      );
 
       try {
         await controller.getHospitals(query);
@@ -199,12 +203,14 @@ describe('HospitalsController', () => {
       }
     });
 
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
+    it("should throw INTERNAL_SERVER_ERROR for other errors", async () => {
       const query: HospitalFilterQueryDto = {};
-      const otherError = new Error('Some other database error');
+      const otherError = new Error("Some other database error");
       mockHospitalsService.getHospitals.mockRejectedValue(otherError);
 
-      await expect(controller.getHospitals(query)).rejects.toThrow(HttpException);
+      await expect(controller.getHospitals(query)).rejects.toThrow(
+        HttpException,
+      );
 
       try {
         await controller.getHospitals(query);
@@ -212,17 +218,17 @@ describe('HospitalsController', () => {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while fetching hospitals',
+          message: "Internal server error occurred while fetching hospitals",
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
+          error: "Internal Server Error",
         });
       }
     });
 
-    it('should handle special characters in filter parameters', async () => {
+    it("should handle special characters in filter parameters", async () => {
       const query: HospitalFilterQueryDto = {
-        state: 'CA',
-        city: 'San Francisco & Oakland',
+        state: "CA",
+        city: "San Francisco & Oakland",
       };
 
       mockHospitalsService.getHospitals.mockResolvedValue(mockHospitalResponse);
@@ -232,7 +238,7 @@ describe('HospitalsController', () => {
       expect(hospitalsService.getHospitals).toHaveBeenCalledWith(query);
     });
 
-    it('should handle edge case numeric limits', async () => {
+    it("should handle edge case numeric limits", async () => {
       const query: HospitalFilterQueryDto = { limit: 1, offset: 999999 };
 
       mockHospitalsService.getHospitals.mockResolvedValue({
@@ -249,33 +255,33 @@ describe('HospitalsController', () => {
     });
   });
 
-  describe('getHospitalById', () => {
+  describe("getHospitalById", () => {
     const mockHospital = {
-      id: '123',
-      name: 'Test Hospital',
-      state: 'CA',
-      city: 'Los Angeles',
-      address: '123 Main St',
-      phone: '555-0123',
-      website: 'https://test.com',
+      id: "123",
+      name: "Test Hospital",
+      state: "CA",
+      city: "Los Angeles",
+      address: "123 Main St",
+      phone: "555-0123",
+      website: "https://test.com",
       bedCount: 100,
-      ownership: 'Private',
-      hospitalType: 'General',
-      lastUpdated: new Date('2024-01-01'),
-      services: ['Emergency', 'Surgery'],
+      ownership: "Private",
+      hospitalType: "General",
+      lastUpdated: new Date("2024-01-01"),
+      services: ["Emergency", "Surgery"],
     };
 
-    it('should return hospital by ID successfully', async () => {
+    it("should return hospital by ID successfully", async () => {
       mockHospitalsService.getHospitalById.mockResolvedValue(mockHospital);
 
-      const result = await controller.getHospitalById('123');
+      const result = await controller.getHospitalById("123");
 
-      expect(hospitalsService.getHospitalById).toHaveBeenCalledWith('123');
+      expect(hospitalsService.getHospitalById).toHaveBeenCalledWith("123");
       expect(result).toEqual(mockHospital);
     });
 
-    it('should handle UUID format hospital ID', async () => {
-      const uuid = '123e4567-e89b-12d3-a456-426614174000';
+    it("should handle UUID format hospital ID", async () => {
+      const uuid = "123e4567-e89b-12d3-a456-426614174000";
       mockHospitalsService.getHospitalById.mockResolvedValue({
         ...mockHospital,
         id: uuid,
@@ -287,8 +293,8 @@ describe('HospitalsController', () => {
       expect(result.id).toBe(uuid);
     });
 
-    it('should handle alphanumeric hospital ID', async () => {
-      const alphanumericId = 'HOSP-ABC-123';
+    it("should handle alphanumeric hospital ID", async () => {
+      const alphanumericId = "HOSP-ABC-123";
       mockHospitalsService.getHospitalById.mockResolvedValue({
         ...mockHospital,
         id: alphanumericId,
@@ -296,45 +302,51 @@ describe('HospitalsController', () => {
 
       const result = await controller.getHospitalById(alphanumericId);
 
-      expect(hospitalsService.getHospitalById).toHaveBeenCalledWith(alphanumericId);
+      expect(hospitalsService.getHospitalById).toHaveBeenCalledWith(
+        alphanumericId,
+      );
     });
 
-    it('should throw NOT_FOUND when hospital does not exist', async () => {
+    it("should throw NOT_FOUND when hospital does not exist", async () => {
       mockHospitalsService.getHospitalById.mockResolvedValue(null);
 
-      await expect(controller.getHospitalById('999')).rejects.toThrow(HttpException);
+      await expect(controller.getHospitalById("999")).rejects.toThrow(
+        HttpException,
+      );
 
       try {
-        await controller.getHospitalById('999');
+        await controller.getHospitalById("999");
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.NOT_FOUND);
         expect(error.getResponse()).toEqual({
-          message: 'Hospital not found',
+          message: "Hospital not found",
           statusCode: HttpStatus.NOT_FOUND,
-          error: 'Not Found',
+          error: "Not Found",
         });
       }
     });
 
-    it('should throw NOT_FOUND when hospital returns undefined', async () => {
+    it("should throw NOT_FOUND when hospital returns undefined", async () => {
       mockHospitalsService.getHospitalById.mockResolvedValue(undefined);
 
-      await expect(controller.getHospitalById('999')).rejects.toThrow(HttpException);
+      await expect(controller.getHospitalById("999")).rejects.toThrow(
+        HttpException,
+      );
 
       try {
-        await controller.getHospitalById('999');
+        await controller.getHospitalById("999");
       } catch (error) {
         expect(error.getStatus()).toBe(HttpStatus.NOT_FOUND);
       }
     });
 
-    it('should re-throw existing NOT_FOUND errors from service', async () => {
+    it("should re-throw existing NOT_FOUND errors from service", async () => {
       const notFoundError = new HttpException(
         {
-          message: 'Hospital not found',
+          message: "Hospital not found",
           statusCode: HttpStatus.NOT_FOUND,
-          error: 'Not Found',
+          error: "Not Found",
         },
         HttpStatus.NOT_FOUND,
       );
@@ -343,208 +355,76 @@ describe('HospitalsController', () => {
 
       mockHospitalsService.getHospitalById.mockRejectedValue(notFoundError);
 
-      await expect(controller.getHospitalById('999')).rejects.toThrow(notFoundError);
+      await expect(controller.getHospitalById("999")).rejects.toThrow(
+        notFoundError,
+      );
     });
 
-    it('should throw SERVICE_UNAVAILABLE when database connection fails', async () => {
-      const connectionError = new Error('ECONNREFUSED: connection refused');
+    it("should throw SERVICE_UNAVAILABLE when database connection fails", async () => {
+      const connectionError = new Error("ECONNREFUSED: connection refused");
       mockHospitalsService.getHospitalById.mockRejectedValue(connectionError);
 
-      await expect(controller.getHospitalById('123')).rejects.toThrow(HttpException);
+      await expect(controller.getHospitalById("123")).rejects.toThrow(
+        HttpException,
+      );
 
       try {
-        await controller.getHospitalById('123');
+        await controller.getHospitalById("123");
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
         expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
+          message: "Database connection failed. Please try again later.",
           statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
+          error: "Service Unavailable",
         });
       }
     });
 
-    it('should throw SERVICE_UNAVAILABLE for connection timeout', async () => {
-      const connectionError = new Error('connection timeout');
+    it("should throw SERVICE_UNAVAILABLE for connection timeout", async () => {
+      const connectionError = new Error("connection timeout");
       mockHospitalsService.getHospitalById.mockRejectedValue(connectionError);
 
-      await expect(controller.getHospitalById('123')).rejects.toThrow(HttpException);
+      await expect(controller.getHospitalById("123")).rejects.toThrow(
+        HttpException,
+      );
 
       try {
-        await controller.getHospitalById('123');
+        await controller.getHospitalById("123");
       } catch (error) {
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
       }
     });
 
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
-      const otherError = new Error('Database query failed');
+    it("should throw INTERNAL_SERVER_ERROR for other errors", async () => {
+      const otherError = new Error("Database query failed");
       mockHospitalsService.getHospitalById.mockRejectedValue(otherError);
 
-      await expect(controller.getHospitalById('123')).rejects.toThrow(HttpException);
+      await expect(controller.getHospitalById("123")).rejects.toThrow(
+        HttpException,
+      );
 
       try {
-        await controller.getHospitalById('123');
+        await controller.getHospitalById("123");
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while fetching hospital',
+          message: "Internal server error occurred while fetching hospital",
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
+          error: "Internal Server Error",
         });
       }
     });
   });
 
-  describe('getHospitalPrices', () => {
-    const mockPrices = {
-      hospitalId: '123',
-      data: [
-        {
-          id: '1',
-          service: 'MRI',
-          code: 'MRI001',
-          price: 1500.0,
-          discountedCashPrice: 1200.0,
-          description: 'Brain MRI',
-          category: 'Imaging',
-          lastUpdated: new Date('2024-01-01'),
-        },
-        {
-          id: '2',
-          service: 'CT Scan',
-          code: 'CT001',
-          price: 800.0,
-          discountedCashPrice: 640.0,
-          description: 'Chest CT Scan',
-          category: 'Imaging',
-          lastUpdated: new Date('2024-01-01'),
-        },
-      ],
-      total: 2,
-    };
 
-    it('should return hospital prices with service filter', async () => {
-      mockHospitalsService.getHospitalPrices.mockResolvedValue(mockPrices);
-
-      const result = await controller.getHospitalPrices('123', 'MRI');
-
-      expect(hospitalsService.getHospitalPrices).toHaveBeenCalledWith('123', {
-        service: 'MRI',
-      });
-      expect(result).toEqual(mockPrices);
-    });
-
-    it('should return hospital prices without service filter', async () => {
-      mockHospitalsService.getHospitalPrices.mockResolvedValue(mockPrices);
-
-      const result = await controller.getHospitalPrices('123');
-
-      expect(hospitalsService.getHospitalPrices).toHaveBeenCalledWith('123', {
-        service: undefined,
-      });
-      expect(result).toEqual(mockPrices);
-    });
-
-    it('should return empty results when no prices found', async () => {
-      const emptyPrices = {
-        hospitalId: '123',
-        data: [],
-        total: 0,
-      };
-      mockHospitalsService.getHospitalPrices.mockResolvedValue(emptyPrices);
-
-      const result = await controller.getHospitalPrices('123', 'NonexistentService');
-
-      expect(result).toEqual(emptyPrices);
-    });
-
-    it('should handle different service types', async () => {
-      const services = ['X-Ray', 'Ultrasound', 'Blood Test', 'Surgery'];
-
-      for (const service of services) {
-        const serviceSpecificPrices = {
-          ...mockPrices,
-          data: mockPrices.data.filter((price) => price.service === service),
-        };
-        mockHospitalsService.getHospitalPrices.mockResolvedValue(serviceSpecificPrices);
-
-        const result = await controller.getHospitalPrices('123', service);
-
-        expect(hospitalsService.getHospitalPrices).toHaveBeenCalledWith('123', {
-          service,
-        });
-      }
-    });
-
-    it('should handle empty string service parameter', async () => {
-      mockHospitalsService.getHospitalPrices.mockResolvedValue(mockPrices);
-
-      const result = await controller.getHospitalPrices('123', '');
-
-      expect(hospitalsService.getHospitalPrices).toHaveBeenCalledWith('123', {
-        service: '',
-      });
-    });
-
-    it('should handle service names with special characters', async () => {
-      const specialService = 'Emergency & Trauma Care';
-      mockHospitalsService.getHospitalPrices.mockResolvedValue(mockPrices);
-
-      const result = await controller.getHospitalPrices('123', specialService);
-
-      expect(hospitalsService.getHospitalPrices).toHaveBeenCalledWith('123', {
-        service: specialService,
-      });
-    });
-
-    it('should throw SERVICE_UNAVAILABLE when database connection fails', async () => {
-      const connectionError = new Error('ECONNREFUSED');
-      mockHospitalsService.getHospitalPrices.mockRejectedValue(connectionError);
-
-      await expect(controller.getHospitalPrices('123')).rejects.toThrow(HttpException);
-
-      try {
-        await controller.getHospitalPrices('123');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-        expect(error.getResponse()).toEqual({
-          message: 'Database connection failed. Please try again later.',
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          error: 'Service Unavailable',
-        });
-      }
-    });
-
-    it('should throw INTERNAL_SERVER_ERROR for other errors', async () => {
-      const otherError = new Error('Query timeout');
-      mockHospitalsService.getHospitalPrices.mockRejectedValue(otherError);
-
-      await expect(controller.getHospitalPrices('123')).rejects.toThrow(HttpException);
-
-      try {
-        await controller.getHospitalPrices('123');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect(error.getResponse()).toEqual({
-          message: 'Internal server error occurred while fetching hospital prices',
-          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Internal Server Error',
-        });
-      }
-    });
-  });
-
-  describe('Error Handling Edge Cases', () => {
-    it('should handle concurrent requests properly', async () => {
+  describe("Error Handling Edge Cases", () => {
+    it("should handle concurrent requests properly", async () => {
       const mockResponses = [
-        { id: '1', name: 'Hospital 1' },
-        { id: '2', name: 'Hospital 2' },
-        { id: '3', name: 'Hospital 3' },
+        { id: "1", name: "Hospital 1" },
+        { id: "2", name: "Hospital 2" },
+        { id: "3", name: "Hospital 3" },
       ];
 
       mockHospitalsService.getHospitalById
@@ -553,9 +433,9 @@ describe('HospitalsController', () => {
         .mockResolvedValueOnce(mockResponses[2]);
 
       const promises = [
-        controller.getHospitalById('1'),
-        controller.getHospitalById('2'),
-        controller.getHospitalById('3'),
+        controller.getHospitalById("1"),
+        controller.getHospitalById("2"),
+        controller.getHospitalById("3"),
       ];
 
       const results = await Promise.all(promises);
@@ -564,43 +444,49 @@ describe('HospitalsController', () => {
       expect(hospitalsService.getHospitalById).toHaveBeenCalledTimes(3);
     });
 
-    it('should preserve error message details for debugging', async () => {
-      const detailedError = new Error('Database constraint violation: foreign key');
+    it("should preserve error message details for debugging", async () => {
+      const detailedError = new Error(
+        "Database constraint violation: foreign key",
+      );
       mockHospitalsService.getHospitals.mockRejectedValue(detailedError);
 
       try {
         await controller.getHospitals({});
       } catch (error) {
         expect(error.getResponse().message).toBe(
-          'Internal server error occurred while fetching hospitals',
+          "Internal server error occurred while fetching hospitals",
         );
       }
     });
 
-    it('should handle null vs undefined return values consistently', async () => {
+    it("should handle null vs undefined return values consistently", async () => {
       // Test null
       mockHospitalsService.getHospitalById.mockResolvedValueOnce(null);
-      await expect(controller.getHospitalById('null-test')).rejects.toThrow(HttpException);
+      await expect(controller.getHospitalById("null-test")).rejects.toThrow(
+        HttpException,
+      );
 
       // Test undefined
       mockHospitalsService.getHospitalById.mockResolvedValueOnce(undefined);
-      await expect(controller.getHospitalById('undefined-test')).rejects.toThrow(HttpException);
+      await expect(
+        controller.getHospitalById("undefined-test"),
+      ).rejects.toThrow(HttpException);
     });
   });
 
-  describe('Input Validation Edge Cases', () => {
-    it('should handle very long hospital ID', async () => {
-      const longId = 'a'.repeat(1000);
+  describe("Input Validation Edge Cases", () => {
+    it("should handle very long hospital ID", async () => {
+      const longId = "a".repeat(1000);
       mockHospitalsService.getHospitalById.mockResolvedValue({
         id: longId,
-        name: 'Test Hospital',
+        name: "Test Hospital",
       });
 
       const result = await controller.getHospitalById(longId);
       expect(hospitalsService.getHospitalById).toHaveBeenCalledWith(longId);
     });
 
-    it('should handle extreme pagination values', async () => {
+    it("should handle extreme pagination values", async () => {
       const query: HospitalFilterQueryDto = {
         limit: Number.MAX_SAFE_INTEGER,
         offset: Number.MAX_SAFE_INTEGER,
@@ -617,10 +503,10 @@ describe('HospitalsController', () => {
       expect(hospitalsService.getHospitals).toHaveBeenCalledWith(query);
     });
 
-    it('should handle Unicode characters in search parameters', async () => {
+    it("should handle Unicode characters in search parameters", async () => {
       const query: HospitalFilterQueryDto = {
-        state: 'CA',
-        city: 'San José', // Unicode accent
+        state: "CA",
+        city: "San José", // Unicode accent
       };
 
       mockHospitalsService.getHospitals.mockResolvedValue({

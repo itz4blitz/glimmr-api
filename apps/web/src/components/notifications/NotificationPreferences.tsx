@@ -1,20 +1,33 @@
-import { useState, useEffect } from 'react'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import apiClient from '@/lib/api'
-import { toast } from 'sonner'
-import { Bell, Mail, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react'
+import { useState, useEffect } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import apiClient from "@/lib/api";
+import { toast } from "sonner";
+import {
+  Bell,
+  Mail,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Info,
+} from "lucide-react";
 
 interface NotificationPreferences {
-  emailEnabled: boolean
-  inAppEnabled: boolean
-  jobSuccessEnabled: boolean
-  jobFailureEnabled: boolean
-  jobWarningEnabled: boolean
-  systemAlertEnabled: boolean
+  emailEnabled: boolean;
+  inAppEnabled: boolean;
+  jobSuccessEnabled: boolean;
+  jobFailureEnabled: boolean;
+  jobWarningEnabled: boolean;
+  systemAlertEnabled: boolean;
 }
 
 export function NotificationPreferences() {
@@ -25,43 +38,43 @@ export function NotificationPreferences() {
     jobFailureEnabled: true,
     jobWarningEnabled: true,
     systemAlertEnabled: true,
-  })
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchPreferences()
-  }, [])
+    fetchPreferences();
+  }, []);
 
   const fetchPreferences = async () => {
     try {
-      setLoading(true)
-      const response = await apiClient.get('/notifications/preferences')
-      setPreferences(response.data)
+      setLoading(true);
+      const response = await apiClient.get("/notifications/preferences");
+      setPreferences(response.data);
     } catch (error) {
-      console.error('Failed to fetch preferences:', error)
-      toast.error('Failed to load notification preferences')
+      console.error("Failed to fetch preferences:", error);
+      toast.error("Failed to load notification preferences");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const savePreferences = async () => {
     try {
-      setSaving(true)
-      await apiClient.put('/notifications/preferences', preferences)
-      toast.success('Notification preferences saved')
+      setSaving(true);
+      await apiClient.put("/notifications/preferences", preferences);
+      toast.success("Notification preferences saved");
     } catch (error) {
-      console.error('Failed to save preferences:', error)
-      toast.error('Failed to save notification preferences')
+      console.error("Failed to save preferences:", error);
+      toast.error("Failed to save notification preferences");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleToggle = (key: keyof NotificationPreferences) => {
-    setPreferences(prev => ({ ...prev, [key]: !prev[key] }))
-  }
+    setPreferences((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   if (loading) {
     return (
@@ -70,7 +83,7 @@ export function NotificationPreferences() {
           <p className="text-muted-foreground">Loading preferences...</p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -78,14 +91,15 @@ export function NotificationPreferences() {
       <CardHeader>
         <CardTitle>Notification Preferences</CardTitle>
         <CardDescription>
-          Choose how you want to be notified about job activities and system alerts
+          Choose how you want to be notified about job activities and system
+          alerts
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Notification Channels */}
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Notification Channels</h3>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-4 w-4 text-muted-foreground" />
@@ -99,7 +113,7 @@ export function NotificationPreferences() {
             <Switch
               id="in-app"
               checked={preferences.inAppEnabled}
-              onCheckedChange={() => handleToggle('inAppEnabled')}
+              onCheckedChange={() => handleToggle("inAppEnabled")}
             />
           </div>
 
@@ -116,7 +130,7 @@ export function NotificationPreferences() {
             <Switch
               id="email"
               checked={preferences.emailEnabled}
-              onCheckedChange={() => handleToggle('emailEnabled')}
+              onCheckedChange={() => handleToggle("emailEnabled")}
             />
           </div>
         </div>
@@ -126,7 +140,7 @@ export function NotificationPreferences() {
         {/* Notification Types */}
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Notification Types</h3>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
@@ -140,7 +154,7 @@ export function NotificationPreferences() {
             <Switch
               id="job-success"
               checked={preferences.jobSuccessEnabled}
-              onCheckedChange={() => handleToggle('jobSuccessEnabled')}
+              onCheckedChange={() => handleToggle("jobSuccessEnabled")}
               disabled={!preferences.inAppEnabled && !preferences.emailEnabled}
             />
           </div>
@@ -158,7 +172,7 @@ export function NotificationPreferences() {
             <Switch
               id="job-failure"
               checked={preferences.jobFailureEnabled}
-              onCheckedChange={() => handleToggle('jobFailureEnabled')}
+              onCheckedChange={() => handleToggle("jobFailureEnabled")}
               disabled={!preferences.inAppEnabled && !preferences.emailEnabled}
             />
           </div>
@@ -176,7 +190,7 @@ export function NotificationPreferences() {
             <Switch
               id="job-warning"
               checked={preferences.jobWarningEnabled}
-              onCheckedChange={() => handleToggle('jobWarningEnabled')}
+              onCheckedChange={() => handleToggle("jobWarningEnabled")}
               disabled={!preferences.inAppEnabled && !preferences.emailEnabled}
             />
           </div>
@@ -194,7 +208,7 @@ export function NotificationPreferences() {
             <Switch
               id="system-alert"
               checked={preferences.systemAlertEnabled}
-              onCheckedChange={() => handleToggle('systemAlertEnabled')}
+              onCheckedChange={() => handleToggle("systemAlertEnabled")}
               disabled={!preferences.inAppEnabled && !preferences.emailEnabled}
             />
           </div>
@@ -202,10 +216,10 @@ export function NotificationPreferences() {
 
         <div className="flex justify-end pt-4">
           <Button onClick={savePreferences} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Preferences'}
+            {saving ? "Saving..." : "Save Preferences"}
           </Button>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

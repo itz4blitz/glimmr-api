@@ -1,124 +1,136 @@
-import { IsEnum, IsUUID, IsString, IsBoolean, IsOptional, IsObject, IsNumber, Min } from 'class-validator'
-import { Transform } from 'class-transformer'
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import {
+  IsEnum,
+  IsUUID,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsObject,
+  IsNumber,
+  Min,
+} from "class-validator";
+import { Transform } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export enum NotificationType {
-  JOB_SUCCESS = 'job_success',
-  JOB_FAILURE = 'job_failure',
-  JOB_WARNING = 'job_warning',
-  SYSTEM_ALERT = 'system_alert',
-  USER_ACTION = 'user_action',
-  INFO = 'info'
+  JOB_SUCCESS = "job_success",
+  JOB_FAILURE = "job_failure",
+  JOB_WARNING = "job_warning",
+  SYSTEM_ALERT = "system_alert",
+  USER_ACTION = "user_action",
+  INFO = "info",
 }
 
 export enum NotificationPriority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  URGENT = 'urgent'
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  URGENT = "urgent",
 }
 
 export class CreateNotificationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  userId?: string
+  userId?: string;
 
   @ApiProperty({ enum: NotificationType })
   @IsEnum(NotificationType)
-  type: NotificationType | string
+  type: NotificationType | string;
 
-  @ApiProperty({ enum: NotificationPriority, default: NotificationPriority.MEDIUM })
+  @ApiProperty({
+    enum: NotificationPriority,
+    default: NotificationPriority.MEDIUM,
+  })
   @IsOptional()
   @IsEnum(NotificationPriority)
-  priority?: NotificationPriority | string
+  priority?: NotificationPriority | string;
 
   @ApiProperty()
   @IsString()
-  title: string
+  title: string;
 
   @ApiProperty()
   @IsString()
-  message: string
+  message: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
-  data?: any
+  data?: any;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  jobId?: string
+  jobId?: string;
 }
 
 export class UpdateNotificationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  read?: boolean
+  read?: boolean;
 }
 
 export class NotificationFiltersDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  read?: boolean
+  @Transform(({ value }) => value === "true" || value === true)
+  read?: boolean;
 
   @ApiPropertyOptional({ enum: NotificationType })
   @IsOptional()
   @IsEnum(NotificationType)
-  type?: NotificationType | string
+  type?: NotificationType | string;
 
   @ApiPropertyOptional({ enum: NotificationPriority })
   @IsOptional()
   @IsEnum(NotificationPriority)
-  priority?: NotificationPriority | string
+  priority?: NotificationPriority | string;
 
   @ApiPropertyOptional({ default: 50, type: Number })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsNumber()
   @Min(1)
-  limit?: number
+  limit?: number;
 
   @ApiPropertyOptional({ default: 0, type: Number })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsNumber()
   @Min(0)
-  offset?: number
+  offset?: number;
 }
 
 export class UpdateNotificationPreferencesDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  emailEnabled?: boolean
+  emailEnabled?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  inAppEnabled?: boolean
+  inAppEnabled?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  jobSuccessEnabled?: boolean
+  jobSuccessEnabled?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  jobFailureEnabled?: boolean
+  jobFailureEnabled?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  jobWarningEnabled?: boolean
+  jobWarningEnabled?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  systemAlertEnabled?: boolean
+  systemAlertEnabled?: boolean;
 }

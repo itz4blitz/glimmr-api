@@ -1,124 +1,133 @@
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+} from "@/components/ui/select";
 
-import { 
-  Settings, 
-  Bell, 
-  Palette, 
-  Globe, 
-  Clock, 
+import {
+  Settings,
+  Bell,
+  Palette,
+  Globe,
+  Clock,
   Shield,
   Save,
-  X
-} from 'lucide-react'
-import { useFormState } from '@/hooks/useFormState'
-import { useUserManagementStore } from '@/stores/userManagement'
-import type { UserWithProfile, PreferencesUpdateData } from '@/types/userManagement'
+  X,
+} from "lucide-react";
+import { useFormState } from "@/hooks/useFormState";
+import { useUserManagementStore } from "@/stores/userManagement";
+import type {
+  UserWithProfile,
+  PreferencesUpdateData,
+} from "@/types/userManagement";
 
 interface UserPreferencesFormProps {
-  user: UserWithProfile
-  onSave?: () => void
-  onCancel?: () => void
-  isLoading?: boolean
+  user: UserWithProfile;
+  onSave?: () => void;
+  onCancel?: () => void;
+  isLoading?: boolean;
 }
 
 const themes = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' }
-]
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
 
 const languages = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'it', label: 'Italian' },
-  { value: 'pt', label: 'Portuguese' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'ko', label: 'Korean' },
-  { value: 'zh', label: 'Chinese' }
-]
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "it", label: "Italian" },
+  { value: "pt", label: "Portuguese" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "zh", label: "Chinese" },
+];
 
 const timezones = [
-  'UTC',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Berlin',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Australia/Sydney'
-]
+  "UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Australia/Sydney",
+];
 
 const dateFormats = [
-  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)' },
-  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (EU)' },
-  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (ISO)' },
-  { value: 'DD MMM YYYY', label: 'DD MMM YYYY' }
-]
+  { value: "MM/DD/YYYY", label: "MM/DD/YYYY (US)" },
+  { value: "DD/MM/YYYY", label: "DD/MM/YYYY (EU)" },
+  { value: "YYYY-MM-DD", label: "YYYY-MM-DD (ISO)" },
+  { value: "DD MMM YYYY", label: "DD MMM YYYY" },
+];
 
 const timeFormats = [
-  { value: '12h', label: '12 Hour (AM/PM)' },
-  { value: '24h', label: '24 Hour' }
-]
+  { value: "12h", label: "12 Hour (AM/PM)" },
+  { value: "24h", label: "24 Hour" },
+];
 
-export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesFormProps) {
-  const { updateUserPreferences } = useUserManagementStore()
+export function UserPreferencesForm({
+  user,
+  onSave,
+  onCancel,
+}: UserPreferencesFormProps) {
+  const { updateUserPreferences } = useUserManagementStore();
 
   // Prepare initial form data with defaults - use useMemo to prevent re-creation
-  const initialData: PreferencesUpdateData = React.useMemo(() => ({
-    notificationEmail: user.preferences?.notificationEmail ?? true,
-    notificationPush: user.preferences?.notificationPush ?? true,
-    notificationSms: user.preferences?.notificationSms ?? false,
-    themePreference: user.preferences?.themePreference ?? 'system',
-    languagePreference: user.preferences?.languagePreference ?? 'en',
-    timezonePreference: user.preferences?.timezonePreference ?? 'UTC',
-    dateFormat: user.preferences?.dateFormat ?? 'MM/DD/YYYY',
-    timeFormat: user.preferences?.timeFormat ?? '12h',
-    privacySettings: user.preferences?.privacySettings ?? {
-      profileVisible: true,
-      activityTracking: true,
-      dataExport: true
-    },
-    dashboardLayout: user.preferences?.dashboardLayout ?? {
-      compact: false,
-      showSidebar: true,
-      autoRefresh: false
-    }
-  }), [user.preferences])
+  const initialData: PreferencesUpdateData = React.useMemo(
+    () => ({
+      notificationEmail: user.preferences?.notificationEmail ?? true,
+      notificationPush: user.preferences?.notificationPush ?? true,
+      notificationSms: user.preferences?.notificationSms ?? false,
+      themePreference: user.preferences?.themePreference ?? "system",
+      languagePreference: user.preferences?.languagePreference ?? "en",
+      timezonePreference: user.preferences?.timezonePreference ?? "UTC",
+      dateFormat: user.preferences?.dateFormat ?? "MM/DD/YYYY",
+      timeFormat: user.preferences?.timeFormat ?? "12h",
+      privacySettings: user.preferences?.privacySettings ?? {
+        profileVisible: true,
+        activityTracking: true,
+        dataExport: true,
+      },
+      dashboardLayout: user.preferences?.dashboardLayout ?? {
+        compact: false,
+        showSidebar: true,
+        autoRefresh: false,
+      },
+    }),
+    [user.preferences],
+  );
 
-  const {
-    formData,
-    isSubmitting,
-    setFieldValue,
-    canSave,
-    save,
-    cancel
-  } = useFormState({
-    initialData,
-    onSave: async (data) => {
-      await updateUserPreferences(user.id, data)
-      onSave?.()
-    },
-    onCancel: () => {
-      onCancel?.()
-    }
-  })
+  const { formData, isSubmitting, setFieldValue, canSave, save, cancel } =
+    useFormState({
+      initialData,
+      onSave: async (data) => {
+        await updateUserPreferences(user.id, data);
+        onSave?.();
+      },
+      onCancel: () => {
+        onCancel?.();
+      },
+    });
 
   return (
     <div className="space-y-4">
@@ -130,13 +139,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             Manage notification settings, appearance, and other preferences
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={cancel}
-            disabled={isSubmitting}
-          >
+          <Button variant="outline" onClick={cancel} disabled={isSubmitting}>
             <X className="h-4 w-4 mr-2" />
             Cancel
           </Button>
@@ -181,7 +186,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.notificationEmail}
-              onCheckedChange={(checked) => setFieldValue('notificationEmail', checked)}
+              onCheckedChange={(checked) =>
+                setFieldValue("notificationEmail", checked)
+              }
             />
           </div>
 
@@ -194,7 +201,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.notificationPush}
-              onCheckedChange={(checked) => setFieldValue('notificationPush', checked)}
+              onCheckedChange={(checked) =>
+                setFieldValue("notificationPush", checked)
+              }
             />
           </div>
 
@@ -207,7 +216,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             </div>
             <Switch
               checked={formData.notificationSms}
-              onCheckedChange={(checked) => setFieldValue('notificationSms', checked)}
+              onCheckedChange={(checked) =>
+                setFieldValue("notificationSms", checked)
+              }
             />
           </div>
         </CardContent>
@@ -229,7 +240,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
             <Label htmlFor="theme">Theme</Label>
             <Select
               value={formData.themePreference}
-              onValueChange={(value) => setFieldValue('themePreference', value)}
+              onValueChange={(value) => setFieldValue("themePreference", value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -263,7 +274,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               <Label htmlFor="language">Language</Label>
               <Select
                 value={formData.languagePreference}
-                onValueChange={(value) => setFieldValue('languagePreference', value)}
+                onValueChange={(value) =>
+                  setFieldValue("languagePreference", value)
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -282,7 +295,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               <Label htmlFor="timezone">Timezone</Label>
               <Select
                 value={formData.timezonePreference}
-                onValueChange={(value) => setFieldValue('timezonePreference', value)}
+                onValueChange={(value) =>
+                  setFieldValue("timezonePreference", value)
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -303,7 +318,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               <Label htmlFor="dateFormat">Date Format</Label>
               <Select
                 value={formData.dateFormat}
-                onValueChange={(value) => setFieldValue('dateFormat', value)}
+                onValueChange={(value) => setFieldValue("dateFormat", value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -322,7 +337,7 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               <Label htmlFor="timeFormat">Time Format</Label>
               <Select
                 value={formData.timeFormat}
-                onValueChange={(value) => setFieldValue('timeFormat', value)}
+                onValueChange={(value) => setFieldValue("timeFormat", value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -364,9 +379,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               onCheckedChange={(checked) => {
                 const newSettings = {
                   ...formData.privacySettings,
-                  profileVisible: checked
-                }
-                setFieldValue('privacySettings', newSettings)
+                  profileVisible: checked,
+                };
+                setFieldValue("privacySettings", newSettings);
               }}
             />
           </div>
@@ -383,9 +398,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               onCheckedChange={(checked) => {
                 const newSettings = {
                   ...formData.privacySettings,
-                  activityTracking: checked
-                }
-                setFieldValue('privacySettings', newSettings)
+                  activityTracking: checked,
+                };
+                setFieldValue("privacySettings", newSettings);
               }}
             />
           </div>
@@ -402,9 +417,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               onCheckedChange={(checked) => {
                 const newSettings = {
                   ...formData.privacySettings,
-                  dataExport: checked
-                }
-                setFieldValue('privacySettings', newSettings)
+                  dataExport: checked,
+                };
+                setFieldValue("privacySettings", newSettings);
               }}
             />
           </div>
@@ -435,9 +450,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               onCheckedChange={(checked) => {
                 const newLayout = {
                   ...formData.dashboardLayout,
-                  compact: checked
-                }
-                setFieldValue('dashboardLayout', newLayout)
+                  compact: checked,
+                };
+                setFieldValue("dashboardLayout", newLayout);
               }}
             />
           </div>
@@ -454,9 +469,9 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               onCheckedChange={(checked) => {
                 const newLayout = {
                   ...formData.dashboardLayout,
-                  showSidebar: checked
-                }
-                setFieldValue('dashboardLayout', newLayout)
+                  showSidebar: checked,
+                };
+                setFieldValue("dashboardLayout", newLayout);
               }}
             />
           </div>
@@ -473,14 +488,14 @@ export function UserPreferencesForm({ user, onSave, onCancel }: UserPreferencesF
               onCheckedChange={(checked) => {
                 const newLayout = {
                   ...formData.dashboardLayout,
-                  autoRefresh: checked
-                }
-                setFieldValue('dashboardLayout', newLayout)
+                  autoRefresh: checked,
+                };
+                setFieldValue("dashboardLayout", newLayout);
               }}
             />
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

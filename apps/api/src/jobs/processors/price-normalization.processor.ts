@@ -1,13 +1,18 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Injectable } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { DatabaseService } from '../../database/database.service';
-import { QUEUE_NAMES } from '../queues/queue.config';
-import { prices, hospitals, jobs as jobsTable, jobLogs } from '../../database/schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Job } from "bullmq";
+import { Injectable } from "@nestjs/common";
+import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { DatabaseService } from "../../database/database.service";
+import { QUEUE_NAMES } from "../queues/queue.config";
+import {
+  prices,
+  hospitals,
+  jobs as jobsTable,
+  jobLogs,
+} from "../../database/schema";
+import { eq, and, sql, inArray } from "drizzle-orm";
 
 export interface PriceNormalizationJobData {
   hospitalId: string;
@@ -22,7 +27,7 @@ interface NormalizedPrice {
   codeType: string;
   standardCode: string;
   category: string;
-  dataQuality: 'high' | 'medium' | 'low';
+  dataQuality: "high" | "medium" | "low";
   hasNegotiatedRates: boolean;
   minNegotiatedCharge?: number;
   maxNegotiatedCharge?: number;
@@ -40,16 +45,24 @@ export class PriceNormalizationProcessor extends WorkerHost {
   };
 
   private readonly categoryMappings: Record<string, string[]> = {
-    emergency: ['emergency', 'er ', 'ed ', 'urgent', 'trauma'],
-    surgery: ['surgery', 'surgical', 'operation', 'operative'],
-    imaging: ['imaging', 'radiology', 'xray', 'x-ray', 'mri', 'ct scan', 'ultrasound'],
-    laboratory: ['laboratory', 'lab ', 'pathology', 'blood', 'urine'],
-    pharmacy: ['pharmacy', 'drug', 'medication', 'pharmaceutical'],
-    therapy: ['therapy', 'physical therapy', 'pt ', 'occupational', 'speech'],
-    maternity: ['maternity', 'obstetric', 'delivery', 'labor', 'prenatal'],
-    cardiology: ['cardiac', 'cardio', 'heart', 'coronary'],
-    orthopedic: ['orthopedic', 'ortho', 'joint', 'spine', 'bone'],
-    mental_health: ['mental', 'psychiatric', 'psych', 'behavioral'],
+    emergency: ["emergency", "er ", "ed ", "urgent", "trauma"],
+    surgery: ["surgery", "surgical", "operation", "operative"],
+    imaging: [
+      "imaging",
+      "radiology",
+      "xray",
+      "x-ray",
+      "mri",
+      "ct scan",
+      "ultrasound",
+    ],
+    laboratory: ["laboratory", "lab ", "pathology", "blood", "urine"],
+    pharmacy: ["pharmacy", "drug", "medication", "pharmaceutical"],
+    therapy: ["therapy", "physical therapy", "pt ", "occupational", "speech"],
+    maternity: ["maternity", "obstetric", "delivery", "labor", "prenatal"],
+    cardiology: ["cardiac", "cardio", "heart", "coronary"],
+    orthopedic: ["orthopedic", "ortho", "joint", "spine", "bone"],
+    mental_health: ["mental", "psychiatric", "psych", "behavioral"],
   };
 
   constructor(
@@ -68,7 +81,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
     let jobRecord: any;
 
     this.logger.info({
-      msg: 'Starting price normalization',
+      msg: "Starting price normalization",
       jobId: job.id,
       hospitalId,
       fileId,
@@ -79,21 +92,30 @@ export class PriceNormalizationProcessor extends WorkerHost {
     try {
       // Create job record
       const db = this.databaseService.db;
-      const [newJob] = await db.insert(jobsTable).values({
-        jobType: 'price_update',
-        jobName: `Normalize prices batch ${batchIndex + 1}/${totalBatches}`,
-        description: `Normalizing price data for hospital ${hospitalId}`,
-        status: 'running',
-        queue: QUEUE_NAMES.PRICE_UPDATE,
-        priority: job.opts.priority || 0,
-        startedAt: new Date(),
-        inputData: JSON.stringify(job.data),
-        createdBy: 'system',
-      }).returning();
+      const [newJob] = await db
+        .insert(jobsTable)
+        .values({
+          jobType: "price_update",
+          jobName: `Normalize prices batch ${batchIndex + 1}/${totalBatches}`,
+          description: `Normalizing price data for hospital ${hospitalId}`,
+          status: "running",
+          queue: QUEUE_NAMES.PRICE_UPDATE,
+          priority: job.opts.priority || 0,
+          startedAt: new Date(),
+          inputData: JSON.stringify(job.data),
+          createdBy: "system",
+        })
+        .returning();
       jobRecord = newJob;
 
-      await this.logJobEvent(jobRecord.id, 'info', 'Job started', { batchIndex, totalBatches });
-      await job.updateProgress({ percentage: 5, message: 'Loading price records' });
+      await this.logJobEvent(jobRecord.id, "info", "Job started", {
+        batchIndex,
+        totalBatches,
+      });
+      await job.updateProgress({
+        percentage: 5,
+        message: "Loading price records",
+      });
 
       // Load prices for normalization
       let pricesToNormalize;
@@ -107,17 +129,19 @@ export class PriceNormalizationProcessor extends WorkerHost {
         pricesToNormalize = await db
           .select()
           .from(prices)
-          .where(and(
-            eq(prices.hospitalId, hospitalId),
-            eq(prices.fileId, fileId),
-            eq(prices.dataQuality, 'unknown')
-          ))
+          .where(
+            and(
+              eq(prices.hospitalId, hospitalId),
+              eq(prices.fileId, fileId),
+              eq(prices.dataQuality, "unknown"),
+            ),
+          )
           .limit(1000);
       }
 
-      await job.updateProgress({ 
-        percentage: 20, 
-        message: `Processing ${pricesToNormalize.length} price records` 
+      await job.updateProgress({
+        percentage: 20,
+        message: `Processing ${pricesToNormalize.length} price records`,
       });
 
       const normalizedPrices: NormalizedPrice[] = [];
@@ -141,21 +165,25 @@ export class PriceNormalizationProcessor extends WorkerHost {
               category: normalized.category,
               dataQuality: normalized.dataQuality,
               hasNegotiatedRates: normalized.hasNegotiatedRates,
-              minimumNegotiatedCharge: normalized.minNegotiatedCharge ? String(normalized.minNegotiatedCharge) : null,
-              maximumNegotiatedCharge: normalized.maxNegotiatedCharge ? String(normalized.maxNegotiatedCharge) : null,
+              minimumNegotiatedCharge: normalized.minNegotiatedCharge
+                ? String(normalized.minNegotiatedCharge)
+                : null,
+              maximumNegotiatedCharge: normalized.maxNegotiatedCharge
+                ? String(normalized.maxNegotiatedCharge)
+                : null,
               updatedAt: new Date(),
             })
             .where(eq(prices.id, price.id));
 
           // Track quality metrics
           switch (normalized.dataQuality) {
-            case 'high':
+            case "high":
               highQualityCount++;
               break;
-            case 'medium':
+            case "medium":
               mediumQualityCount++;
               break;
-            case 'low':
+            case "low":
               lowQualityCount++;
               break;
           }
@@ -163,26 +191,38 @@ export class PriceNormalizationProcessor extends WorkerHost {
           processedCount++;
 
           if (processedCount % 100 === 0) {
-            const progress = 20 + Math.round((processedCount / pricesToNormalize.length) * 60);
+            const progress =
+              20 + Math.round((processedCount / pricesToNormalize.length) * 60);
             await job.updateProgress({
               percentage: progress,
               message: `Normalized ${processedCount}/${pricesToNormalize.length} prices`,
             });
           }
         } catch (error) {
-          await this.logJobEvent(jobRecord.id, 'warn', 'Failed to normalize price', {
-            priceId: price.id,
-            error: error.message,
-          });
+          await this.logJobEvent(
+            jobRecord.id,
+            "warn",
+            "Failed to normalize price",
+            {
+              priceId: price.id,
+              error: error.message,
+            },
+          );
         }
       }
 
-      await job.updateProgress({ percentage: 85, message: 'Calculating statistics' });
+      await job.updateProgress({
+        percentage: 85,
+        message: "Calculating statistics",
+      });
 
       // Calculate aggregate statistics
       const stats = await this.calculateBatchStatistics(hospitalId, fileId);
 
-      await job.updateProgress({ percentage: 90, message: 'Queueing analytics update' });
+      await job.updateProgress({
+        percentage: 90,
+        message: "Queueing analytics update",
+      });
 
       // Queue analytics update if this is the last batch
       if (batchIndex === totalBatches - 1) {
@@ -191,24 +231,27 @@ export class PriceNormalizationProcessor extends WorkerHost {
           {
             hospitalId,
             fileId,
-            triggerType: 'price_normalization_complete',
-            metrics: ['price_statistics', 'service_categories', 'payer_rates'],
+            triggerType: "price_normalization_complete",
+            metrics: ["price_statistics", "service_categories", "payer_rates"],
           },
           {
             priority: 2,
             attempts: 3,
             backoff: {
-              type: 'exponential',
+              type: "exponential",
               delay: 10000,
             },
-          }
+          },
         );
       }
 
-      await job.updateProgress({ percentage: 100, message: 'Normalization completed' });
+      await job.updateProgress({
+        percentage: 100,
+        message: "Normalization completed",
+      });
 
       const duration = Date.now() - startTime;
-      
+
       // Update job record
       await this.updateJobSuccess(jobRecord.id, {
         processedCount,
@@ -220,7 +263,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
       });
 
       this.logger.info({
-        msg: 'Price normalization completed',
+        msg: "Price normalization completed",
         jobId: job.id,
         processedCount,
         duration,
@@ -236,17 +279,19 @@ export class PriceNormalizationProcessor extends WorkerHost {
         },
         duration,
       };
-
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
       this.logger.error({
-        msg: 'Price normalization failed',
+        msg: "Price normalization failed",
         jobId: job.id,
         error: error.message,
         stack: error.stack,
+        duration,
       });
 
       if (jobRecord) {
-        await this.updateJobFailure(jobRecord.id, error);
+        await this.updateJobFailure(jobRecord.id, error, duration);
       }
 
       throw error;
@@ -256,10 +301,10 @@ export class PriceNormalizationProcessor extends WorkerHost {
   private async normalizePrice(price: any): Promise<NormalizedPrice> {
     const normalized: NormalizedPrice = {
       id: price.id,
-      codeType: price.codeType || 'unknown',
+      codeType: price.codeType || "unknown",
       standardCode: price.code,
-      category: price.category || 'other',
-      dataQuality: 'low',
+      category: price.category || "other",
+      dataQuality: "low",
       hasNegotiatedRates: false,
     };
 
@@ -269,8 +314,11 @@ export class PriceNormalizationProcessor extends WorkerHost {
     normalized.standardCode = codeNormalization.code;
 
     // Categorize service
-    if (!price.category || price.category === 'other') {
-      normalized.category = this.categorizeService(price.description, price.code);
+    if (!price.category || price.category === "other") {
+      normalized.category = this.categorizeService(
+        price.description,
+        price.code,
+      );
     }
 
     // Parse payer rates
@@ -288,7 +336,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
     if (normalized.hasNegotiatedRates) {
       const rates = Object.values(payerRates)
         .map((r: any) => r.rate || r.negotiatedRate || r)
-        .filter((r): r is number => typeof r === 'number' && r > 0);
+        .filter((r): r is number => typeof r === "number" && r > 0);
 
       if (rates.length > 0) {
         normalized.minNegotiatedCharge = Math.min(...rates);
@@ -310,9 +358,12 @@ export class PriceNormalizationProcessor extends WorkerHost {
     return normalized;
   }
 
-  private normalizeCode(code: string, suggestedType?: string): { type: string; code: string } {
+  private normalizeCode(
+    code: string,
+    suggestedType?: string,
+  ): { type: string; code: string } {
     if (!code) {
-      return { type: 'unknown', code: 'UNKNOWN' };
+      return { type: "unknown", code: "UNKNOWN" };
     }
 
     const cleanCode = code.trim().toUpperCase();
@@ -326,32 +377,32 @@ export class PriceNormalizationProcessor extends WorkerHost {
     }
 
     // Use suggested type if no pattern match
-    if (suggestedType && suggestedType !== 'unknown') {
+    if (suggestedType && suggestedType !== "unknown") {
       return { type: suggestedType.toUpperCase(), code: cleanCode };
     }
 
     // Check for common prefixes
-    if (cleanCode.startsWith('CPT')) {
-      return { type: 'CPT', code: cleanCode.replace('CPT', '').trim() };
-    } else if (cleanCode.startsWith('DRG')) {
-      return { type: 'DRG', code: cleanCode.replace('DRG', '').trim() };
-    } else if (cleanCode.startsWith('HCPCS')) {
-      return { type: 'HCPCS', code: cleanCode.replace('HCPCS', '').trim() };
+    if (cleanCode.startsWith("CPT")) {
+      return { type: "CPT", code: cleanCode.replace("CPT", "").trim() };
+    } else if (cleanCode.startsWith("DRG")) {
+      return { type: "DRG", code: cleanCode.replace("DRG", "").trim() };
+    } else if (cleanCode.startsWith("HCPCS")) {
+      return { type: "HCPCS", code: cleanCode.replace("HCPCS", "").trim() };
     }
 
-    return { type: 'other', code: cleanCode };
+    return { type: "other", code: cleanCode };
   }
 
   private categorizeService(description: string, code: string): string {
     if (!description) {
-      return 'other';
+      return "other";
     }
 
     const lowerDesc = description.toLowerCase();
 
     // Check category mappings
     for (const [category, keywords] of Object.entries(this.categoryMappings)) {
-      if (keywords.some(keyword => lowerDesc.includes(keyword))) {
+      if (keywords.some((keyword) => lowerDesc.includes(keyword))) {
         return category;
       }
     }
@@ -361,26 +412,26 @@ export class PriceNormalizationProcessor extends WorkerHost {
       const codeNum = parseInt(code);
       if (!isNaN(codeNum)) {
         // CPT code ranges
-        if (codeNum >= 70000 && codeNum <= 79999) return 'imaging';
-        if (codeNum >= 80000 && codeNum <= 89999) return 'laboratory';
-        if (codeNum >= 90000 && codeNum <= 99999) return 'evaluation';
-        if (codeNum >= 10000 && codeNum <= 69999) return 'surgery';
+        if (codeNum >= 70000 && codeNum <= 79999) return "imaging";
+        if (codeNum >= 80000 && codeNum <= 89999) return "laboratory";
+        if (codeNum >= 90000 && codeNum <= 99999) return "evaluation";
+        if (codeNum >= 10000 && codeNum <= 69999) return "surgery";
       }
     }
 
-    return 'other';
+    return "other";
   }
 
   private assessDataQuality(
     price: any,
-    normalized: NormalizedPrice
-  ): 'high' | 'medium' | 'low' {
+    normalized: NormalizedPrice,
+  ): "high" | "medium" | "low" {
     let qualityScore = 0;
     let maxScore = 0;
 
     // Has valid code
     maxScore += 2;
-    if (normalized.codeType !== 'unknown' && normalized.codeType !== 'other') {
+    if (normalized.codeType !== "unknown" && normalized.codeType !== "other") {
       qualityScore += 2;
     }
 
@@ -410,15 +461,15 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
     // Has proper category
     maxScore += 1;
-    if (normalized.category !== 'other') {
+    if (normalized.category !== "other") {
       qualityScore += 1;
     }
 
     const qualityPercentage = (qualityScore / maxScore) * 100;
 
-    if (qualityPercentage >= 80) return 'high';
-    if (qualityPercentage >= 50) return 'medium';
-    return 'low';
+    if (qualityPercentage >= 80) return "high";
+    if (qualityPercentage >= 50) return "medium";
+    return "low";
   }
 
   private async calculateBatchStatistics(hospitalId: string, fileId: string) {
@@ -437,10 +488,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
         lowQualityCount: sql<number>`count(*) filter (where data_quality = 'low')`,
       })
       .from(prices)
-      .where(and(
-        eq(prices.hospitalId, hospitalId),
-        eq(prices.fileId, fileId)
-      ));
+      .where(and(eq(prices.hospitalId, hospitalId), eq(prices.fileId, fileId)));
 
     // Get category breakdown
     const categoryStats = await db
@@ -450,10 +498,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
         avgPrice: sql<number>`avg(gross_charge)`,
       })
       .from(prices)
-      .where(and(
-        eq(prices.hospitalId, hospitalId),
-        eq(prices.fileId, fileId)
-      ))
+      .where(and(eq(prices.hospitalId, hospitalId), eq(prices.fileId, fileId)))
       .groupBy(prices.category);
 
     // Get code type breakdown
@@ -463,10 +508,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
         count: sql<number>`count(*)`,
       })
       .from(prices)
-      .where(and(
-        eq(prices.hospitalId, hospitalId),
-        eq(prices.fileId, fileId)
-      ))
+      .where(and(eq(prices.hospitalId, hospitalId), eq(prices.fileId, fileId)))
       .groupBy(prices.codeType);
 
     return {
@@ -480,7 +522,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
     jobId: string,
     level: string,
     message: string,
-    data?: any
+    data?: any,
   ): Promise<void> {
     try {
       await this.databaseService.db.insert(jobLogs).values({
@@ -491,7 +533,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to log job event',
+        msg: "Failed to log job event",
         error: error.message,
         jobId,
         level,
@@ -500,12 +542,15 @@ export class PriceNormalizationProcessor extends WorkerHost {
     }
   }
 
-  private async updateJobSuccess(jobId: string, outputData: any): Promise<void> {
+  private async updateJobSuccess(
+    jobId: string,
+    outputData: any,
+  ): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)
       .set({
-        status: 'completed',
+        status: "completed",
         completedAt: new Date(),
         duration: outputData.duration,
         outputData: JSON.stringify(outputData),
@@ -516,25 +561,32 @@ export class PriceNormalizationProcessor extends WorkerHost {
       })
       .where(eq(jobsTable.id, jobId));
 
-    await this.logJobEvent(jobId, 'info', 'Job completed successfully', outputData);
+    await this.logJobEvent(
+      jobId,
+      "info",
+      "Job completed successfully",
+      outputData,
+    );
   }
 
-  private async updateJobFailure(jobId: string, error: Error): Promise<void> {
+  private async updateJobFailure(jobId: string, error: Error, duration?: number): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)
       .set({
-        status: 'failed',
+        status: "failed",
         completedAt: new Date(),
+        duration,
         errorMessage: error.message,
         errorStack: error.stack,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
 
-    await this.logJobEvent(jobId, 'error', 'Job failed', {
+    await this.logJobEvent(jobId, "error", "Job failed", {
       error: error.message,
       stack: error.stack,
+      duration,
     });
   }
 }

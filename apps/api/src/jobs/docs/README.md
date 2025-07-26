@@ -18,6 +18,7 @@ The job system is built on **BullMQ** with **Redis** as the message broker, prov
 ### **Hospital Data Jobs**
 
 #### `pra-unified-scan` 🆕
+
 **Primary hospital discovery and file change detection system**
 
 - **Purpose**: Scans all 51 US states via Patient Rights Advocate API
@@ -29,6 +30,7 @@ The job system is built on **BullMQ** with **Redis** as the message broker, prov
   - Test mode for development (CA, FL, TX only)
 
 **Recent Performance**:
+
 ```
 Full Scan: 51 states, 6,675 hospitals in 3 minutes
 - New hospitals: 631 (9.4%)
@@ -38,6 +40,7 @@ Full Scan: 51 states, 6,675 hospitals in 3 minutes
 ```
 
 #### `hospital-import`
+
 **Legacy hospital import system**
 
 - **Purpose**: Imports hospital data from various sources
@@ -45,6 +48,7 @@ Full Scan: 51 states, 6,675 hospitals in 3 minutes
 - **Sources**: CMS data, manual uploads, API integrations
 
 #### `pra-file-download`
+
 **Downloads price transparency files from hospitals**
 
 - **Purpose**: Downloads files queued by unified scanner
@@ -54,6 +58,7 @@ Full Scan: 51 states, 6,675 hospitals in 3 minutes
 ### **Price Data Processing Jobs**
 
 #### `price-file-download`
+
 **Processes downloaded price files**
 
 - **Purpose**: Extracts price data from CSV/Excel files
@@ -61,6 +66,7 @@ Full Scan: 51 states, 6,675 hospitals in 3 minutes
 - **Formats**: CSV, XLSX, XLS, JSON
 
 #### `price-update`
+
 **Updates and normalizes price data**
 
 - **Purpose**: Data quality improvements and standardization
@@ -69,18 +75,21 @@ Full Scan: 51 states, 6,675 hospitals in 3 minutes
 ### **Analytics & Maintenance Jobs**
 
 #### `analytics-refresh`
+
 **Refreshes analytics data and calculations**
 
 - **Purpose**: Updates dashboards and reporting data
 - **Frequency**: Configurable based on data volume
 
 #### `data-validation`
+
 **Validates data integrity and quality**
 
 - **Purpose**: Ensures data consistency across the system
 - **Features**: Referential integrity, data quality metrics
 
 #### `export-data`
+
 **Handles data exports for external systems**
 
 - **Purpose**: PowerBI integration, API exports, data sharing
@@ -157,11 +166,11 @@ GET /api/v1/jobs/status
 
 ## ⏰ Scheduled Jobs
 
-| Job | Schedule | Description |
-|-----|----------|-------------|
-| PRA Unified Scan | 6 AM & 6 PM daily | Hospital discovery and file change detection |
-| Weekly Full Refresh | Sunday 1 AM | Complete hospital data refresh |
-| Job Cleanup | Daily 3 AM | Remove old completed/failed jobs |
+| Job                 | Schedule          | Description                                  |
+| ------------------- | ----------------- | -------------------------------------------- |
+| PRA Unified Scan    | 6 AM & 6 PM daily | Hospital discovery and file change detection |
+| Weekly Full Refresh | Sunday 1 AM       | Complete hospital data refresh               |
+| Job Cleanup         | Daily 3 AM        | Remove old completed/failed jobs             |
 
 ## 🔧 Configuration
 
@@ -176,11 +185,11 @@ export const QUEUE_CONFIGS = {
       removeOnComplete: 5,
       removeOnFail: 10,
       attempts: 2,
-      backoff: { type: 'exponential', delay: 60000 }
-    }
-  }
+      backoff: { type: "exponential", delay: 60000 },
+    },
+  },
   // ... other queues
-}
+};
 ```
 
 ### Job Priorities
@@ -197,6 +206,7 @@ Access the visual job monitoring dashboard at:
 `http://localhost:3000/api/v1/admin/queues`
 
 **Features**:
+
 - Real-time job status
 - Queue statistics
 - Job details and logs
@@ -206,6 +216,7 @@ Access the visual job monitoring dashboard at:
 ### Logging
 
 All jobs use structured logging with:
+
 - Job IDs for tracing
 - Performance metrics
 - Error details
@@ -216,6 +227,7 @@ All jobs use structured logging with:
 ### Adding New Jobs
 
 1. **Create Processor**:
+
 ```typescript
 @Injectable()
 @Processor(QUEUE_NAMES.YOUR_QUEUE)
@@ -227,20 +239,22 @@ export class YourProcessor extends WorkerHost {
 ```
 
 2. **Register Queue**:
+
 ```typescript
 // In queue.config.ts
 export const QUEUE_NAMES = {
-  YOUR_QUEUE: 'your-queue-name'
-}
+  YOUR_QUEUE: "your-queue-name",
+};
 ```
 
 3. **Add to Module**:
+
 ```typescript
 // In jobs.module.ts
 providers: [
   YourProcessor,
   // ... other processors
-]
+];
 ```
 
 ### Testing Jobs

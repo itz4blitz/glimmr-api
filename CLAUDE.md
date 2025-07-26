@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Glimmr API is a healthcare price transparency data aggregation platform built as a TypeScript monorepo using:
+
 - **Backend**: NestJS with PostgreSQL (Drizzle ORM)
 - **Frontend**: React + TypeScript with Vite (apps/web)
 - **Queue System**: BullMQ with Redis
@@ -16,6 +17,7 @@ The system discovers hospital pricing data, monitors changes, downloads files, a
 ## 🎉 **NEW: Complete React UI Built**
 
 ### **Frontend Application (apps/web/)**
+
 - ✅ **Vite + React + TypeScript** - Modern development setup
 - ✅ **ALL 47 shadcn/ui Components** - Complete component library
 - ✅ **Beautiful Custom Theme** - OKLCH-based colors with light/dark modes
@@ -30,6 +32,7 @@ The system discovers hospital pricing data, monitors changes, downloads files, a
 ## Essential Commands
 
 ### Development
+
 ```bash
 # Start full development environment (recommended)
 docker-compose -f docker-compose.dev.yml up -d
@@ -63,6 +66,7 @@ docker-compose -f docker-compose.dev.yml logs web  # View web app logs
 ```
 
 ### **UI Components Built**
+
 - ✅ **Login Page** - Beautiful animated form with theme toggle
 - ✅ **Registration Page** - Complete signup flow with validation
 - ✅ **Dashboard Page** - Stats, user info, quick actions
@@ -72,14 +76,31 @@ docker-compose -f docker-compose.dev.yml logs web  # View web app logs
 - ✅ **Mobile Navigation** - Responsive sidebar and header
 
 ### **Current Status**
+
 **🚀 PRODUCTION READY**: Complete full-stack application with beautiful, responsive React UI, robust authentication, and modern development setup.
 
 **🐳 DOCKER READY**: Both frontend and backend now run in Docker containers:
+
 - **Frontend**: http://localhost:5174 (React + Vite)
 - **Backend**: http://localhost:3000 (NestJS API)
 - **All services**: PostgreSQL, Redis, MinIO, Inbucket running in containers
 
+### **Recent Updates (2025-07-26)**
+
+**✅ Component Consolidation**: Cleaned up duplicate "Enhanced" components:
+- `EnhancedQueueDashboard` → `QueueDashboard` (with WebSocket support, real-time updates)
+- `EnhancedQueueLogsModal` → `QueueLogsModal` (with metrics tab, job details)
+- `TriggerJobModalEnhanced` → `TriggerJobModal` (with guided mode, state selection)
+
+**✅ Backend Job System**: All job services are integrated and provide:
+- **JobsGateway**: WebSocket support for real-time job updates
+- **JobMonitorService**: Automated health checks and orphaned file detection
+- **JobAnalyticsService**: Performance metrics and failure analysis
+- **JobExportService**: Data extraction and reporting capabilities
+- **JobSchedulingService**: Automated recurring scans
+
 ### Testing
+
 ```bash
 cd apps/api
 pnpm test                 # Run unit tests
@@ -89,6 +110,7 @@ pnpm test:e2e            # E2E tests
 ```
 
 ### Build & Production
+
 ```bash
 pnpm build               # Build all packages
 cd apps/api && pnpm start:prod  # Run production build
@@ -97,7 +119,9 @@ cd apps/api && pnpm start:prod  # Run production build
 ## Architecture
 
 ### Module Structure
+
 The API follows NestJS module-based architecture with domain-driven design:
+
 - `/apps/api/src/analytics/` - Analytics and reporting
 - `/apps/api/src/hospitals/` - Hospital management
 - `/apps/api/src/prices/` - Price data processing
@@ -106,7 +130,9 @@ The API follows NestJS module-based architecture with domain-driven design:
 - `/apps/api/src/database/` - Database schemas and migrations
 
 ### Database Schema Organization
+
 Drizzle schemas are organized by domain:
+
 - `analytics.*` - Aggregated analytics data
 - `hospitals.*` - Hospital information
 - `jobs.*` - Job tracking
@@ -114,7 +140,9 @@ Drizzle schemas are organized by domain:
 - `price_transparency_files.*` - File tracking
 
 ### Job Processing System
+
 Queue-based processing with BullMQ:
+
 1. **pra-unified-scan** - Discovers hospitals and detects file changes
 2. **pra-file-download** - Downloads transparency files
 3. **price-file-download** - Processes downloaded files
@@ -124,6 +152,7 @@ Queue-based processing with BullMQ:
 Monitor jobs at: http://localhost:3000/api/v1/admin/queues
 
 ### Data Flow
+
 1. Patient Rights Advocate API → Hospital discovery
 2. Smart change detection → File downloads
 3. File processing → Price extraction
@@ -132,7 +161,9 @@ Monitor jobs at: http://localhost:3000/api/v1/admin/queues
 ## Development Setup
 
 ### Environment Variables
+
 Copy `/apps/api/.env.production.example` to `/apps/api/.env` and update:
+
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/glimmr_dev
 REDIS_URL=redis://localhost:6379
@@ -143,12 +174,14 @@ NODE_ENV=development
 ```
 
 ### Key URLs
+
 - API: http://localhost:3000
 - Swagger: http://localhost:3000/api/docs
 - Bull Board: http://localhost:3000/api/v1/admin/queues
 - MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
 
 ### Manual Job Triggers
+
 ```bash
 # Trigger PRA scan (testMode limits to CA, FL, TX)
 curl -X POST http://localhost:3000/api/v1/jobs/pra/scan \
@@ -162,6 +195,7 @@ curl http://localhost:3000/api/v1/jobs/status
 ## Code Patterns
 
 ### Adding New Features
+
 1. Create module in appropriate domain directory
 2. Define Drizzle schema if database changes needed
 3. Generate and apply migrations
@@ -170,18 +204,21 @@ curl http://localhost:3000/api/v1/jobs/status
 6. Create background jobs if async processing needed
 
 ### Database Operations
+
 - Use Drizzle ORM for all database operations
 - Schemas defined in `/apps/api/src/database/schema/`
 - Migrations auto-generated from schema changes
 - Use transactions for multi-table operations
 
 ### Job Creation
+
 - Define job in `/apps/api/src/jobs/processors/`
 - Register with BullModule in job module
 - Use proper job options (retries, backoff, concurrency)
 - Implement progress reporting for long-running jobs
 
 ### Error Handling
+
 - Use NestJS built-in exceptions
 - Log errors with context using Pino logger
 - Implement proper retry logic in jobs
@@ -190,18 +227,21 @@ curl http://localhost:3000/api/v1/jobs/status
 ## Production Considerations
 
 ### Performance
+
 - Database indexes defined in schema files
 - Job concurrency limits configured per queue
 - Rate limiting enabled on API endpoints
 - Connection pooling for database
 
 ### Monitoring
+
 - Health endpoint: `/api/v1/health`
 - Bull Board for job monitoring
 - Structured logging with Pino
 - Docker health checks configured
 
 ### Security
+
 - JWT authentication configured
 - CORS properly set up
 - Rate limiting per endpoint
@@ -211,6 +251,7 @@ curl http://localhost:3000/api/v1/jobs/status
 ## Docker & Service Access Commands
 
 ### Docker Management
+
 ```bash
 # Environment control
 docker-compose -f docker-compose.dev.yml up -d     # Start all services
@@ -237,6 +278,7 @@ docker exec glimmr-api curl -s http://localhost:3000/api/v1/health
 ```
 
 ### Database Access (PostgreSQL)
+
 ```bash
 # Direct database connection
 docker exec -it glimmr-postgres psql -U postgres -d glimmr_dev
@@ -259,6 +301,7 @@ docker exec glimmr-postgres psql -U postgres -d glimmr_dev -c "\d+ hospitals"  #
 ```
 
 ### Redis Access
+
 ```bash
 # Connect to Redis CLI
 docker exec -it glimmr-redis redis-cli
@@ -281,6 +324,7 @@ redis-cli -h localhost -p 6379
 ```
 
 ### MinIO Storage Access
+
 ```bash
 # MinIO Client (mc) commands via container
 docker exec glimmr-minio mc alias set local http://localhost:9000 minioadmin minioadmin123
@@ -300,6 +344,7 @@ aws --endpoint-url=http://localhost:9000 s3 ls s3://glimmr-files/
 ```
 
 ### Email Testing (Inbucket)
+
 ```bash
 # Inbucket Web UI
 open http://localhost:8025
@@ -323,6 +368,7 @@ curl http://localhost:8025/api/v1/mailbox/test@example.com/EMAIL_ID
 ```
 
 ### API Testing & Monitoring
+
 ```bash
 # Health checks
 curl http://localhost:3000/api/v1/health
@@ -355,6 +401,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/v1/admin/users
 ```
 
 ### Development Tools
+
 ```bash
 # Drizzle Studio (Database GUI)
 cd apps/api && pnpm db:studio
@@ -374,6 +421,7 @@ docker exec glimmr-api env | grep -E "(DATABASE_|REDIS_|STORAGE_)"
 ```
 
 ### Debugging & Troubleshooting
+
 ```bash
 # Check all service endpoints
 curl -s http://localhost:3000/api/v1/health | jq '.'
@@ -402,6 +450,7 @@ docker exec glimmr-minio ls -la /data/glimmr-files/
 ```
 
 ### MCP & Integration Testing
+
 ```bash
 # Test all service integrations
 ./scripts/test-integration.sh  # If exists

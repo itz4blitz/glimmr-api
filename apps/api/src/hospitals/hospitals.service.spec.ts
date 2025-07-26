@@ -1,11 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { HospitalsService } from './hospitals.service';
-import { DatabaseService } from '../database/database.service';
-import { PatientRightsAdvocateService } from '../external-apis/patient-rights-advocate.service';
-import { PinoLogger } from 'nestjs-pino';
-import { HospitalNotFoundException, DatabaseOperationException } from '../common/exceptions';
+import { Test, TestingModule } from "@nestjs/testing";
+import { HospitalsService } from "./hospitals.service";
+import { DatabaseService } from "../database/database.service";
+import { PatientRightsAdvocateService } from "../external-apis/patient-rights-advocate.service";
+import { PinoLogger } from "nestjs-pino";
+import {
+  HospitalNotFoundException,
+  DatabaseOperationException,
+} from "../common/exceptions";
 
-describe('HospitalsService', () => {
+describe("HospitalsService", () => {
   let service: HospitalsService;
   let databaseService: DatabaseService;
   let patientRightsAdvocateService: PatientRightsAdvocateService;
@@ -54,7 +57,9 @@ describe('HospitalsService', () => {
 
     service = module.get<HospitalsService>(HospitalsService);
     databaseService = module.get<DatabaseService>(DatabaseService);
-    patientRightsAdvocateService = module.get<PatientRightsAdvocateService>(PatientRightsAdvocateService);
+    patientRightsAdvocateService = module.get<PatientRightsAdvocateService>(
+      PatientRightsAdvocateService,
+    );
     logger = module.get<PinoLogger>(PinoLogger);
   });
 
@@ -62,30 +67,30 @@ describe('HospitalsService', () => {
     jest.clearAllMocks();
   });
 
-  describe('Service Initialization', () => {
-    it('should be defined', () => {
+  describe("Service Initialization", () => {
+    it("should be defined", () => {
       expect(service).toBeDefined();
     });
 
-    it('should be an instance of HospitalsService', () => {
+    it("should be an instance of HospitalsService", () => {
       expect(service).toBeInstanceOf(HospitalsService);
     });
   });
 
-  describe('getHospitals', () => {
-    it('should fetch hospitals with filters successfully', async () => {
+  describe("getHospitals", () => {
+    it("should fetch hospitals with filters successfully", async () => {
       const mockHospitals = [
         {
-          id: '1',
-          name: 'Test Hospital',
-          state: 'CA',
-          city: 'San Francisco',
-          address: '123 Main St',
-          phone: '555-0123',
-          website: 'https://test.com',
+          id: "1",
+          name: "Test Hospital",
+          state: "CA",
+          city: "San Francisco",
+          address: "123 Main St",
+          phone: "555-0123",
+          website: "https://test.com",
           bedCount: 100,
-          ownership: 'private',
-          hospitalType: 'general',
+          ownership: "private",
+          hospitalType: "general",
         },
       ];
 
@@ -99,7 +104,11 @@ describe('HospitalsService', () => {
         }),
       });
 
-      const result = await service.getHospitals({ state: 'CA', limit: 10, offset: 0 });
+      const result = await service.getHospitals({
+        state: "CA",
+        limit: 10,
+        offset: 0,
+      });
 
       expect(result).toEqual(mockHospitals);
       expect(mockDatabaseService.db.select).toHaveBeenCalled();

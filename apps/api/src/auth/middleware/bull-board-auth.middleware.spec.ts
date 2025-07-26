@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { Request, Response, NextFunction } from 'express';
-import { BullBoardAuthMiddleware } from './bull-board-auth.middleware';
-import { AuthService } from '../auth.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { Request, Response, NextFunction } from "express";
+import { BullBoardAuthMiddleware } from "./bull-board-auth.middleware";
+import { AuthService } from "../auth.service";
 
-describe('BullBoardAuthMiddleware', () => {
+describe("BullBoardAuthMiddleware", () => {
   let middleware: BullBoardAuthMiddleware;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
@@ -27,7 +27,7 @@ describe('BullBoardAuthMiddleware', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('test-secret'),
+            get: jest.fn().mockReturnValue("test-secret"),
           },
         },
         {
@@ -56,16 +56,16 @@ describe('BullBoardAuthMiddleware', () => {
     mockNext = jest.fn();
   });
 
-  describe('use', () => {
-    it('should allow access for admin user with valid JWT', async () => {
+  describe("use", () => {
+    it("should allow access for admin user with valid JWT", async () => {
       const mockPayload = {
-        sub: 'admin-123',
-        username: 'admin',
-        role: 'admin',
+        sub: "admin-123",
+        username: "admin",
+        role: "admin",
       };
 
       mockRequest.headers = {
-        authorization: 'Bearer valid.jwt.token',
+        authorization: "Bearer valid.jwt.token",
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -73,22 +73,22 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockResponse.status).not.toHaveBeenCalled();
     });
 
-    it('should allow access for admin user with valid API key', async () => {
+    it("should allow access for admin user with valid API key", async () => {
       const mockUser = {
-        id: 'admin-456',
-        username: 'admin',
-        role: 'admin',
+        id: "admin-456",
+        username: "admin",
+        role: "admin",
       };
 
       mockRequest.headers = {
-        'x-api-key': 'gapi_admin123',
+        "x-api-key": "gapi_admin123",
       };
 
       authService.validateApiKey.mockResolvedValue(mockUser as any);
@@ -96,22 +96,22 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockResponse.status).not.toHaveBeenCalled();
     });
 
-    it('should deny access for non-admin user with valid JWT', async () => {
+    it("should deny access for non-admin user with valid JWT", async () => {
       const mockPayload = {
-        sub: 'user-123',
-        username: 'user',
-        role: 'api-user',
+        sub: "user-123",
+        username: "user",
+        role: "api-user",
       };
 
       mockRequest.headers = {
-        authorization: 'Bearer valid.jwt.token',
+        authorization: "Bearer valid.jwt.token",
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -119,27 +119,27 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: 401,
-        message: 'Admin access required for queue management',
-        error: 'Unauthorized',
+        message: "Admin access required for queue management",
+        error: "Unauthorized",
       });
     });
 
-    it('should deny access for non-admin user with valid API key', async () => {
+    it("should deny access for non-admin user with valid API key", async () => {
       const mockUser = {
-        id: 'user-456',
-        username: 'user',
-        role: 'api-user',
+        id: "user-456",
+        username: "user",
+        role: "api-user",
       };
 
       mockRequest.headers = {
-        'x-api-key': 'gapi_user123',
+        "x-api-key": "gapi_user123",
       };
 
       authService.validateApiKey.mockResolvedValue(mockUser as any);
@@ -147,63 +147,63 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: 401,
-        message: 'Admin access required for queue management',
-        error: 'Unauthorized',
+        message: "Admin access required for queue management",
+        error: "Unauthorized",
       });
     });
 
-    it('should deny access when no authentication provided', async () => {
+    it("should deny access when no authentication provided", async () => {
       mockRequest.headers = {};
 
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: 401,
-        message: 'Admin access required for queue management',
-        error: 'Unauthorized',
+        message: "Admin access required for queue management",
+        error: "Unauthorized",
       });
     });
 
-    it('should deny access when JWT verification fails', async () => {
+    it("should deny access when JWT verification fails", async () => {
       mockRequest.headers = {
-        authorization: 'Bearer invalid.jwt.token',
+        authorization: "Bearer invalid.jwt.token",
       };
 
       jwtService.verify.mockImplementation(() => {
-        throw new Error('JWT verification failed');
+        throw new Error("JWT verification failed");
       });
 
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: 401,
-        message: 'Invalid credentials',
-        error: 'Unauthorized',
+        message: "Invalid credentials",
+        error: "Unauthorized",
       });
     });
 
-    it('should deny access when API key validation fails', async () => {
+    it("should deny access when API key validation fails", async () => {
       mockRequest.headers = {
-        'x-api-key': 'invalid_key',
+        "x-api-key": "invalid_key",
       };
 
       authService.validateApiKey.mockResolvedValue(null);
@@ -211,72 +211,75 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: 401,
-        message: 'Admin access required for queue management',
-        error: 'Unauthorized',
+        message: "Admin access required for queue management",
+        error: "Unauthorized",
       });
     });
 
-    it('should handle malformed authorization header', async () => {
+    it("should handle malformed authorization header", async () => {
       mockRequest.headers = {
-        authorization: 'NotBearer token',
+        authorization: "NotBearer token",
       };
 
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle authorization header without Bearer prefix', async () => {
+    it("should handle authorization header without Bearer prefix", async () => {
       mockRequest.headers = {
-        authorization: 'token',
+        authorization: "token",
       };
 
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle empty authorization header', async () => {
+    it("should handle empty authorization header", async () => {
       mockRequest.headers = {
-        authorization: '',
+        authorization: "",
       };
 
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle authorization header array (first value)', async () => {
+    it("should handle authorization header array (first value)", async () => {
       const mockPayload = {
-        sub: 'admin-123',
-        username: 'admin',
-        role: 'admin',
+        sub: "admin-123",
+        username: "admin",
+        role: "admin",
       };
 
       mockRequest.headers = {
-        authorization: ['Bearer valid.jwt.token', 'Bearer another.token'] as any,
+        authorization: [
+          "Bearer valid.jwt.token",
+          "Bearer another.token",
+        ] as any,
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -284,22 +287,22 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle x-api-key header array (first value)', async () => {
+    it("should handle x-api-key header array (first value)", async () => {
       const mockUser = {
-        id: 'admin-456',
-        username: 'admin',
-        role: 'admin',
+        id: "admin-456",
+        username: "admin",
+        role: "admin",
       };
 
       mockRequest.headers = {
-        'x-api-key': ['gapi_admin123', 'gapi_another'] as any,
+        "x-api-key": ["gapi_admin123", "gapi_another"] as any,
       };
 
       authService.validateApiKey.mockResolvedValue(mockUser as any);
@@ -307,22 +310,22 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle user with no role', async () => {
+    it("should handle user with no role", async () => {
       const mockPayload = {
-        sub: 'user-123',
-        username: 'user',
+        sub: "user-123",
+        username: "user",
         // no role property
       };
 
       mockRequest.headers = {
-        authorization: 'Bearer valid.jwt.token',
+        authorization: "Bearer valid.jwt.token",
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -330,22 +333,22 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle user with null role', async () => {
+    it("should handle user with null role", async () => {
       const mockPayload = {
-        sub: 'user-123',
-        username: 'user',
+        sub: "user-123",
+        username: "user",
         role: null,
       };
 
       mockRequest.headers = {
-        authorization: 'Bearer valid.jwt.token',
+        authorization: "Bearer valid.jwt.token",
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -353,45 +356,45 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
 
-    it('should handle API key validation throwing error', async () => {
+    it("should handle API key validation throwing error", async () => {
       mockRequest.headers = {
-        'x-api-key': 'gapi_test123',
+        "x-api-key": "gapi_test123",
       };
 
-      authService.validateApiKey.mockRejectedValue(new Error('Database error'));
+      authService.validateApiKey.mockRejectedValue(new Error("Database error"));
 
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: 401,
-        message: 'Invalid credentials',
-        error: 'Unauthorized',
+        message: "Invalid credentials",
+        error: "Unauthorized",
       });
     });
 
-    it('should prioritize JWT over API key when both are provided', async () => {
+    it("should prioritize JWT over API key when both are provided", async () => {
       const mockPayload = {
-        sub: 'admin-123',
-        username: 'admin',
-        role: 'admin',
+        sub: "admin-123",
+        username: "admin",
+        role: "admin",
       };
 
       mockRequest.headers = {
-        authorization: 'Bearer valid.jwt.token',
-        'x-api-key': 'gapi_admin123',
+        authorization: "Bearer valid.jwt.token",
+        "x-api-key": "gapi_admin123",
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -399,7 +402,7 @@ describe('BullBoardAuthMiddleware', () => {
       await middleware.use(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();

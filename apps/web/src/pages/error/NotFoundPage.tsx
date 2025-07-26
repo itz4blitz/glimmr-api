@@ -1,7 +1,13 @@
-import { Link } from 'react-router-dom'
-import { Home, ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Link } from "react-router-dom";
+import { Home, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function NotFoundPage() {
   return (
@@ -19,20 +25,13 @@ export function NotFoundPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button 
-            asChild 
-            className="w-full button-primary-enhanced"
-          >
+          <Button asChild className="w-full button-primary-enhanced">
             <Link to="/dashboard">
               <Home className="h-4 w-4 mr-2" />
               Go to Dashboard
             </Link>
           </Button>
-          <Button 
-            asChild 
-            variant="outline" 
-            className="w-full button-enhanced"
-          >
+          <Button asChild variant="outline" className="w-full button-enhanced">
             <Link to="javascript:history.back()">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
@@ -41,5 +40,5 @@ export function NotFoundPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

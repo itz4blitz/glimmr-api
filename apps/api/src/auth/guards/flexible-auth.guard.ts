@@ -1,7 +1,12 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth.service';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { AuthService } from "../auth.service";
 
 @Injectable()
 export class FlexibleAuthGuard implements CanActivate {
@@ -13,17 +18,17 @@ export class FlexibleAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
+
     // Try JWT authentication first
     const authHeader = request.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
       if (token) {
         try {
           const payload = this.jwtService.verify(token, {
-            secret: this.configService.get<string>('JWT_SECRET'),
+            secret: this.configService.get<string>("JWT_SECRET"),
           });
-          
+
           request.user = {
             id: payload.sub,
             username: payload.username,
@@ -35,9 +40,9 @@ export class FlexibleAuthGuard implements CanActivate {
         }
       }
     }
-    
+
     // Try API key authentication
-    const apiKey = request.headers['x-api-key'];
+    const apiKey = request.headers["x-api-key"];
     if (apiKey) {
       try {
         const user = await this.authService.validateApiKey(apiKey);
@@ -49,8 +54,8 @@ export class FlexibleAuthGuard implements CanActivate {
         // API key validation failed
       }
     }
-    
+
     // No valid authentication found
-    throw new UnauthorizedException('Authentication required');
+    throw new UnauthorizedException("Authentication required");
   }
 }

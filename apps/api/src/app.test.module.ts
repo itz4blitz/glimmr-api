@@ -1,35 +1,42 @@
-import { Module, RequestMethod, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { LoggerModule } from 'nestjs-pino';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { HealthModule } from './health/health.module';
+import {
+  Module,
+  RequestMethod,
+  NestModule,
+  MiddlewareConsumer,
+} from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { LoggerModule } from "nestjs-pino";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { HealthModule } from "./health/health.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: [".env.local", ".env"],
     }),
     LoggerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const isProduction = config.get('NODE_ENV') === 'production';
+        const isProduction = config.get("NODE_ENV") === "production";
 
         return {
           pinoHttp: {
-            name: 'glimmr-api',
-            level: isProduction ? 'info' : 'debug',
-            transport: !isProduction ? {
-              target: 'pino-pretty',
-              options: {
-                colorize: true,
-                translateTime: 'SYS:standard',
-                ignore: 'pid,hostname',
-                singleLine: false,
-              },
-            } : undefined,
+            name: "glimmr-api",
+            level: isProduction ? "info" : "debug",
+            transport: !isProduction
+              ? {
+                  target: "pino-pretty",
+                  options: {
+                    colorize: true,
+                    translateTime: "SYS:standard",
+                    ignore: "pid,hostname",
+                    singleLine: false,
+                  },
+                }
+              : undefined,
             formatters: {
               level: (label: string) => {
                 return { level: label };
@@ -37,12 +44,14 @@ import { HealthModule } from './health/health.module';
             },
             timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
             genReqId: (req: any) => {
-              return req.headers['x-request-id'] ??
-                     req.headers['x-correlation-id'] ??
-                     `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+              return (
+                req.headers["x-request-id"] ??
+                req.headers["x-correlation-id"] ??
+                `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+              );
             },
             customProps: (req: any) => ({
-              userAgent: req.headers['user-agent'],
+              userAgent: req.headers["user-agent"],
               ip: req.ip ?? req.connection?.remoteAddress,
               method: req.method,
               url: req.url,
@@ -56,9 +65,11 @@ import { HealthModule } from './health/health.module';
                 params: req.params,
                 headers: {
                   host: req.headers.host,
-                  'user-agent': req.headers['user-agent'],
-                  'content-type': req.headers['content-type'],
-                  authorization: req.headers.authorization ? '[REDACTED]' : undefined,
+                  "user-agent": req.headers["user-agent"],
+                  "content-type": req.headers["content-type"],
+                  authorization: req.headers.authorization
+                    ? "[REDACTED]"
+                    : undefined,
                 },
                 remoteAddress: req.remoteAddress,
                 remotePort: req.remotePort,
@@ -66,8 +77,8 @@ import { HealthModule } from './health/health.module';
               res: (res: any) => ({
                 statusCode: res.statusCode,
                 headers: {
-                  'content-type': res.headers?.['content-type'],
-                  'content-length': res.headers?.['content-length'],
+                  "content-type": res.headers?.["content-type"],
+                  "content-length": res.headers?.["content-length"],
                 },
               }),
               err: (err: any) => ({
@@ -80,10 +91,10 @@ import { HealthModule } from './health/health.module';
             },
           },
           exclude: [
-            { method: RequestMethod.GET, path: '/health' },
-            { method: RequestMethod.GET, path: '/health/ready' },
-            { method: RequestMethod.GET, path: '/health/live' },
-            { method: RequestMethod.GET, path: '/metrics' },
+            { method: RequestMethod.GET, path: "/health" },
+            { method: RequestMethod.GET, path: "/health/ready" },
+            { method: RequestMethod.GET, path: "/health/live" },
+            { method: RequestMethod.GET, path: "/metrics" },
           ],
         };
       },

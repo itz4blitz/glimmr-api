@@ -1,6 +1,5 @@
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -8,58 +7,60 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react'
-import { UserTableRow } from './UserTableRow'
-import type { User } from '@/types/auth'
-import type { UserSortField } from '@/types/userManagement'
+} from "@/components/ui/table";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { UserTableRow } from "./UserTableRow";
+import type { User } from "@/types/auth";
+import type { UserSortField } from "@/types/userManagement";
 
 interface UserTableProps {
-  users: User[]
-  loading: boolean
-  selectedUsers: string[]
-  onUserSelect: (userId: string, selected: boolean) => void
-  onSelectAll: (selected: boolean) => void
-  onUserClick: (userId: string) => void
-  onUserAction: (userId: string, action: string) => void
-  sortField: UserSortField
-  sortOrder: 'asc' | 'desc'
-  onSort: (field: UserSortField) => void
+  users: User[];
+  loading: boolean;
+  selectedUsers: string[];
+  onUserSelect: (userId: string, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+  onUserClick: (userId: string) => void;
+  onUserAction: (userId: string, action: string) => void;
+  sortField: UserSortField;
+  sortOrder: "asc" | "desc";
+  onSort: (field: UserSortField) => void;
 }
 
 export function UserTable({
   users,
-  loading,
+  loading, // eslint-disable-line @typescript-eslint/no-unused-vars
   selectedUsers,
   onUserSelect,
-  onSelectAll,
+  onSelectAll, // eslint-disable-line @typescript-eslint/no-unused-vars
   onUserClick,
   onUserAction,
   sortField,
   sortOrder,
-  onSort
+  onSort,
 }: UserTableProps) {
-  const allCurrentUsersSelected = users.length > 0 &&
-    users.every(user => selectedUsers.includes(user.id))
+  const allCurrentUsersSelected =
+    users.length > 0 && users.every((user) => selectedUsers.includes(user.id));
 
-  const someCurrentUsersSelected = users.some(user => selectedUsers.includes(user.id))
+  const someCurrentUsersSelected = users.some((user) =>
+    selectedUsers.includes(user.id),
+  );
 
   const handleSelectAllCurrent = (checked: boolean) => {
-    users.forEach(user => {
-      onUserSelect(user.id, checked)
-    })
-  }
+    users.forEach((user) => {
+      onUserSelect(user.id, checked);
+    });
+  };
 
   const getSortIcon = (field: UserSortField) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4" />
+      return <ArrowUpDown className="h-4 w-4" />;
     }
-    return sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-  }
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    );
+  };
 
   return (
     <Table className="table-elevated">
@@ -70,32 +71,42 @@ export function UserTable({
               checked={allCurrentUsersSelected}
               onCheckedChange={handleSelectAllCurrent}
               aria-label="Select all users"
-              className={someCurrentUsersSelected && !allCurrentUsersSelected ? "data-[state=checked]:bg-primary" : ""}
+              className={
+                someCurrentUsersSelected && !allCurrentUsersSelected
+                  ? "data-[state=checked]:bg-primary"
+                  : ""
+              }
             />
           </TableHead>
           <TableHead className="py-5 px-6 font-semibold text-foreground/90">
             <Button
               variant="ghost"
-              onClick={() => onSort('email')}
+              onClick={() => onSort("email")}
               className="h-auto p-0 font-semibold text-foreground/90 hover:bg-primary/10 hover:text-primary transition-all duration-200 rounded-md px-2 py-1"
             >
               User
-              {getSortIcon('email')}
+              {getSortIcon("email")}
             </Button>
           </TableHead>
-          <TableHead className="py-5 px-6 font-semibold text-foreground/90">Role</TableHead>
-          <TableHead className="py-5 px-6 font-semibold text-foreground/90">Status</TableHead>
+          <TableHead className="py-5 px-6 font-semibold text-foreground/90">
+            Role
+          </TableHead>
+          <TableHead className="py-5 px-6 font-semibold text-foreground/90">
+            Status
+          </TableHead>
           <TableHead className="py-5 px-6 font-semibold text-foreground/90">
             <Button
               variant="ghost"
-              onClick={() => onSort('lastLoginAt')}
+              onClick={() => onSort("lastLoginAt")}
               className="h-auto p-0 font-semibold text-foreground/90 hover:bg-primary/10 hover:text-primary transition-all duration-200 rounded-md px-2 py-1"
             >
               Last Login
-              {getSortIcon('lastLoginAt')}
+              {getSortIcon("lastLoginAt")}
             </Button>
           </TableHead>
-          <TableHead className="py-5 px-6 font-semibold text-foreground/90">Activity</TableHead>
+          <TableHead className="py-5 px-6 font-semibold text-foreground/90">
+            Activity
+          </TableHead>
           <TableHead className="w-12 py-5 px-6"></TableHead>
         </TableRow>
       </TableHeader>
@@ -123,5 +134,5 @@ export function UserTable({
         )}
       </TableBody>
     </Table>
-  )
+  );
 }

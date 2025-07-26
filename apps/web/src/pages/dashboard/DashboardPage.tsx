@@ -1,141 +1,169 @@
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  User, Settings, Shield, TrendingUp, FileText, Activity, Users, 
-  Building2, DollarSign, Database, Play, RefreshCw, Clock
-} from 'lucide-react'
-import { getRoleDisplayName, isAdmin } from '@/lib/permissions'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { apiClient } from '@/lib/api'
-import { toast } from 'sonner'
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/stores/auth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  User,
+  Settings,
+  Shield,
+  TrendingUp,
+  FileText,
+  Activity,
+  Users,
+  Building2,
+  DollarSign,
+  Database,
+  Play,
+  RefreshCw,
+  Clock,
+} from "lucide-react";
+import { getRoleDisplayName, isAdmin } from "@/lib/permissions";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 interface DashboardStats {
   hospitals: {
-    total: number
-    active: number
-    withPrices: number
-  }
+    total: number;
+    active: number;
+    withPrices: number;
+  };
   prices: {
-    total: number
-    lastUpdated: string | null
-  }
+    total: number;
+    lastUpdated: string | null;
+  };
   jobs: {
-    totalProcessed: number
-    activeJobs: number
-    failedJobs: number
-    successRate: number
-  }
+    totalProcessed: number;
+    activeJobs: number;
+    failedJobs: number;
+    successRate: number;
+  };
   files: {
-    totalFiles: number
-    totalSize: number
-    pendingDownloads: number
-  }
+    totalFiles: number;
+    totalSize: number;
+    pendingDownloads: number;
+  };
 }
 
 export function DashboardPage() {
-  const { user } = useAuthStore()
-  const navigate = useNavigate()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRunningJob, setIsRunningJob] = useState<string | null>(null)
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRunningJob, setIsRunningJob] = useState<string | null>(null);
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await apiClient.get('/dashboard/stats')
-      setStats(response.data)
+      const response = await apiClient.get("/dashboard/stats");
+      setStats(response.data);
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error)
+      console.error("Failed to fetch dashboard stats:", error);
       // Set default values if the endpoint doesn't exist yet
       setStats({
         hospitals: { total: 0, active: 0, withPrices: 0 },
         prices: { total: 0, lastUpdated: null },
-        jobs: { totalProcessed: 0, activeJobs: 0, failedJobs: 0, successRate: 0 },
-        files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 }
-      })
+        jobs: {
+          totalProcessed: 0,
+          activeJobs: 0,
+          failedJobs: 0,
+          successRate: 0,
+        },
+        files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 },
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const runManualJob = async (jobType: string) => {
-    setIsRunningJob(jobType)
+    setIsRunningJob(jobType);
     try {
-      let endpoint = ''
-      let data = {}
-      
+      let endpoint = "";
+      let data = {};
+
       switch (jobType) {
-        case 'pra-scan':
-          endpoint = '/jobs/pra/scan'
-          data = { testMode: true } // Limit to 3 states for testing
-          break
-        case 'analytics':
-          endpoint = '/jobs/analytics/refresh'
-          break
-        case 'export':
-          endpoint = '/jobs/export'
-          data = { 
-            format: 'json', 
-            dataset: 'hospitals',
-            limit: 100 
-          }
-          break
+        case "pra-scan":
+          endpoint = "/jobs/pra/scan";
+          data = { testMode: true }; // Limit to 3 states for testing
+          break;
+        case "analytics":
+          endpoint = "/jobs/analytics/refresh";
+          break;
+        case "export":
+          endpoint = "/jobs/export";
+          data = {
+            format: "json",
+            dataset: "hospitals",
+            limit: 100,
+          };
+          break;
         default:
-          throw new Error('Unknown job type')
+          throw new Error("Unknown job type");
       }
 
-      const response = await apiClient.post(endpoint, data)
-      toast.success(`Job started successfully! Job ID: ${response.data.jobId || response.data.id}`)
-      
+      const response = await apiClient.post(endpoint, data);
+      toast.success(
+        `Job started successfully! Job ID: ${response.data.jobId || response.data.id}`,
+      );
+
       // Refresh stats after a delay
       setTimeout(() => {
-        fetchDashboardStats()
-      }, 2000)
+        fetchDashboardStats();
+      }, 2000);
     } catch (error: any) {
-      console.error('Failed to run job:', error)
-      toast.error(`Failed to start job: ${error?.response?.data?.message || error?.message || 'Unknown error'}`)
+      console.error("Failed to run job:", error);
+      toast.error(
+        `Failed to start job: ${error?.response?.data?.message || error?.message || "Unknown error"}`,
+      );
     } finally {
-      setIsRunningJob(null)
+      setIsRunningJob(null);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchDashboardStats()
+    fetchDashboardStats();
     // Refresh stats every 30 seconds
-    const interval = setInterval(fetchDashboardStats, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    const interval = setInterval(fetchDashboardStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   const formatTimeAgo = (dateString: string | null) => {
-    if (!dateString) return 'Never'
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    
-    if (diffMs < 60000) return 'Just now'
-    if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`
-    if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)}h ago`
-    return `${Math.floor(diffMs / 86400000)}d ago`
-  }
+    if (!dateString) return "Never";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+
+    if (diffMs < 60000) return "Just now";
+    if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
+    if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)}h ago`;
+    return `${Math.floor(diffMs / 86400000)}d ago`;
+  };
 
   return (
     <AppLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Dashboard
+          </h1>
           <p className="text-muted-foreground mt-1">
             Welcome back, {user?.email}!
           </p>
@@ -152,9 +180,13 @@ export function DashboardPage() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Hospitals</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Hospitals
+                    </p>
                     <p className="text-2xl font-bold">
-                      {isLoading ? '-' : stats?.hospitals.total.toLocaleString() || '0'}
+                      {isLoading
+                        ? "-"
+                        : stats?.hospitals.total.toLocaleString() || "0"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {stats?.hospitals.active || 0} active
@@ -175,9 +207,13 @@ export function DashboardPage() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Price Records</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Price Records
+                    </p>
                     <p className="text-2xl font-bold">
-                      {isLoading ? '-' : stats?.prices.total.toLocaleString() || '0'}
+                      {isLoading
+                        ? "-"
+                        : stats?.prices.total.toLocaleString() || "0"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Updated {formatTimeAgo(stats?.prices.lastUpdated || null)}
@@ -198,12 +234,17 @@ export function DashboardPage() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Job Success Rate</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Job Success Rate
+                    </p>
                     <p className="text-2xl font-bold text-green-600">
-                      {isLoading ? '-' : `${Math.round(stats?.jobs.successRate || 0)}%`}
+                      {isLoading
+                        ? "-"
+                        : `${Math.round(stats?.jobs.successRate || 0)}%`}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {stats?.jobs.activeJobs || 0} active, {stats?.jobs.failedJobs || 0} failed
+                      {stats?.jobs.activeJobs || 0} active,{" "}
+                      {stats?.jobs.failedJobs || 0} failed
                     </p>
                   </div>
                   <Activity className="h-8 w-8 text-muted-foreground" />
@@ -221,9 +262,13 @@ export function DashboardPage() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Data Files</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Data Files
+                    </p>
                     <p className="text-2xl font-bold">
-                      {isLoading ? '-' : stats?.files.totalFiles.toLocaleString() || '0'}
+                      {isLoading
+                        ? "-"
+                        : stats?.files.totalFiles.toLocaleString() || "0"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {formatFileSize(stats?.files.totalSize || 0)}
@@ -258,26 +303,44 @@ export function DashboardPage() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Email
+                    </label>
                     <p className="text-foreground break-all">{user?.email}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                    <p className="text-foreground font-mono text-sm">{user?.id}</p>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      User ID
+                    </label>
+                    <p className="text-foreground font-mono text-sm">
+                      {user?.id}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Role</label>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Role
+                    </label>
                     <div className="flex items-center gap-2">
-                      <Badge variant={user?.role === 'super_admin' ? 'default' : user?.role === 'admin' ? 'secondary' : 'outline'}>
+                      <Badge
+                        variant={
+                          user?.role === "super_admin"
+                            ? "default"
+                            : user?.role === "admin"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
                         <Shield className="h-3 w-3 mr-1" />
-                        {user?.role ? getRoleDisplayName(user.role) : 'Unknown'}
+                        {user?.role ? getRoleDisplayName(user.role) : "Unknown"}
                       </Badge>
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Status</label>
-                    <Badge variant={user?.isActive ? 'default' : 'destructive'}>
-                      {user?.isActive ? 'Active' : 'Inactive'}
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Status
+                    </label>
+                    <Badge variant={user?.isActive ? "default" : "destructive"}>
+                      {user?.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </div>
@@ -305,38 +368,38 @@ export function DashboardPage() {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => runManualJob('pra-scan')}
-                  disabled={isRunningJob === 'pra-scan'}
+                  onClick={() => runManualJob("pra-scan")}
+                  disabled={isRunningJob === "pra-scan"}
                 >
-                  {isRunningJob === 'pra-scan' ? (
+                  {isRunningJob === "pra-scan" ? (
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Activity className="h-4 w-4 mr-2" />
                   )}
                   PRA Hospital Scan (Test Mode)
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => runManualJob('analytics')}
-                  disabled={isRunningJob === 'analytics'}
+                  onClick={() => runManualJob("analytics")}
+                  disabled={isRunningJob === "analytics"}
                 >
-                  {isRunningJob === 'analytics' ? (
+                  {isRunningJob === "analytics" ? (
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <TrendingUp className="h-4 w-4 mr-2" />
                   )}
                   Refresh Analytics
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => runManualJob('export')}
-                  disabled={isRunningJob === 'export'}
+                  onClick={() => runManualJob("export")}
+                  disabled={isRunningJob === "export"}
                 >
-                  {isRunningJob === 'export' ? (
+                  {isRunningJob === "export" ? (
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <FileText className="h-4 w-4 mr-2" />
@@ -346,7 +409,8 @@ export function DashboardPage() {
 
                 <div className="pt-2 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3 inline mr-1" />
-                  Jobs run in the background. Check the queue dashboard for progress.
+                  Jobs run in the background. Check the queue dashboard for
+                  progress.
                 </div>
               </CardContent>
             </Card>
@@ -365,34 +429,32 @@ export function DashboardPage() {
                 <Settings className="h-5 w-5" />
                 Quick Actions
               </CardTitle>
-              <CardDescription>
-                Common tasks and navigation
-              </CardDescription>
+              <CardDescription>Common tasks and navigation</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <Button
                   variant="outline"
                   className="h-16 sm:h-20 flex-col justify-center"
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate("/profile")}
                 >
                   <User className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
                   <span className="text-xs sm:text-sm">Profile Settings</span>
                 </Button>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-16 sm:h-20 flex-col justify-center"
-                  onClick={() => navigate('/hospitals')}
+                  onClick={() => navigate("/hospitals")}
                 >
                   <Building2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
                   <span className="text-xs sm:text-sm">Browse Hospitals</span>
                 </Button>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-16 sm:h-20 flex-col justify-center"
-                  onClick={() => navigate('/prices')}
+                  onClick={() => navigate("/prices")}
                 >
                   <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
                   <span className="text-xs sm:text-sm">Price Data</span>
@@ -403,23 +465,27 @@ export function DashboardPage() {
                     <Button
                       variant="outline"
                       className="h-16 sm:h-20 flex-col justify-center"
-                      onClick={() => navigate('/admin/users')}
+                      onClick={() => navigate("/admin/users")}
                     >
                       <Users className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-                      <span className="text-xs sm:text-sm">User Management</span>
+                      <span className="text-xs sm:text-sm">
+                        User Management
+                      </span>
                     </Button>
                     <Button
                       variant="outline"
                       className="h-16 sm:h-20 flex-col justify-center"
-                      onClick={() => navigate('/admin/queues')}
+                      onClick={() => navigate("/admin/queues")}
                     >
                       <Activity className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-                      <span className="text-xs sm:text-sm">Queue Dashboard</span>
+                      <span className="text-xs sm:text-sm">
+                        Queue Dashboard
+                      </span>
                     </Button>
                     <Button
                       variant="outline"
                       className="h-16 sm:h-20 flex-col justify-center"
-                      onClick={() => navigate('/admin/settings')}
+                      onClick={() => navigate("/admin/settings")}
                     >
                       <Settings className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
                       <span className="text-xs sm:text-sm">Admin Panel</span>
@@ -440,12 +506,15 @@ export function DashboardPage() {
         >
           <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
             <CardContent className="p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-semibold mb-2">Welcome to Glimmr!</h2>
+              <h2 className="text-lg sm:text-xl font-semibold mb-2">
+                Welcome to Glimmr!
+              </h2>
               <p className="text-sm sm:text-base text-muted-foreground">
                 Your healthcare price transparency platform is ready to use.
                 {stats && stats.hospitals.total === 0 && (
                   <span className="block mt-2 font-medium">
-                    Get started by running a PRA Hospital Scan to import hospital data.
+                    Get started by running a PRA Hospital Scan to import
+                    hospital data.
                   </span>
                 )}
               </p>
@@ -454,5 +523,5 @@ export function DashboardPage() {
         </motion.div>
       </div>
     </AppLayout>
-  )
+  );
 }

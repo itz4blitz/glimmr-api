@@ -1,11 +1,19 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean, IsNumber, Min, Max, IsArray } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsNumber,
+  Min,
+  Max,
+  IsArray,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 export class TriggerHospitalImportDto {
   @ApiProperty({
-    description: 'State code to import hospitals for (e.g., IN, CA)',
-    example: 'IN',
+    description: "State code to import hospitals for (e.g., IN, CA)",
+    example: "IN",
     required: false,
   })
   @IsOptional()
@@ -13,7 +21,7 @@ export class TriggerHospitalImportDto {
   state?: string;
 
   @ApiProperty({
-    description: 'Force refresh of existing hospital data',
+    description: "Force refresh of existing hospital data",
     example: false,
     required: false,
     default: false,
@@ -23,7 +31,7 @@ export class TriggerHospitalImportDto {
   forceRefresh?: boolean;
 
   @ApiProperty({
-    description: 'Batch size for processing hospitals',
+    description: "Batch size for processing hospitals",
     example: 50,
     required: false,
     minimum: 1,
@@ -40,7 +48,7 @@ export class TriggerHospitalImportDto {
 
 export class TriggerPriceFileDownloadDto {
   @ApiProperty({
-    description: 'Force reprocess existing file',
+    description: "Force reprocess existing file",
     example: false,
     required: false,
     default: false,
@@ -52,16 +60,16 @@ export class TriggerPriceFileDownloadDto {
 
 export class StartHospitalImportDto {
   @ApiProperty({
-    description: 'Data source (url, file, manual)',
-    example: 'url',
+    description: "Data source (url, file, manual)",
+    example: "url",
     required: true,
   })
   @IsString()
   source: string;
 
   @ApiProperty({
-    description: 'URL for data import',
-    example: 'https://example.com/data.csv',
+    description: "URL for data import",
+    example: "https://example.com/data.csv",
     required: false,
   })
   @IsOptional()
@@ -69,7 +77,7 @@ export class StartHospitalImportDto {
   url?: string;
 
   @ApiProperty({
-    description: 'Job priority (1-10)',
+    description: "Job priority (1-10)",
     example: 5,
     required: false,
     minimum: 1,
@@ -86,8 +94,8 @@ export class StartHospitalImportDto {
 
 export class StartPriceUpdateDto {
   @ApiProperty({
-    description: 'Specific hospital ID (optional)',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: "Specific hospital ID (optional)",
+    example: "123e4567-e89b-12d3-a456-426614174000",
     required: false,
   })
   @IsOptional()
@@ -95,7 +103,7 @@ export class StartPriceUpdateDto {
   hospitalId?: string;
 
   @ApiProperty({
-    description: 'Job priority (1-10)',
+    description: "Job priority (1-10)",
     example: 5,
     required: false,
     minimum: 1,
@@ -112,7 +120,7 @@ export class StartPriceUpdateDto {
 
 export class TriggerPRAScanDto {
   @ApiProperty({
-    description: 'Test mode (only scan a few states)',
+    description: "Test mode (only scan a few states)",
     example: false,
     required: false,
     default: false,
@@ -122,7 +130,7 @@ export class TriggerPRAScanDto {
   testMode?: boolean;
 
   @ApiProperty({
-    description: 'Force refresh even if recently updated',
+    description: "Force refresh even if recently updated",
     example: false,
     required: false,
     default: false,
@@ -134,8 +142,8 @@ export class TriggerPRAScanDto {
 
 export class TriggerAnalyticsRefreshDto {
   @ApiProperty({
-    description: 'Specific metric types to refresh (optional)',
-    example: ['total_hospitals', 'avg_price_by_state'],
+    description: "Specific metric types to refresh (optional)",
+    example: ["total_hospitals", "avg_price_by_state"],
     required: false,
     type: [String],
   })
@@ -145,7 +153,7 @@ export class TriggerAnalyticsRefreshDto {
   metricTypes?: string[];
 
   @ApiProperty({
-    description: 'Force refresh even if metrics exist',
+    description: "Force refresh even if metrics exist",
     example: false,
     required: false,
     default: false,
@@ -155,7 +163,7 @@ export class TriggerAnalyticsRefreshDto {
   forceRefresh?: boolean;
 
   @ApiProperty({
-    description: 'Batch size for processing metrics',
+    description: "Batch size for processing metrics",
     example: 100,
     required: false,
     minimum: 10,

@@ -1,27 +1,29 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { ProtectedRoute } from '@/components/common/ProtectedRoute'
-import { AuthGuard } from '@/components/common/AuthGuard'
-import { UserRole } from '@/types/auth'
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import { ProtectedRoute } from "@/components/common/ProtectedRoute";
+import { AuthGuard } from "@/components/common/AuthGuard";
+import { UserRole } from "@/types/auth";
 
 // Pages
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { RegisterPage } from '@/pages/auth/RegisterPage'
-import { DashboardPage } from '@/pages/dashboard/DashboardPage'
-import { ProfilePage } from '@/pages/profile/ProfilePage'
-import { UserManagementPage } from '@/pages/admin/UserManagementPage'
-import { QueueDashboardPage } from '@/pages/admin/QueueDashboardPage'
-import { ActivityDashboardPage } from '@/pages/admin/ActivityDashboardPage'
+import { LoginPage } from "@/pages/auth/LoginPage";
+import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { DashboardPage } from "@/pages/dashboard/DashboardPage";
+import { ProfilePage } from "@/pages/profile/ProfilePage";
+import { UserManagementPage } from "@/pages/admin/UserManagementPage";
+import { QueueDashboardPage } from "@/pages/admin/QueueDashboardPage";
+import { ActivityDashboardPage } from "@/pages/admin/ActivityDashboardPage";
+import { QueueAnalyticsPage } from "@/pages/admin/QueueAnalyticsPage";
+import { JobSchedulerPage } from "@/pages/admin/JobSchedulerPage";
 
 // Layout components
-import { RootLayout } from '@/components/layout/RootLayout'
+import { RootLayout } from "@/components/layout/RootLayout";
 
 // Error components
-import { ErrorBoundary } from '@/components/common/ErrorBoundary'
-import { NotFoundPage } from '@/pages/error/NotFoundPage'
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { NotFoundPage } from "@/pages/error/NotFoundPage";
 
 export const router = createBrowserRouter([
   {
-    path: '/',
+    path: "/",
     element: <RootLayout />,
     errorElement: <ErrorBoundary />,
     children: [
@@ -30,7 +32,7 @@ export const router = createBrowserRouter([
         element: <Navigate to="/dashboard" replace />,
       },
       {
-        path: 'login',
+        path: "login",
         element: (
           <AuthGuard requireAuth={false}>
             <LoginPage />
@@ -38,7 +40,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'register',
+        path: "register",
         element: (
           <AuthGuard requireAuth={false}>
             <RegisterPage />
@@ -46,7 +48,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'dashboard',
+        path: "dashboard",
         element: (
           <ProtectedRoute requiredRole={UserRole.USER}>
             <DashboardPage />
@@ -54,7 +56,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'profile',
+        path: "profile",
         element: (
           <ProtectedRoute requiredRole={UserRole.USER}>
             <ProfilePage />
@@ -62,10 +64,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin',
+        path: "admin",
         children: [
           {
-            path: 'users',
+            path: "users",
             element: (
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <UserManagementPage />
@@ -73,7 +75,7 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'queues',
+            path: "queues",
             element: (
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <QueueDashboardPage />
@@ -81,7 +83,7 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'activity',
+            path: "activity",
             element: (
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ActivityDashboardPage />
@@ -89,7 +91,23 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'settings',
+            path: "analytics",
+            element: (
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <QueueAnalyticsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "scheduler",
+            element: (
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <JobSchedulerPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "settings",
             element: (
               <ProtectedRoute requiredRole={UserRole.SUPER_ADMIN}>
                 <div className="min-h-screen bg-background flex items-center justify-center">
@@ -108,9 +126,9 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        path: '*',
+        path: "*",
         element: <NotFoundPage />,
       },
     ],
   },
-])
+]);

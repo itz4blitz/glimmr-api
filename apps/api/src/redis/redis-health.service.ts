@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { getSharedRedisConnection } from './redis.config';
-import IORedis from 'ioredis';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { getSharedRedisConnection } from "./redis.config";
+import IORedis from "ioredis";
 
 export interface RedisHealthResult {
-  status: 'connected' | 'disconnected';
+  status: "connected" | "disconnected";
   duration?: string;
   host?: string;
   port?: number;
@@ -27,7 +27,7 @@ export class RedisHealthIndicator {
       const duration = Date.now() - start;
 
       return {
-        status: 'connected',
+        status: "connected",
         duration: `${duration}ms`,
         host: this.redis.options.host,
         port: this.redis.options.port,
@@ -35,7 +35,7 @@ export class RedisHealthIndicator {
       };
     } catch (error) {
       return {
-        status: 'disconnected',
+        status: "disconnected",
         error: error.message,
         host: this.redis.options.host,
         port: this.redis.options.port,

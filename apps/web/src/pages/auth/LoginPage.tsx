@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion'
-import { LoginForm } from '@/components/auth/LoginForm'
-import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { motion } from "framer-motion";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
 
 export function LoginPage() {
   return (
@@ -20,7 +20,9 @@ export function LoginPage() {
         >
           <div className="flex items-center justify-center mb-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary rounded-xl flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl sm:text-2xl">G</span>
+              <span className="text-primary-foreground font-bold text-xl sm:text-2xl">
+                G
+              </span>
             </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
@@ -41,5 +43,5 @@ export function LoginPage() {
         </motion.div>
       </div>
     </div>
-  )
+  );
 }

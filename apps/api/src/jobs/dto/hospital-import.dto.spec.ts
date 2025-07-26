@@ -1,18 +1,18 @@
-import { validate } from 'class-validator';
-import { plainToInstance } from 'class-transformer';
+import { validate } from "class-validator";
+import { plainToInstance } from "class-transformer";
 import {
   TriggerHospitalImportDto,
   TriggerPriceFileDownloadDto,
   StartHospitalImportDto,
   StartPriceUpdateDto,
   TriggerPRAScanDto,
-} from './hospital-import.dto';
+} from "./hospital-import.dto";
 
-describe('Jobs DTOs', () => {
-  describe('TriggerHospitalImportDto', () => {
-    it('should validate with all valid data', async () => {
+describe("Jobs DTOs", () => {
+  describe("TriggerHospitalImportDto", () => {
+    it("should validate with all valid data", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
-        state: 'CA',
+        state: "CA",
         forceRefresh: true,
         batchSize: 50,
       });
@@ -20,21 +20,21 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with minimal data', async () => {
+    it("should validate with minimal data", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only state', async () => {
+    it("should validate with only state", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
-        state: 'TX',
+        state: "TX",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only forceRefresh', async () => {
+    it("should validate with only forceRefresh", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
         forceRefresh: false,
       });
@@ -42,7 +42,7 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only batchSize', async () => {
+    it("should validate with only batchSize", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
         batchSize: 25,
       });
@@ -50,62 +50,62 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should transform string numbers to numbers', async () => {
+    it("should transform string numbers to numbers", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
-        batchSize: '75',
+        batchSize: "75",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
       expect(dto.batchSize).toBe(75);
     });
 
-    it('should fail validation with non-string state', async () => {
+    it("should fail validation with non-string state", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
         state: 123,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isString');
+      expect(errors[0].constraints).toHaveProperty("isString");
     });
 
-    it('should fail validation with non-boolean forceRefresh', async () => {
+    it("should fail validation with non-boolean forceRefresh", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
-        forceRefresh: 'true',
+        forceRefresh: "true",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with batchSize below minimum', async () => {
+    it("should fail validation with batchSize below minimum", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
         batchSize: 0,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('min');
+      expect(errors[0].constraints).toHaveProperty("min");
     });
 
-    it('should fail validation with batchSize above maximum', async () => {
+    it("should fail validation with batchSize above maximum", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
         batchSize: 101,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('max');
+      expect(errors[0].constraints).toHaveProperty("max");
     });
 
-    it('should fail validation with non-numeric batchSize', async () => {
+    it("should fail validation with non-numeric batchSize", async () => {
       const dto = plainToInstance(TriggerHospitalImportDto, {
-        batchSize: 'invalid',
+        batchSize: "invalid",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('should validate with valid state codes', async () => {
-      const validStates = ['CA', 'TX', 'NY', 'FL', 'IL'];
-      
+    it("should validate with valid state codes", async () => {
+      const validStates = ["CA", "TX", "NY", "FL", "IL"];
+
       for (const state of validStates) {
         const dto = plainToInstance(TriggerHospitalImportDto, { state });
         const errors = await validate(dto);
@@ -113,7 +113,7 @@ describe('Jobs DTOs', () => {
       }
     });
 
-    it('should validate with batchSize at boundaries', async () => {
+    it("should validate with batchSize at boundaries", async () => {
       // Test minimum boundary
       const minDto = plainToInstance(TriggerHospitalImportDto, {
         batchSize: 1,
@@ -130,8 +130,8 @@ describe('Jobs DTOs', () => {
     });
   });
 
-  describe('TriggerPriceFileDownloadDto', () => {
-    it('should validate with valid data', async () => {
+  describe("TriggerPriceFileDownloadDto", () => {
+    it("should validate with valid data", async () => {
       const dto = plainToInstance(TriggerPriceFileDownloadDto, {
         forceReprocess: true,
       });
@@ -139,13 +139,13 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with minimal data', async () => {
+    it("should validate with minimal data", async () => {
       const dto = plainToInstance(TriggerPriceFileDownloadDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with forceReprocess as false', async () => {
+    it("should validate with forceReprocess as false", async () => {
       const dto = plainToInstance(TriggerPriceFileDownloadDto, {
         forceReprocess: false,
       });
@@ -153,56 +153,56 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should fail validation with non-boolean forceReprocess', async () => {
+    it("should fail validation with non-boolean forceReprocess", async () => {
       const dto = plainToInstance(TriggerPriceFileDownloadDto, {
-        forceReprocess: 'true',
+        forceReprocess: "true",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with numeric forceReprocess', async () => {
+    it("should fail validation with numeric forceReprocess", async () => {
       const dto = plainToInstance(TriggerPriceFileDownloadDto, {
         forceReprocess: 1,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with string forceReprocess', async () => {
+    it("should fail validation with string forceReprocess", async () => {
       const dto = plainToInstance(TriggerPriceFileDownloadDto, {
-        forceReprocess: 'false',
+        forceReprocess: "false",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
   });
 
-  describe('StartHospitalImportDto', () => {
-    it('should validate with all valid data', async () => {
+  describe("StartHospitalImportDto", () => {
+    it("should validate with all valid data", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
-        url: 'https://example.com/data.csv',
+        source: "url",
+        url: "https://example.com/data.csv",
         priority: 5,
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with required field only', async () => {
+    it("should validate with required field only", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        source: 'manual',
+        source: "manual",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with different source types', async () => {
-      const validSources = ['url', 'file', 'manual'];
-      
+    it("should validate with different source types", async () => {
+      const validSources = ["url", "file", "manual"];
+
       for (const source of validSources) {
         const dto = plainToInstance(StartHospitalImportDto, { source });
         const errors = await validate(dto);
@@ -210,68 +210,68 @@ describe('Jobs DTOs', () => {
       }
     });
 
-    it('should transform string priority to number', async () => {
+    it("should transform string priority to number", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
-        priority: '8',
+        source: "url",
+        priority: "8",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
       expect(dto.priority).toBe(8);
     });
 
-    it('should fail validation without required source field', async () => {
+    it("should fail validation without required source field", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        url: 'https://example.com/data.csv',
+        url: "https://example.com/data.csv",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isString');
+      expect(errors[0].constraints).toHaveProperty("isString");
     });
 
-    it('should fail validation with non-string source', async () => {
+    it("should fail validation with non-string source", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
         source: 123,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isString');
+      expect(errors[0].constraints).toHaveProperty("isString");
     });
 
-    it('should fail validation with non-string url', async () => {
+    it("should fail validation with non-string url", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
+        source: "url",
         url: 456,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isString');
+      expect(errors[0].constraints).toHaveProperty("isString");
     });
 
-    it('should fail validation with priority below minimum', async () => {
+    it("should fail validation with priority below minimum", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
+        source: "url",
         priority: 0,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('min');
+      expect(errors[0].constraints).toHaveProperty("min");
     });
 
-    it('should fail validation with priority above maximum', async () => {
+    it("should fail validation with priority above maximum", async () => {
       const dto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
+        source: "url",
         priority: 11,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('max');
+      expect(errors[0].constraints).toHaveProperty("max");
     });
 
-    it('should validate with priority at boundaries', async () => {
+    it("should validate with priority at boundaries", async () => {
       // Test minimum boundary
       const minDto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
+        source: "url",
         priority: 1,
       });
       const minErrors = await validate(minDto);
@@ -279,24 +279,24 @@ describe('Jobs DTOs', () => {
 
       // Test maximum boundary
       const maxDto = plainToInstance(StartHospitalImportDto, {
-        source: 'url',
+        source: "url",
         priority: 10,
       });
       const maxErrors = await validate(maxDto);
       expect(maxErrors.length).toBe(0);
     });
 
-    it('should validate with various URL formats', async () => {
+    it("should validate with various URL formats", async () => {
       const validUrls = [
-        'https://example.com/data.csv',
-        'http://localhost:3000/api/data',
-        'https://api.example.com/v1/hospitals.json',
-        'https://example.com/path/to/file.xlsx',
+        "https://example.com/data.csv",
+        "http://localhost:3000/api/data",
+        "https://api.example.com/v1/hospitals.json",
+        "https://example.com/path/to/file.xlsx",
       ];
-      
+
       for (const url of validUrls) {
         const dto = plainToInstance(StartHospitalImportDto, {
-          source: 'url',
+          source: "url",
           url,
         });
         const errors = await validate(dto);
@@ -305,31 +305,31 @@ describe('Jobs DTOs', () => {
     });
   });
 
-  describe('StartPriceUpdateDto', () => {
-    it('should validate with all valid data', async () => {
+  describe("StartPriceUpdateDto", () => {
+    it("should validate with all valid data", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
-        hospitalId: '123e4567-e89b-12d3-a456-426614174000',
+        hospitalId: "123e4567-e89b-12d3-a456-426614174000",
         priority: 7,
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with minimal data', async () => {
+    it("should validate with minimal data", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only hospitalId', async () => {
+    it("should validate with only hospitalId", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
-        hospitalId: 'hospital-123',
+        hospitalId: "hospital-123",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only priority', async () => {
+    it("should validate with only priority", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
         priority: 3,
       });
@@ -337,43 +337,43 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should transform string priority to number', async () => {
+    it("should transform string priority to number", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
-        priority: '6',
+        priority: "6",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
       expect(dto.priority).toBe(6);
     });
 
-    it('should fail validation with non-string hospitalId', async () => {
+    it("should fail validation with non-string hospitalId", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
         hospitalId: 123,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isString');
+      expect(errors[0].constraints).toHaveProperty("isString");
     });
 
-    it('should fail validation with priority below minimum', async () => {
+    it("should fail validation with priority below minimum", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
         priority: 0,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('min');
+      expect(errors[0].constraints).toHaveProperty("min");
     });
 
-    it('should fail validation with priority above maximum', async () => {
+    it("should fail validation with priority above maximum", async () => {
       const dto = plainToInstance(StartPriceUpdateDto, {
         priority: 11,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('max');
+      expect(errors[0].constraints).toHaveProperty("max");
     });
 
-    it('should validate with priority at boundaries', async () => {
+    it("should validate with priority at boundaries", async () => {
       // Test minimum boundary
       const minDto = plainToInstance(StartPriceUpdateDto, {
         priority: 1,
@@ -389,15 +389,15 @@ describe('Jobs DTOs', () => {
       expect(maxErrors.length).toBe(0);
     });
 
-    it('should validate with various hospital ID formats', async () => {
+    it("should validate with various hospital ID formats", async () => {
       const validHospitalIds = [
-        '123e4567-e89b-12d3-a456-426614174000',
-        'hospital-123',
-        'abc123def456',
-        'H001',
-        'hospital_abc_123',
+        "123e4567-e89b-12d3-a456-426614174000",
+        "hospital-123",
+        "abc123def456",
+        "H001",
+        "hospital_abc_123",
       ];
-      
+
       for (const hospitalId of validHospitalIds) {
         const dto = plainToInstance(StartPriceUpdateDto, { hospitalId });
         const errors = await validate(dto);
@@ -406,8 +406,8 @@ describe('Jobs DTOs', () => {
     });
   });
 
-  describe('TriggerPRAScanDto', () => {
-    it('should validate with all valid data', async () => {
+  describe("TriggerPRAScanDto", () => {
+    it("should validate with all valid data", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         testMode: true,
         forceRefresh: false,
@@ -416,13 +416,13 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with minimal data', async () => {
+    it("should validate with minimal data", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {});
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only testMode', async () => {
+    it("should validate with only testMode", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         testMode: true,
       });
@@ -430,7 +430,7 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with only forceRefresh', async () => {
+    it("should validate with only forceRefresh", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         forceRefresh: true,
       });
@@ -438,7 +438,7 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with both fields as false', async () => {
+    it("should validate with both fields as false", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         testMode: false,
         forceRefresh: false,
@@ -447,7 +447,7 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should validate with both fields as true', async () => {
+    it("should validate with both fields as true", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         testMode: true,
         forceRefresh: true,
@@ -456,62 +456,62 @@ describe('Jobs DTOs', () => {
       expect(errors.length).toBe(0);
     });
 
-    it('should fail validation with non-boolean testMode', async () => {
+    it("should fail validation with non-boolean testMode", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
-        testMode: 'true',
+        testMode: "true",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with non-boolean forceRefresh', async () => {
+    it("should fail validation with non-boolean forceRefresh", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
-        forceRefresh: 'false',
+        forceRefresh: "false",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with numeric testMode', async () => {
+    it("should fail validation with numeric testMode", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         testMode: 1,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with numeric forceRefresh', async () => {
+    it("should fail validation with numeric forceRefresh", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         forceRefresh: 0,
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with string boolean values', async () => {
+    it("should fail validation with string boolean values", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
-        testMode: 'true',
-        forceRefresh: 'false',
+        testMode: "true",
+        forceRefresh: "false",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(2);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
-      expect(errors[1].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
+      expect(errors[1].constraints).toHaveProperty("isBoolean");
     });
 
-    it('should fail validation with object values', async () => {
+    it("should fail validation with object values", async () => {
       const dto = plainToInstance(TriggerPRAScanDto, {
         testMode: {},
         forceRefresh: [],
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(2);
-      expect(errors[0].constraints).toHaveProperty('isBoolean');
-      expect(errors[1].constraints).toHaveProperty('isBoolean');
+      expect(errors[0].constraints).toHaveProperty("isBoolean");
+      expect(errors[1].constraints).toHaveProperty("isBoolean");
     });
   });
 });

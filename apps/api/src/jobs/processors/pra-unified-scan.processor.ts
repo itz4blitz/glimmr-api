@@ -1,21 +1,25 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Injectable } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { QUEUE_NAMES } from '../queues/queue.config';
-import { PatientRightsAdvocateService } from '../../external-apis/patient-rights-advocate.service';
-import { DatabaseService } from '../../database/database.service';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { priceTransparencyFiles, hospitals, jobs, jobLogs } from '../../database/schema';
-import { eq } from 'drizzle-orm';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Job } from "bullmq";
+import { Injectable } from "@nestjs/common";
+import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
+import { QUEUE_NAMES } from "../queues/queue.config";
+import { PatientRightsAdvocateService } from "../../external-apis/patient-rights-advocate.service";
+import { DatabaseService } from "../../database/database.service";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import {
+  priceTransparencyFiles,
+  hospitals,
+  jobs,
+  jobLogs,
+} from "../../database/schema";
+import { eq } from "drizzle-orm";
 
 export interface PRAUnifiedScanJobData {
   forceRefresh?: boolean;
   testMode?: boolean;
   states?: string[];
 }
-
 
 @Injectable()
 @Processor(QUEUE_NAMES.PRA_UNIFIED_SCAN)
@@ -37,23 +41,21 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
    * Log message to database for UI visibility
    */
   private async logToDatabase(
-    level: 'info' | 'warning' | 'error' | 'success',
+    level: "info" | "warning" | "error" | "success",
     message: string,
-    data?: any
+    data?: any,
   ) {
     if (!this.dbJobId) return;
 
     try {
-      await this.databaseService.db
-        .insert(jobLogs)
-        .values({
-          jobId: this.dbJobId,
-          level: level === 'success' ? 'info' : level,
-          message,
-          data: data ? JSON.stringify(data) : null,
-        });
+      await this.databaseService.db.insert(jobLogs).values({
+        jobId: this.dbJobId,
+        level: level === "success" ? "info" : level,
+        message,
+        data: data ? JSON.stringify(data) : null,
+      });
     } catch (error) {
-      this.logger.error('Failed to log to database', error);
+      this.logger.error("Failed to log to database", error);
     }
   }
 
@@ -66,36 +68,40 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
       const [dbJob] = await this.databaseService.db
         .insert(jobs)
         .values({
-          jobType: 'data_import',
-          jobName: job.name || 'pra-unified-scan',
-          description: `PRA Hospital Discovery Scan${testMode ? ' (Test Mode)' : ''}`,
+          jobType: "data_import",
+          jobName: job.name || "pra-unified-scan",
+          description: `PRA Hospital Discovery Scan${testMode ? " (Test Mode)" : ""}`,
           queue: QUEUE_NAMES.PRA_UNIFIED_SCAN,
-          status: 'running',
+          status: "running",
           priority: job.opts.priority || 0,
           startedAt: new Date(),
           inputData: JSON.stringify(job.data),
-          createdBy: 'system',
+          createdBy: "system",
         })
         .returning({ id: jobs.id });
 
       this.dbJobId = dbJob.id;
     } catch (error) {
-      this.logger.error('Failed to create job record', error);
+      this.logger.error("Failed to create job record", error);
     }
 
     this.logger.info({
-      msg: 'Starting PRA unified scan',
+      msg: "Starting PRA unified scan",
       jobId: job.id,
       forceRefresh,
       testMode,
-      states: states.length > 0 ? states : 'all',
+      states: states.length > 0 ? states : "all",
     });
 
-    await this.logToDatabase('info', `Starting PRA unified scan${testMode ? ' in test mode' : ''}`, {
-      forceRefresh,
-      testMode,
-      states: states.length > 0 ? states : 'all',
-    });
+    await this.logToDatabase(
+      "info",
+      `Starting PRA unified scan${testMode ? " in test mode" : ""}`,
+      {
+        forceRefresh,
+        testMode,
+        states: states.length > 0 ? states : "all",
+      },
+    );
 
     try {
       // Progress tracking
@@ -105,19 +111,26 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
         job.updateProgress({ percentage: value, message });
       };
 
-      updateProgress(5, 'Fetching states from PRA API');
+      updateProgress(5, "Fetching states from PRA API");
 
       // Get states to scan
-      const statesToScan = states.length > 0 ? states :
-        testMode ? ['CA', 'FL', 'TX'] : // Test mode - only 3 states
-        await this.getAvailableStates();
+      const statesToScan =
+        states.length > 0
+          ? states
+          : testMode
+            ? ["CA", "FL", "TX"] // Test mode - only 3 states
+            : await this.getAvailableStates();
 
       updateProgress(10, `Scanning ${statesToScan.length} states`);
-      
-      await this.logToDatabase('info', `States to scan: ${statesToScan.join(', ')}`, {
-        totalStates: statesToScan.length,
-        states: statesToScan,
-      });
+
+      await this.logToDatabase(
+        "info",
+        `States to scan: ${statesToScan.join(", ")}`,
+        {
+          totalStates: statesToScan.length,
+          states: statesToScan,
+        },
+      );
 
       const results = {
         scannedStates: statesToScan.length,
@@ -131,71 +144,98 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
 
       // Process each state
       const stateProgressIncrement = 80 / statesToScan.length;
-      
+
       for (let i = 0; i < statesToScan.length; i++) {
         const state = statesToScan[i];
-        const stateProgress = 10 + (i * stateProgressIncrement);
-        
-        updateProgress(stateProgress, `Processing ${state} (${i + 1}/${statesToScan.length})`);
+        const stateProgress = 10 + i * stateProgressIncrement;
+
+        updateProgress(
+          stateProgress,
+          `Processing ${state} (${i + 1}/${statesToScan.length})`,
+        );
 
         try {
-          await this.logToDatabase('info', `Processing state: ${state}`, {
+          await this.logToDatabase("info", `Processing state: ${state}`, {
             stateNumber: i + 1,
             totalStates: statesToScan.length,
             progress: stateProgress,
           });
 
           const stateResults = await this.processState(state, forceRefresh);
-          
+
           results.newHospitals += stateResults.newHospitals;
           results.updatedHospitals += stateResults.updatedHospitals;
           results.newFiles += stateResults.newFiles;
           results.updatedFiles += stateResults.updatedFiles;
           results.downloadJobsCreated += stateResults.downloadJobsCreated;
 
-          await this.logToDatabase('success', `Completed ${state}: ${stateResults.newHospitals} new hospitals, ${stateResults.newFiles} new files`, {
-            state,
-            ...stateResults,
-          });
-
+          await this.logToDatabase(
+            "success",
+            `Completed ${state}: ${stateResults.newHospitals} new hospitals, ${stateResults.newFiles} new files`,
+            {
+              state,
+              ...stateResults,
+            },
+          );
         } catch (error) {
           this.logger.error({
-            msg: 'Error processing state',
+            msg: "Error processing state",
             state,
             error: error.message,
           });
           results.errors.push(`${state}: ${error.message}`);
-          
-          await this.logToDatabase('error', `Failed to process ${state}: ${error.message}`, {
-            state,
-            error: error.message,
-          });
+
+          await this.logToDatabase(
+            "error",
+            `Failed to process ${state}: ${error.message}`,
+            {
+              state,
+              error: error.message,
+            },
+          );
         }
 
         // Small delay to avoid rate limiting
         if (i < statesToScan.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Increased delay
+        }
+        
+        // Extend job lock periodically
+        if (job.token && i % 5 === 0) {
+          try {
+            await job.extendLock(job.token, 300000); // Extend by 5 minutes
+          } catch (err) {
+            this.logger.warn({
+              msg: "Failed to extend job lock",
+              error: err.message,
+            });
+          }
         }
       }
 
-      updateProgress(95, 'Finalizing scan results');
+      updateProgress(95, "Finalizing scan results");
 
       const duration = Date.now() - startTime;
-      
+
       // Log final summary
-      await this.logToDatabase('success', 
-        `Scan completed: ${results.newHospitals} new hospitals, ${results.newFiles} new files, ${results.downloadJobsCreated} download jobs created`, 
-        results
+      await this.logToDatabase(
+        "success",
+        `Scan completed: ${results.newHospitals} new hospitals, ${results.newFiles} new files, ${results.downloadJobsCreated} download jobs created`,
+        results,
       );
 
       if (results.errors.length > 0) {
-        await this.logToDatabase('warning', `Completed with ${results.errors.length} errors`, {
-          errors: results.errors,
-        });
+        await this.logToDatabase(
+          "warning",
+          `Completed with ${results.errors.length} errors`,
+          {
+            errors: results.errors,
+          },
+        );
       }
 
       this.logger.info({
-        msg: 'PRA unified scan completed',
+        msg: "PRA unified scan completed",
         jobId: job.id,
         duration,
         results,
@@ -206,8 +246,9 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
         await this.databaseService.db
           .update(jobs)
           .set({
-            status: 'completed',
+            status: "completed",
             completedAt: new Date(),
+            duration,
             outputData: JSON.stringify(results),
             progressPercentage: 100,
             totalSteps: statesToScan.length,
@@ -217,37 +258,37 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
           .where(eq(jobs.id, this.dbJobId));
       }
 
-      updateProgress(100, 'Scan completed');
+      updateProgress(100, "Scan completed");
 
       return {
         ...results,
         duration,
         completedAt: new Date().toISOString(),
       };
-
     } catch (error) {
       const duration = Date.now() - startTime;
-      
-      await this.logToDatabase('error', `Scan failed: ${error.message}`, {
+
+      await this.logToDatabase("error", `Scan failed: ${error.message}`, {
         error: error.message,
         stack: error.stack,
       });
-      
+
       // Update job record as failed
       if (this.dbJobId) {
         await this.databaseService.db
           .update(jobs)
           .set({
-            status: 'failed',
+            status: "failed",
             completedAt: new Date(),
+            duration,
             errorMessage: error.message,
             updatedAt: new Date(),
           })
           .where(eq(jobs.id, this.dbJobId));
       }
-      
+
       this.logger.error({
-        msg: 'PRA unified scan failed',
+        msg: "PRA unified scan failed",
         jobId: job.id,
         error: error.message,
         stack: error.stack,
@@ -260,15 +301,64 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
   private async getAvailableStates(): Promise<string[]> {
     // Return all US states
     return [
-      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+      "AL",
+      "AK",
+      "AZ",
+      "AR",
+      "CA",
+      "CO",
+      "CT",
+      "DE",
+      "FL",
+      "GA",
+      "HI",
+      "ID",
+      "IL",
+      "IN",
+      "IA",
+      "KS",
+      "KY",
+      "LA",
+      "ME",
+      "MD",
+      "MA",
+      "MI",
+      "MN",
+      "MS",
+      "MO",
+      "MT",
+      "NE",
+      "NV",
+      "NH",
+      "NJ",
+      "NM",
+      "NY",
+      "NC",
+      "ND",
+      "OH",
+      "OK",
+      "OR",
+      "PA",
+      "RI",
+      "SC",
+      "SD",
+      "TN",
+      "TX",
+      "UT",
+      "VT",
+      "VA",
+      "WA",
+      "WV",
+      "WI",
+      "WY",
+      "DC",
     ];
   }
 
-  private async processState(state: string, forceRefresh: boolean): Promise<{
+  private async processState(
+    state: string,
+    forceRefresh: boolean,
+  ): Promise<{
     newHospitals: number;
     updatedHospitals: number;
     newFiles: number;
@@ -285,27 +375,41 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
 
     // Fetch hospitals from PRA for this state
     const praHospitals = await this.praService.getHospitalsByState(state);
-    
-    await this.logToDatabase('info', `Found ${praHospitals.length} hospitals in ${state}`, {
-      state,
-      hospitalCount: praHospitals.length,
-    });
-    
+
+    await this.logToDatabase(
+      "info",
+      `Found ${praHospitals.length} hospitals in ${state}`,
+      {
+        state,
+        hospitalCount: praHospitals.length,
+      },
+    );
+
     // Get existing hospitals for this state from database
     const db = this.databaseService.db;
     const existingHospitals = await db
       .select()
       .from(hospitals)
       .where(eq(hospitals.state, state));
-    
+
     const existingHospitalMap = new Map(
-      existingHospitals.map(h => [h.ccn || h.externalId || h.name, h])
+      existingHospitals.map((h) => [h.ccn || h.externalId || h.name, h]),
     );
 
     // Process each hospital
     for (const praHospital of praHospitals) {
       try {
-        const hospitalKey = praHospital.ccn || praHospital.id || praHospital.name;
+        // Skip invalid hospital records
+        if (!praHospital.name || praHospital.name.trim() === "") {
+          this.logger.warn({
+            msg: "Skipping hospital with no name",
+            hospital: praHospital,
+          });
+          continue;
+        }
+
+        const hospitalKey =
+          praHospital.ccn || praHospital.id || praHospital.name;
         const existingHospital = existingHospitalMap.get(hospitalKey);
 
         let hospitalId: string;
@@ -353,7 +457,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
                 longitude: praHospital.long || null,
                 ccn: praHospital.ccn || null,
                 externalId: praHospital.id,
-                dataSource: 'patient_rights_advocate' as const,
+                dataSource: "patient_rights_advocate" as const,
                 sourceUrl: praHospital.url || null,
                 isActive: true,
                 lastUpdated: new Date(),
@@ -363,16 +467,20 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
               .returning();
             results.newHospitals++;
             hospitalId = newHospital.id;
-            
-            await this.logToDatabase('info', `Added new hospital: ${praHospital.name}`, {
-              hospitalId,
-              hospitalName: praHospital.name,
-              city: praHospital.city,
-              state: praHospital.state,
-            });
+
+            await this.logToDatabase(
+              "info",
+              `Added new hospital: ${praHospital.name}`,
+              {
+                hospitalId,
+                hospitalName: praHospital.name,
+                city: praHospital.city,
+                state: praHospital.state,
+              },
+            );
           } catch (insertError) {
             this.logger.error({
-              msg: 'Failed to create hospital',
+              msg: "Failed to create hospital",
               hospitalName: praHospital.name,
               ccn: praHospital.ccn,
               error: insertError.message,
@@ -387,15 +495,15 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
             const fileResults = await this.processHospitalFiles(
               hospitalId,
               praHospital.files,
-              forceRefresh
+              forceRefresh,
             );
-            
+
             results.newFiles += fileResults.newFiles;
             results.updatedFiles += fileResults.updatedFiles;
             results.downloadJobsCreated += fileResults.downloadJobsCreated;
           } catch (fileError) {
             this.logger.error({
-              msg: 'Error processing files for hospital',
+              msg: "Error processing files for hospital",
               hospitalId,
               hospitalName: praHospital.name,
               error: fileError.message,
@@ -405,7 +513,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
         }
       } catch (hospitalError) {
         this.logger.error({
-          msg: 'Error processing hospital',
+          msg: "Error processing hospital",
           hospitalName: praHospital.name,
           error: hospitalError.message,
         });
@@ -419,23 +527,23 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
   private hasHospitalChanged(existing: any, updated: any): boolean {
     // Check key fields for changes
     const fieldsToCheck = [
-      { existing: 'name', updated: 'name' },
-      { existing: 'address', updated: 'address' },
-      { existing: 'city', updated: 'city' },
-      { existing: 'zipCode', updated: 'zip' },
-      { existing: 'phone', updated: 'phone' },
-      { existing: 'website', updated: 'url' },
+      { existing: "name", updated: "name" },
+      { existing: "address", updated: "address" },
+      { existing: "city", updated: "city" },
+      { existing: "zipCode", updated: "zip" },
+      { existing: "phone", updated: "phone" },
+      { existing: "website", updated: "url" },
     ];
-    
-    return fieldsToCheck.some(field => 
-      existing[field.existing] !== (updated[field.updated] || null)
+
+    return fieldsToCheck.some(
+      (field) => existing[field.existing] !== (updated[field.updated] || null),
     );
   }
 
   private async processHospitalFiles(
     hospitalId: string,
     files: any[],
-    forceRefresh: boolean
+    forceRefresh: boolean,
   ): Promise<{
     newFiles: number;
     updatedFiles: number;
@@ -455,18 +563,23 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
       .from(priceTransparencyFiles)
       .where(eq(priceTransparencyFiles.hospitalId, hospitalId));
 
-    const existingFileMap = new Map(
-      existingFiles.map(f => [f.fileUrl, f])
-    );
+    const existingFileMap = new Map(existingFiles.map((f) => [f.fileUrl, f]));
+
+    // Collect all download jobs to queue after database operations
+    const downloadJobs: Array<{
+      hospitalId: string;
+      fileId: string;
+      file: any;
+    }> = [];
 
     for (const file of files) {
       const existingFile = existingFileMap.get(file.url);
 
       if (existingFile) {
         // Check if file has been updated
-        const hasChanged = 
+        const hasChanged =
           existingFile.fileSize !== (file.size ? parseInt(file.size) : null) ||
-          (existingFile.lastRetrieved?.toISOString() !== file.retrieved);
+          existingFile.lastRetrieved?.toISOString() !== file.retrieved;
 
         if (hasChanged || forceRefresh) {
           // Update file record
@@ -477,16 +590,15 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
               fileUrl: file.url,
               fileSize: file.size ? parseInt(file.size) : null,
               lastRetrieved: file.retrieved ? new Date(file.retrieved) : null,
-              processingStatus: 'pending',
+              processingStatus: "pending",
               updatedAt: new Date(),
             })
             .where(eq(priceTransparencyFiles.id, existingFile.id));
 
           results.updatedFiles++;
 
-          // Queue download job
-          await this.queueFileDownload(hospitalId, existingFile.id, file);
-          results.downloadJobsCreated++;
+          // Collect download job to queue later
+          downloadJobs.push({ hospitalId, fileId: existingFile.id, file });
         }
       } else {
         try {
@@ -501,25 +613,28 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
               fileSize: file.size ? parseInt(file.size) : null,
               fileType: this.determineFileType(file.filename),
               lastRetrieved: file.retrieved ? new Date(file.retrieved) : null,
-              processingStatus: 'pending',
+              processingStatus: "pending",
             })
             .returning();
 
           results.newFiles++;
 
-          // Queue download job
-          await this.queueFileDownload(hospitalId, newFile.id, file);
-          results.downloadJobsCreated++;
-          
-          await this.logToDatabase('info', `Queued download job for: ${file.filename}`, {
-            hospitalId,
-            fileId: newFile.id,
-            filename: file.filename,
-            fileSize: file.size,
-          });
+          // Collect download job to queue later
+          downloadJobs.push({ hospitalId, fileId: newFile.id, file });
+
+          await this.logToDatabase(
+            "info",
+            `Created file record: ${file.filename}`,
+            {
+              hospitalId,
+              fileId: newFile.id,
+              filename: file.filename,
+              fileSize: file.size,
+            },
+          );
         } catch (fileInsertError) {
           this.logger.error({
-            msg: 'Failed to insert price transparency file',
+            msg: "Failed to insert price transparency file",
             hospitalId,
             filename: file.filename,
             fileUrl: file.url,
@@ -530,23 +645,43 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
       }
     }
 
+    // Queue all download jobs after database operations are complete
+    // Add a small delay to ensure database commits are complete
+    if (downloadJobs.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      for (const job of downloadJobs) {
+        await this.queueFileDownload(job.hospitalId, job.fileId, job.file);
+        results.downloadJobsCreated++;
+      }
+
+      await this.logToDatabase(
+        "info",
+        `Queued ${downloadJobs.length} download jobs`,
+        {
+          hospitalId,
+          downloadJobsQueued: downloadJobs.length,
+        },
+      );
+    }
+
     return results;
   }
 
   private determineFileType(filename: string): string {
     const lowerName = filename.toLowerCase();
-    if (lowerName.includes('standard') || lowerName.includes('charge')) {
-      return 'standard_charges';
-    } else if (lowerName.includes('mrf') || lowerName.includes('machine')) {
-      return 'machine_readable';
+    if (lowerName.includes("standard") || lowerName.includes("charge")) {
+      return "standard_charges";
+    } else if (lowerName.includes("mrf") || lowerName.includes("machine")) {
+      return "machine_readable";
     }
-    return 'unknown';
+    return "unknown";
   }
 
   private async queueFileDownload(
     hospitalId: string,
     fileId: string,
-    fileData: any
+    fileData: any,
   ): Promise<void> {
     await this.downloadQueue.add(
       `download-${fileId}`,
@@ -555,7 +690,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
         fileId,
         fileUrl: fileData.url,
         filename: fileData.filename,
-        filesuffix: fileData.filesuffix || '',
+        filesuffix: fileData.filesuffix || "",
         size: fileData.size,
         retrieved: fileData.lastModified,
       },
@@ -563,12 +698,12 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
         priority: 5,
         attempts: 5,
         backoff: {
-          type: 'exponential',
-          delay: 5000,
+          type: "exponential",
+          delay: 10000, // Increased initial delay
         },
         removeOnComplete: 10,
-        removeOnFail: 30,
-      }
+        removeOnFail: 30
+      },
     );
   }
 }

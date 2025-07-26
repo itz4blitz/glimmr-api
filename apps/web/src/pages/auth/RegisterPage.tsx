@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion'
-import { RegisterForm } from '@/components/auth/RegisterForm'
+import { motion } from "framer-motion";
+import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export function RegisterPage() {
   return (
@@ -28,9 +28,9 @@ export function RegisterPage() {
             Create your account to get started
           </motion.p>
         </div>
-        
+
         <RegisterForm />
       </motion.div>
     </div>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PricesService } from './prices.service';
-import { DatabaseService } from '../database/database.service';
-import { PinoLogger } from 'nestjs-pino';
+import { Test, TestingModule } from "@nestjs/testing";
+import { PricesService } from "./prices.service";
+import { DatabaseService } from "../database/database.service";
+import { PinoLogger } from "nestjs-pino";
 
-describe('PricesService', () => {
+describe("PricesService", () => {
   let service: PricesService;
   let databaseService: DatabaseService;
   let logger: PinoLogger;
@@ -47,19 +47,19 @@ describe('PricesService', () => {
     jest.clearAllMocks();
   });
 
-  describe('getPrices', () => {
-    it('should fetch prices with filters successfully', async () => {
+  describe("getPrices", () => {
+    it("should fetch prices with filters successfully", async () => {
       const mockPrices = [
         {
-          id: '1',
-          service: 'MRI',
-          code: 'MRI001',
-          price: 1500.00,
-          discountedCashPrice: 1200.00,
-          description: 'Brain MRI',
-          category: 'imaging',
+          id: "1",
+          service: "MRI",
+          code: "MRI001",
+          price: 1500.0,
+          discountedCashPrice: 1200.0,
+          description: "Brain MRI",
+          category: "imaging",
           lastUpdated: new Date(),
-          hospital: 'Test Hospital',
+          hospital: "Test Hospital",
         },
       ];
 
@@ -83,30 +83,32 @@ describe('PricesService', () => {
       });
 
       // Mock the second query for data
-      mockDatabaseService.db.select.mockReturnValueOnce({
-        from: mockFrom.mockReturnValue({
-          innerJoin: mockInnerJoin.mockReturnValue({
-            where: mockWhere.mockReturnValue([mockCountResult]),
+      mockDatabaseService.db.select
+        .mockReturnValueOnce({
+          from: mockFrom.mockReturnValue({
+            innerJoin: mockInnerJoin.mockReturnValue({
+              where: mockWhere.mockReturnValue([mockCountResult]),
+            }),
           }),
-        }),
-      }).mockReturnValueOnce({
-        from: mockFrom.mockReturnValue({
-          innerJoin: mockInnerJoin.mockReturnValue({
-            where: mockWhere.mockReturnValue({
-              orderBy: mockOrderBy.mockReturnValue({
-                limit: mockLimit.mockReturnValue({
-                  offset: mockOffset,
+        })
+        .mockReturnValueOnce({
+          from: mockFrom.mockReturnValue({
+            innerJoin: mockInnerJoin.mockReturnValue({
+              where: mockWhere.mockReturnValue({
+                orderBy: mockOrderBy.mockReturnValue({
+                  limit: mockLimit.mockReturnValue({
+                    offset: mockOffset,
+                  }),
                 }),
               }),
             }),
           }),
-        }),
-      });
+        });
 
       const filters = {
-        hospital: 'Test Hospital',
-        service: 'MRI',
-        state: 'CA',
+        hospital: "Test Hospital",
+        service: "MRI",
+        state: "CA",
         minPrice: 1000,
         maxPrice: 2000,
         limit: 10,
@@ -123,22 +125,22 @@ describe('PricesService', () => {
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Fetching prices with filters',
+        msg: "Fetching prices with filters",
         filters,
-        operation: 'getPrices',
+        operation: "getPrices",
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Prices fetched successfully',
+        msg: "Prices fetched successfully",
         count: mockPrices.length,
         total: mockCountResult.count,
         duration: expect.any(Number),
-        operation: 'getPrices',
+        operation: "getPrices",
         filters,
       });
     });
 
-    it('should use default limit and offset when not provided', async () => {
+    it("should use default limit and offset when not provided", async () => {
       const mockPrices = [];
       const mockCountResult = { count: 0 };
 
@@ -158,25 +160,27 @@ describe('PricesService', () => {
         }),
       });
 
-      mockDatabaseService.db.select.mockReturnValueOnce({
-        from: mockFrom.mockReturnValue({
-          innerJoin: mockInnerJoin.mockReturnValue({
-            where: mockWhere.mockReturnValue([mockCountResult]),
+      mockDatabaseService.db.select
+        .mockReturnValueOnce({
+          from: mockFrom.mockReturnValue({
+            innerJoin: mockInnerJoin.mockReturnValue({
+              where: mockWhere.mockReturnValue([mockCountResult]),
+            }),
           }),
-        }),
-      }).mockReturnValueOnce({
-        from: mockFrom.mockReturnValue({
-          innerJoin: mockInnerJoin.mockReturnValue({
-            where: mockWhere.mockReturnValue({
-              orderBy: mockOrderBy.mockReturnValue({
-                limit: mockLimit.mockReturnValue({
-                  offset: mockOffset,
+        })
+        .mockReturnValueOnce({
+          from: mockFrom.mockReturnValue({
+            innerJoin: mockInnerJoin.mockReturnValue({
+              where: mockWhere.mockReturnValue({
+                orderBy: mockOrderBy.mockReturnValue({
+                  limit: mockLimit.mockReturnValue({
+                    offset: mockOffset,
+                  }),
                 }),
               }),
             }),
           }),
-        }),
-      });
+        });
 
       const filters = {};
 
@@ -190,40 +194,40 @@ describe('PricesService', () => {
       });
     });
 
-    it('should handle database errors and log them', async () => {
-      const dbError = new Error('Database connection failed');
+    it("should handle database errors and log them", async () => {
+      const dbError = new Error("Database connection failed");
       mockDatabaseService.db.select.mockImplementation(() => {
         throw dbError;
       });
 
-      const filters = { service: 'MRI' };
+      const filters = { service: "MRI" };
 
       await expect(service.getPrices(filters)).rejects.toThrow(dbError);
 
       expect(mockLogger.error).toHaveBeenCalledWith({
-        msg: 'Failed to fetch prices',
+        msg: "Failed to fetch prices",
         error: dbError.message,
         duration: expect.any(Number),
-        operation: 'getPrices',
+        operation: "getPrices",
         filters,
       });
     });
   });
 
-  describe('comparePrices', () => {
-    it('should compare prices across hospitals successfully', async () => {
+  describe("comparePrices", () => {
+    it("should compare prices across hospitals successfully", async () => {
       const mockPrices = [
         {
-          hospitalId: '1',
-          hospitalName: 'Hospital A',
-          price: 1200.00,
-          discountedCashPrice: 1000.00,
+          hospitalId: "1",
+          hospitalName: "Hospital A",
+          price: 1200.0,
+          discountedCashPrice: 1000.0,
         },
         {
-          hospitalId: '2',
-          hospitalName: 'Hospital B',
-          price: 1500.00,
-          discountedCashPrice: 1200.00,
+          hospitalId: "2",
+          hospitalName: "Hospital B",
+          price: 1500.0,
+          discountedCashPrice: 1200.0,
         },
       ];
 
@@ -247,42 +251,42 @@ describe('PricesService', () => {
       });
 
       const filters = {
-        service: 'MRI',
-        state: 'CA',
+        service: "MRI",
+        state: "CA",
         limit: 10,
       };
 
       const result = await service.comparePrices(filters);
 
       expect(result).toEqual({
-        service: 'MRI',
-        state: 'CA',
+        service: "MRI",
+        state: "CA",
         hospitals: mockPrices,
         statistics: {
-          min: 1000.00,
-          max: 1500.00,
-          average: 1250.00,
-          median: 1225.00,
+          min: 1000.0,
+          max: 1500.0,
+          average: 1250.0,
+          median: 1225.0,
           count: 2,
         },
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Comparing prices across hospitals',
+        msg: "Comparing prices across hospitals",
         filters,
-        operation: 'comparePrices',
+        operation: "comparePrices",
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Price comparison completed successfully',
+        msg: "Price comparison completed successfully",
         hospitalCount: mockPrices.length,
-        service: 'MRI',
-        state: 'CA',
-        operation: 'comparePrices',
+        service: "MRI",
+        state: "CA",
+        operation: "comparePrices",
       });
     });
 
-    it('should handle empty results', async () => {
+    it("should handle empty results", async () => {
       const mockPrices = [];
 
       const mockSelect = jest.fn().mockReturnThis();
@@ -304,12 +308,12 @@ describe('PricesService', () => {
         }),
       });
 
-      const filters = { service: 'MRI' };
+      const filters = { service: "MRI" };
 
       const result = await service.comparePrices(filters);
 
       expect(result).toEqual({
-        service: 'MRI',
+        service: "MRI",
         state: undefined,
         hospitals: [],
         statistics: {
@@ -322,39 +326,39 @@ describe('PricesService', () => {
       });
     });
 
-    it('should handle database errors and log them', async () => {
-      const dbError = new Error('Database connection failed');
+    it("should handle database errors and log them", async () => {
+      const dbError = new Error("Database connection failed");
       mockDatabaseService.db.select.mockImplementation(() => {
         throw dbError;
       });
 
-      const filters = { service: 'MRI' };
+      const filters = { service: "MRI" };
 
       await expect(service.comparePrices(filters)).rejects.toThrow(dbError);
 
       expect(mockLogger.error).toHaveBeenCalledWith({
-        msg: 'Failed to compare prices',
+        msg: "Failed to compare prices",
         error: dbError.message,
         filters,
-        operation: 'comparePrices',
+        operation: "comparePrices",
       });
     });
   });
 
-  describe('getPricingAnalytics', () => {
-    it('should fetch pricing analytics successfully', async () => {
+  describe("getPricingAnalytics", () => {
+    it("should fetch pricing analytics successfully", async () => {
       const mockAnalytics = {
         totalPrices: 1000,
-        averagePrice: 1250.00,
+        averagePrice: 1250.0,
         priceRanges: {
-          '0-500': 100,
-          '500-1000': 200,
-          '1000-2000': 400,
-          '2000+': 300,
+          "0-500": 100,
+          "500-1000": 200,
+          "1000-2000": 400,
+          "2000+": 300,
         },
         topServices: [
-          { service: 'MRI', count: 250 },
-          { service: 'CT Scan', count: 200 },
+          { service: "MRI", count: 250 },
+          { service: "CT Scan", count: 200 },
         ],
       };
 
@@ -370,70 +374,72 @@ describe('PricesService', () => {
       mockDatabaseService.db.select.mockReturnValue({
         from: mockFrom.mockReturnValue({
           innerJoin: mockInnerJoin.mockReturnValue({
-            where: mockWhere.mockReturnValue([{ count: 1000, avg: 1250.00 }]),
+            where: mockWhere.mockReturnValue([{ count: 1000, avg: 1250.0 }]),
           }),
         }),
       });
 
       const filters = {
-        service: 'MRI',
-        state: 'CA',
+        service: "MRI",
+        state: "CA",
       };
 
       const result = await service.getPricingAnalytics(filters);
 
       expect(result).toEqual({
         totalPrices: 1000,
-        averagePrice: 1250.00,
+        averagePrice: 1250.0,
         priceRanges: expect.any(Object),
         topServices: expect.any(Array),
         stateBreakdown: expect.any(Object),
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Fetching pricing analytics',
+        msg: "Fetching pricing analytics",
         filters,
-        operation: 'getPricingAnalytics',
+        operation: "getPricingAnalytics",
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Pricing analytics fetched successfully',
+        msg: "Pricing analytics fetched successfully",
         totalPrices: expect.any(Number),
-        operation: 'getPricingAnalytics',
+        operation: "getPricingAnalytics",
       });
     });
 
-    it('should handle database errors and log them', async () => {
-      const dbError = new Error('Database connection failed');
+    it("should handle database errors and log them", async () => {
+      const dbError = new Error("Database connection failed");
       mockDatabaseService.db.select.mockImplementation(() => {
         throw dbError;
       });
 
-      const filters = { service: 'MRI' };
+      const filters = { service: "MRI" };
 
-      await expect(service.getPricingAnalytics(filters)).rejects.toThrow(dbError);
+      await expect(service.getPricingAnalytics(filters)).rejects.toThrow(
+        dbError,
+      );
 
       expect(mockLogger.error).toHaveBeenCalledWith({
-        msg: 'Failed to fetch pricing analytics',
+        msg: "Failed to fetch pricing analytics",
         error: dbError.message,
         filters,
-        operation: 'getPricingAnalytics',
+        operation: "getPricingAnalytics",
       });
     });
   });
 
-  describe('getPriceById', () => {
-    it('should fetch price by id successfully', async () => {
+  describe("getPriceById", () => {
+    it("should fetch price by id successfully", async () => {
       const mockPrice = {
-        id: '1',
-        service: 'MRI',
-        code: 'MRI001',
-        price: 1500.00,
-        discountedCashPrice: 1200.00,
-        description: 'Brain MRI',
-        category: 'imaging',
+        id: "1",
+        service: "MRI",
+        code: "MRI001",
+        price: 1500.0,
+        discountedCashPrice: 1200.0,
+        description: "Brain MRI",
+        category: "imaging",
         lastUpdated: new Date(),
-        hospital: 'Test Hospital',
+        hospital: "Test Hospital",
       };
 
       const mockSelect = jest.fn().mockReturnThis();
@@ -452,25 +458,25 @@ describe('PricesService', () => {
         }),
       });
 
-      const result = await service.getPriceById('1');
+      const result = await service.getPriceById("1");
 
       expect(result).toEqual(mockPrice);
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Fetching price by ID',
-        priceId: '1',
-        operation: 'getPriceById',
+        msg: "Fetching price by ID",
+        priceId: "1",
+        operation: "getPriceById",
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith({
-        msg: 'Price fetched successfully',
-        priceId: '1',
+        msg: "Price fetched successfully",
+        priceId: "1",
         service: mockPrice.service,
-        operation: 'getPriceById',
+        operation: "getPriceById",
       });
     });
 
-    it('should return null when price not found', async () => {
+    it("should return null when price not found", async () => {
       const mockSelect = jest.fn().mockReturnThis();
       const mockFrom = jest.fn().mockReturnThis();
       const mockInnerJoin = jest.fn().mockReturnThis();
@@ -487,30 +493,30 @@ describe('PricesService', () => {
         }),
       });
 
-      const result = await service.getPriceById('999');
+      const result = await service.getPriceById("999");
 
       expect(result).toBeNull();
 
       expect(mockLogger.warn).toHaveBeenCalledWith({
-        msg: 'Price not found',
-        priceId: '999',
-        operation: 'getPriceById',
+        msg: "Price not found",
+        priceId: "999",
+        operation: "getPriceById",
       });
     });
 
-    it('should handle database errors and log them', async () => {
-      const dbError = new Error('Database connection failed');
+    it("should handle database errors and log them", async () => {
+      const dbError = new Error("Database connection failed");
       mockDatabaseService.db.select.mockImplementation(() => {
         throw dbError;
       });
 
-      await expect(service.getPriceById('1')).rejects.toThrow(dbError);
+      await expect(service.getPriceById("1")).rejects.toThrow(dbError);
 
       expect(mockLogger.error).toHaveBeenCalledWith({
-        msg: 'Failed to fetch price',
-        priceId: '1',
+        msg: "Failed to fetch price",
+        priceId: "1",
         error: dbError.message,
-        operation: 'getPriceById',
+        operation: "getPriceById",
       });
     });
   });

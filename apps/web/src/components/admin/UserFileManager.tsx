@@ -1,8 +1,14 @@
-import { useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -10,7 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,58 +27,63 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { 
-  Files, 
-  Download, 
-  Trash2, 
-  FileText, 
-  Image, 
-  File, 
+} from "@/components/ui/alert-dialog";
+import {
+  Files,
+  Download,
+  Trash2,
+  FileText,
+  Image,
+  File,
   RefreshCw,
   Calendar,
-  HardDrive
-} from 'lucide-react'
-import { useUserManagementStore } from '@/stores/userManagement'
-import { formatDistanceToNow } from 'date-fns'
-import { formatBytes } from '@/lib/utils'
-import type { UserFile } from '@/types/userManagement'
+  HardDrive,
+} from "lucide-react";
+import { useUserManagementStore } from "@/stores/userManagement";
+import { formatDistanceToNow } from "date-fns";
+import { formatBytes } from "@/lib/utils";
+import type { UserFile } from "@/types/userManagement";
 
 interface UserFileManagerProps {
-  userId: string
+  userId: string;
 }
 
 const fileTypeIcons: Record<string, any> = {
-  'image/jpeg': Image,
-  'image/png': Image,
-  'image/gif': Image,
-  'image/webp': Image,
-  'application/pdf': FileText,
-  'text/plain': FileText,
-  'application/msword': FileText,
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': FileText,
-  default: File
-}
+  "image/jpeg": Image,
+  "image/png": Image,
+  "image/gif": Image,
+  "image/webp": Image,
+  "application/pdf": FileText,
+  "text/plain": FileText,
+  "application/msword": FileText,
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    FileText,
+  default: File,
+};
 
 const fileTypeBadgeColors: Record<string, string> = {
-  avatar: 'bg-blue-100 text-blue-800',
-  document: 'bg-green-100 text-green-800',
-  default: 'bg-gray-100 text-gray-800'
-}
+  avatar: "bg-blue-100 text-blue-800",
+  document: "bg-green-100 text-green-800",
+  default: "bg-gray-100 text-gray-800",
+};
 
 function FileIcon({ mimeType }: { mimeType: string }) {
-  const IconComponent = fileTypeIcons[mimeType] || fileTypeIcons.default
-  return <IconComponent className="h-4 w-4" />
+  const IconComponent = fileTypeIcons[mimeType] || fileTypeIcons.default;
+  return <IconComponent className="h-4 w-4" />;
 }
 
-function FileRow({ file, onDelete, onDownload }: {
-  file: UserFile
-  onDelete: (fileId: string) => void
-  onDownload: (fileId: string) => void
+function FileRow({
+  file,
+  onDelete,
+  onDownload,
+}: {
+  file: UserFile;
+  onDelete: (fileId: string) => void;
+  onDownload: (fileId: string) => void;
 }) {
   const handleDelete = async () => {
-    await onDelete(file.id)
-  }
+    await onDelete(file.id);
+  };
 
   return (
     <TableRow>
@@ -85,36 +96,36 @@ function FileRow({ file, onDelete, onDownload }: {
           </div>
         </div>
       </TableCell>
-      
+
       <TableCell>
-        <Badge 
+        <Badge
           variant="secondary"
-          className={fileTypeBadgeColors[file.fileType] || fileTypeBadgeColors.default}
+          className={
+            fileTypeBadgeColors[file.fileType] || fileTypeBadgeColors.default
+          }
         >
           {file.fileType}
         </Badge>
       </TableCell>
-      
+
       <TableCell>
         <div className="flex items-center gap-1 text-sm">
           <HardDrive className="h-3 w-3" />
           {formatBytes(file.fileSize)}
         </div>
       </TableCell>
-      
+
       <TableCell>
-        <div className="text-sm text-muted-foreground">
-          {file.mimeType}
-        </div>
+        <div className="text-sm text-muted-foreground">{file.mimeType}</div>
       </TableCell>
-      
+
       <TableCell>
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Calendar className="h-3 w-3" />
           {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}
         </div>
       </TableCell>
-      
+
       <TableCell>
         <div className="flex items-center gap-2">
           <Button
@@ -124,13 +135,10 @@ function FileRow({ file, onDelete, onDownload }: {
           >
             <Download className="h-4 w-4" />
           </Button>
-          
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-              >
+              <Button variant="outline" size="sm">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
@@ -138,7 +146,8 @@ function FileRow({ file, onDelete, onDownload }: {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete File</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{file.originalName}"? This action cannot be undone.
+                  Are you sure you want to delete "{file.originalName}"? This
+                  action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -155,41 +164,42 @@ function FileRow({ file, onDelete, onDownload }: {
         </div>
       </TableCell>
     </TableRow>
-  )
+  );
 }
 
 export function UserFileManager({ userId }: UserFileManagerProps) {
-  
-  const { 
-    userFiles, 
-    loadUserFiles, 
-    deleteUserFile, 
+  const {
+    userFiles,
+    loadUserFiles,
+    deleteUserFile,
     downloadUserFile,
-    loading 
-  } = useUserManagementStore()
-  
-  const isLoading = loading.userDetail
+    loading,
+  } = useUserManagementStore();
+
+  const isLoading = loading.userDetail;
 
   useEffect(() => {
-    loadUserFiles(userId)
-  }, [userId, loadUserFiles])
+    loadUserFiles(userId);
+  }, [userId, loadUserFiles]);
 
   const handleRefresh = async () => {
-    await loadUserFiles(userId)
-  }
+    await loadUserFiles(userId);
+  };
 
   const handleDeleteFile = async (fileId: string) => {
-    await deleteUserFile(userId, fileId)
-  }
+    await deleteUserFile(userId, fileId);
+  };
 
   const handleDownloadFile = async (fileId: string) => {
-    await downloadUserFile(fileId)
-  }
+    await downloadUserFile(fileId);
+  };
 
-  const activeFiles = userFiles?.filter(file => file.isActive) || []
-  const totalSize = activeFiles.reduce((sum, file) => sum + file.fileSize, 0)
-  const avatarFiles = activeFiles.filter(file => file.fileType === 'avatar')
-  const documentFiles = activeFiles.filter(file => file.fileType === 'document')
+  const activeFiles = userFiles?.filter((file) => file.isActive) || [];
+  const totalSize = activeFiles.reduce((sum, file) => sum + file.fileSize, 0);
+  const avatarFiles = activeFiles.filter((file) => file.fileType === "avatar");
+  const documentFiles = activeFiles.filter(
+    (file) => file.fileType === "document",
+  );
 
   return (
     <div className="space-y-6">
@@ -201,12 +211,8 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
             Manage user uploaded files and documents
           </p>
         </div>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-        >
+
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -225,7 +231,7 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -237,7 +243,7 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -249,13 +255,15 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <HardDrive className="h-5 w-5 text-orange-600" />
               <div>
-                <div className="text-2xl font-bold">{formatBytes(totalSize)}</div>
+                <div className="text-2xl font-bold">
+                  {formatBytes(totalSize)}
+                </div>
                 <div className="text-sm text-muted-foreground">Total Size</div>
               </div>
             </div>
@@ -271,10 +279,9 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
             User Files
           </CardTitle>
           <CardDescription>
-            {activeFiles.length > 0 
+            {activeFiles.length > 0
               ? `${activeFiles.length} files uploaded by this user`
-              : 'No files uploaded yet'
-            }
+              : "No files uploaded yet"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -333,12 +340,18 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
           <CardContent>
             <div className="space-y-3">
               {Object.entries(
-                activeFiles.reduce((acc, file) => {
-                  acc[file.mimeType] = (acc[file.mimeType] || 0) + 1
-                  return acc
-                }, {} as Record<string, number>)
+                activeFiles.reduce(
+                  (acc, file) => {
+                    acc[file.mimeType] = (acc[file.mimeType] || 0) + 1;
+                    return acc;
+                  },
+                  {} as Record<string, number>,
+                ),
               ).map(([mimeType, count]) => (
-                <div key={mimeType} className="flex items-center justify-between">
+                <div
+                  key={mimeType}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center gap-2">
                     <FileIcon mimeType={mimeType} />
                     <span className="text-sm">{mimeType}</span>
@@ -351,5 +364,5 @@ export function UserFileManager({ userId }: UserFileManagerProps) {
         </Card>
       )}
     </div>
-  )
+  );
 }

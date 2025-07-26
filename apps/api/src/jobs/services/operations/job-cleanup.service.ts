@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { QUEUE_NAMES } from '../queues/queue.config';
+import { Injectable } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
+import { QUEUE_NAMES } from "../../queues/queue.config";
 
 export interface CleanupOptions {
   maxAge?: number; // Maximum age in milliseconds
@@ -13,7 +13,7 @@ export interface CleanupOptions {
 
 export interface CleanupResult {
   queueName: string;
-  jobType: 'completed' | 'failed' | 'active' | 'waiting' | 'delayed';
+  jobType: "completed" | "failed" | "active" | "waiting" | "delayed";
   deletedCount: number;
   error?: string;
 }
@@ -92,16 +92,21 @@ export class JobCleanupService {
 
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async scheduledCleanup() {
-    this.logger.info('Starting scheduled comprehensive job cleanup');
+    this.logger.info("Starting scheduled comprehensive job cleanup");
     const results = await this.cleanupAllQueues();
-    
+
     const summary = this.summarizeCleanupResults(results);
-    this.logger.info({
-      ...summary,
-    }, 'Scheduled job cleanup completed');
+    this.logger.info(
+      {
+        ...summary,
+      },
+      "Scheduled job cleanup completed",
+    );
   }
 
-  async cleanupAllQueues(customPolicies?: Record<string, CleanupPolicy>): Promise<CleanupResult[]> {
+  async cleanupAllQueues(
+    customPolicies?: Record<string, CleanupPolicy>,
+  ): Promise<CleanupResult[]> {
     const queueMap = this.getQueueMap();
     const policies = customPolicies || this.defaultCleanupPolicies;
     const results: CleanupResult[] = [];
@@ -109,7 +114,10 @@ export class JobCleanupService {
     for (const [queueName, queue] of Object.entries(queueMap)) {
       const policy = policies[queueName];
       if (!policy) {
-        this.logger.warn({ queueName }, 'No cleanup policy defined for queue, skipping');
+        this.logger.warn(
+          { queueName },
+          "No cleanup policy defined for queue, skipping",
+        );
         continue;
       }
 
@@ -117,14 +125,17 @@ export class JobCleanupService {
         const queueResults = await this.cleanupQueue(queue, queueName, policy);
         results.push(...queueResults);
       } catch (error) {
-        this.logger.error({
-          queueName,
-          error: error.message,
-        }, 'Failed to cleanup queue');
-        
+        this.logger.error(
+          {
+            queueName,
+            error: error.message,
+          },
+          "Failed to cleanup queue",
+        );
+
         results.push({
           queueName,
-          jobType: 'completed',
+          jobType: "completed",
           deletedCount: 0,
           error: error.message,
         });
@@ -134,13 +145,20 @@ export class JobCleanupService {
     return results;
   }
 
-  async cleanupQueue(queue: Queue, queueName: string, policy: CleanupPolicy): Promise<CleanupResult[]> {
+  async cleanupQueue(
+    queue: Queue,
+    queueName: string,
+    policy: CleanupPolicy,
+  ): Promise<CleanupResult[]> {
     const results: CleanupResult[] = [];
-    
-    this.logger.debug({
-      queueName,
-      policy,
-    }, 'Starting cleanup for queue');
+
+    this.logger.debug(
+      {
+        queueName,
+        policy,
+      },
+      "Starting cleanup for queue",
+    );
 
     // Clean completed jobs
     if (policy.completed) {
@@ -148,24 +166,27 @@ export class JobCleanupService {
         const deletedJobIds = await queue.clean(
           policy.completed.maxAge || 24 * 60 * 60 * 1000,
           policy.completed.limit || 100,
-          'completed'
+          "completed",
         );
-        
+
         results.push({
           queueName,
-          jobType: 'completed',
+          jobType: "completed",
           deletedCount: deletedJobIds.length,
         });
 
-        this.logger.debug({
-          queueName,
-          deletedCount: deletedJobIds.length,
-          jobType: 'completed',
-        }, 'Cleaned completed jobs');
+        this.logger.debug(
+          {
+            queueName,
+            deletedCount: deletedJobIds.length,
+            jobType: "completed",
+          },
+          "Cleaned completed jobs",
+        );
       } catch (error) {
         results.push({
           queueName,
-          jobType: 'completed',
+          jobType: "completed",
           deletedCount: 0,
           error: error.message,
         });
@@ -178,24 +199,27 @@ export class JobCleanupService {
         const deletedJobIds = await queue.clean(
           policy.failed.maxAge || 7 * 24 * 60 * 60 * 1000,
           policy.failed.limit || 50,
-          'failed'
+          "failed",
         );
-        
+
         results.push({
           queueName,
-          jobType: 'failed',
+          jobType: "failed",
           deletedCount: deletedJobIds.length,
         });
 
-        this.logger.debug({
-          queueName,
-          deletedCount: deletedJobIds.length,
-          jobType: 'failed',
-        }, 'Cleaned failed jobs');
+        this.logger.debug(
+          {
+            queueName,
+            deletedCount: deletedJobIds.length,
+            jobType: "failed",
+          },
+          "Cleaned failed jobs",
+        );
       } catch (error) {
         results.push({
           queueName,
-          jobType: 'failed',
+          jobType: "failed",
           deletedCount: 0,
           error: error.message,
         });
@@ -208,24 +232,27 @@ export class JobCleanupService {
         const deletedJobIds = await queue.clean(
           policy.stalled.maxAge || 60 * 60 * 1000,
           policy.stalled.limit || 20,
-          'active'
+          "active",
         );
-        
+
         results.push({
           queueName,
-          jobType: 'active',
+          jobType: "active",
           deletedCount: deletedJobIds.length,
         });
 
-        this.logger.debug({
-          queueName,
-          deletedCount: deletedJobIds.length,
-          jobType: 'stalled',
-        }, 'Cleaned stalled jobs');
+        this.logger.debug(
+          {
+            queueName,
+            deletedCount: deletedJobIds.length,
+            jobType: "stalled",
+          },
+          "Cleaned stalled jobs",
+        );
       } catch (error) {
         results.push({
           queueName,
-          jobType: 'active',
+          jobType: "active",
           deletedCount: 0,
           error: error.message,
         });
@@ -235,10 +262,13 @@ export class JobCleanupService {
     return results;
   }
 
-  async cleanupSpecificQueue(queueName: string, policy?: CleanupPolicy): Promise<CleanupResult[]> {
+  async cleanupSpecificQueue(
+    queueName: string,
+    policy?: CleanupPolicy,
+  ): Promise<CleanupResult[]> {
     const queueMap = this.getQueueMap();
     const queue = queueMap[queueName];
-    
+
     if (!queue) {
       throw new Error(`Queue '${queueName}' not found`);
     }
@@ -254,39 +284,51 @@ export class JobCleanupService {
   async drainQueue(queueName: string): Promise<void> {
     const queueMap = this.getQueueMap();
     const queue = queueMap[queueName];
-    
+
     if (!queue) {
       throw new Error(`Queue '${queueName}' not found`);
     }
 
-    this.logger.warn({
-      queueName,
-    }, 'Draining queue - removing all waiting/delayed jobs');
+    this.logger.warn(
+      {
+        queueName,
+      },
+      "Draining queue - removing all waiting/delayed jobs",
+    );
 
     await queue.drain();
-    
-    this.logger.info({
-      queueName,
-    }, 'Queue drained successfully');
+
+    this.logger.info(
+      {
+        queueName,
+      },
+      "Queue drained successfully",
+    );
   }
 
   async obliterateQueue(queueName: string): Promise<void> {
     const queueMap = this.getQueueMap();
     const queue = queueMap[queueName];
-    
+
     if (!queue) {
       throw new Error(`Queue '${queueName}' not found`);
     }
 
-    this.logger.warn({
-      queueName,
-    }, 'OBLITERATING queue - this will permanently delete ALL jobs and queue data');
+    this.logger.warn(
+      {
+        queueName,
+      },
+      "OBLITERATING queue - this will permanently delete ALL jobs and queue data",
+    );
 
     await queue.obliterate();
-    
-    this.logger.warn({
-      queueName,
-    }, 'Queue obliterated - all data permanently deleted');
+
+    this.logger.warn(
+      {
+        queueName,
+      },
+      "Queue obliterated - all data permanently deleted",
+    );
   }
 
   async getCleanupStats(): Promise<Record<string, any>> {
@@ -295,16 +337,18 @@ export class JobCleanupService {
 
     for (const [queueName, queue] of Object.entries(queueMap)) {
       try {
-        const [waiting, active, completed, failed, delayed] = await Promise.all([
-          queue.getWaiting(),
-          queue.getActive(),
-          queue.getCompleted(),
-          queue.getFailed(),
-          queue.getDelayed(),
-        ]);
+        const [waiting, active, completed, failed, delayed] = await Promise.all(
+          [
+            queue.getWaiting(),
+            queue.getActive(),
+            queue.getCompleted(),
+            queue.getFailed(),
+            queue.getDelayed(),
+          ],
+        );
 
         const policy = this.defaultCleanupPolicies[queueName];
-        
+
         stats[queueName] = {
           counts: {
             waiting: waiting.length,
@@ -312,7 +356,12 @@ export class JobCleanupService {
             completed: completed.length,
             failed: failed.length,
             delayed: delayed.length,
-            total: waiting.length + active.length + completed.length + failed.length + delayed.length,
+            total:
+              waiting.length +
+              active.length +
+              completed.length +
+              failed.length +
+              delayed.length,
           },
           policy: policy || null,
           paused: await queue.isPaused(),
@@ -332,11 +381,13 @@ export class JobCleanupService {
     };
   }
 
-  private summarizeCleanupResults(results: CleanupResult[]): Record<string, any> {
+  private summarizeCleanupResults(
+    results: CleanupResult[],
+  ): Record<string, any> {
     const summary = {
-      totalQueuesProcessed: new Set(results.map(r => r.queueName)).size,
+      totalQueuesProcessed: new Set(results.map((r) => r.queueName)).size,
       totalJobsDeleted: results.reduce((sum, r) => sum + r.deletedCount, 0),
-      errorCount: results.filter(r => r.error).length,
+      errorCount: results.filter((r) => r.error).length,
       byJobType: {} as Record<string, number>,
       byQueue: {} as Record<string, number>,
     };

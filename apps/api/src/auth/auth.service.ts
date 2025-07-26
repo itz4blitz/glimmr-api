@@ -1,13 +1,20 @@
-import { Injectable, UnauthorizedException, ForbiddenException, Optional, Inject, forwardRef } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
-import { RbacService } from './rbac.service';
-import { User } from '../database/schema/users';
-import { RegisterDto } from './dto/register.dto';
-import { ActivityLoggingService } from '../activity/activity-logging.service';
-import { Request } from 'express';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+  Optional,
+  Inject,
+  forwardRef,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { RbacService } from "./rbac.service";
+import { User } from "../database/schema/users";
+import { RegisterDto } from "./dto/register.dto";
+import { ActivityLoggingService } from "../activity/activity-logging.service";
+import { Request } from "express";
 
 @Injectable()
 export class AuthService {
@@ -20,20 +27,29 @@ export class AuthService {
     private activityLoggingService: ActivityLoggingService,
   ) {}
 
-  async validateUser(email: string, password: string, request?: Request): Promise<User | null> {
+  async validateUser(
+    email: string,
+    password: string,
+    request?: Request,
+  ): Promise<User | null> {
     const user = await this.usersService.findByEmail(email);
-    if (user && await bcrypt.compare(password, user.password)) {
+    if (user && (await bcrypt.compare(password, user.password))) {
       return user;
     }
-    
+
     // Log failed login attempt
     if (user) {
-      await this.activityLoggingService.logAuth('login_failed', user.id as string, {
-        reason: 'invalid_password',
-        email,
-      }, request);
+      await this.activityLoggingService.logAuth(
+        "login_failed",
+        user.id as string,
+        {
+          reason: "invalid_password",
+          email,
+        },
+        request,
+      );
     }
-    
+
     return null;
   }
 
@@ -50,7 +66,9 @@ export class AuthService {
     let userWithRoles;
     try {
       if (this.rbacService) {
-        userWithRoles = await this.rbacService.getUserWithRoles(user.id as string);
+        userWithRoles = await this.rbacService.getUserWithRoles(
+          user.id as string,
+        );
       }
     } catch (error) {
       // RBAC system not available yet, fall back to legacy role
@@ -61,8 +79,10 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role, // Keep legacy role for backward compatibility
-      roles: userWithRoles?.roles.map(r => r.name) || [user.role],
-      permissions: userWithRoles?.permissions.map(p => `${p.resource}:${p.action}`) || []
+      roles: userWithRoles?.roles.map((r) => r.name) || [user.role],
+      permissions:
+        userWithRoles?.permissions.map((p) => `${p.resource}:${p.action}`) ||
+        [],
     };
 
     // Update last login time if method exists
@@ -73,10 +93,15 @@ export class AuthService {
     }
 
     // Log successful login
-    await this.activityLoggingService.logAuth('login', user.id as string, {
-      email: user.email,
-      roles: userWithRoles?.roles.map(r => r.name) || [user.role],
-    }, request);
+    await this.activityLoggingService.logAuth(
+      "login",
+      user.id as string,
+      {
+        email: user.email,
+        roles: userWithRoles?.roles.map((r) => r.name) || [user.role],
+      },
+      request,
+    );
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -94,15 +119,17 @@ export class AuthService {
 
   async register(registerDto: RegisterDto, request?: Request) {
     // Check if email is already in use
-    const existingEmail = await this.usersService.findByEmail(registerDto.email);
+    const existingEmail = await this.usersService.findByEmail(
+      registerDto.email,
+    );
     if (existingEmail) {
-      throw new UnauthorizedException('Email already exists');
+      throw new UnauthorizedException("Email already exists");
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
     const user = await this.usersService.create({
       password: hashedPassword,
-      role: 'user', // Default role for new users
+      role: "user", // Default role for new users
       email: registerDto.email,
       firstName: registerDto.firstName,
       lastName: registerDto.lastName,
@@ -111,8 +138,8 @@ export class AuthService {
     // Log user registration
     await this.activityLoggingService.logActivity({
       userId: user.id as string,
-      action: 'user_registered',
-      resourceType: 'user',
+      action: "user_registered",
+      resourceType: "user",
       resourceId: user.id as string,
       metadata: {
         email: user.email,
@@ -137,8 +164,13 @@ export class AuthService {
 
   async logout(userId: string, request?: Request): Promise<void> {
     // Log logout event
-    await this.activityLoggingService.logAuth('logout', userId, {
-      timestamp: new Date().toISOString(),
-    }, request);
+    await this.activityLoggingService.logAuth(
+      "logout",
+      userId,
+      {
+        timestamp: new Date().toISOString(),
+      },
+      request,
+    );
   }
 }

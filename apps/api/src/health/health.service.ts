@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { DatabaseService } from '../database/database.service';
-import { JobsService } from '../jobs/jobs.service';
-import { RedisHealthIndicator } from '../redis/redis-health.service';
+import { Injectable } from "@nestjs/common";
+import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
+import { DatabaseService } from "../database/database.service";
+import { JobsService } from "../jobs/services/core/jobs.service";
+import { RedisHealthIndicator } from "../redis/redis-health.service";
 
 @Injectable()
 export class HealthService {
@@ -17,44 +17,63 @@ export class HealthService {
   async getHealth() {
     const uptime = process.uptime();
     const timestamp = new Date().toISOString();
-    
+
     // Run health checks
-    const [databaseHealth, redisHealth, queueHealth] = await Promise.allSettled([
-      this.checkDatabaseHealth(),
-      this.checkRedisHealth(),
-      this.checkQueueHealth(),
-    ]);
+    const [databaseHealth, redisHealth, queueHealth] = await Promise.allSettled(
+      [
+        this.checkDatabaseHealth(),
+        this.checkRedisHealth(),
+        this.checkQueueHealth(),
+      ],
+    );
 
     const checks = {
-      api: 'healthy',
+      api: "healthy",
       memory: this.getMemoryUsage(),
-      database: databaseHealth.status === 'fulfilled' ? databaseHealth.value : { status: 'unhealthy', error: databaseHealth.reason?.message },
-      redis: redisHealth.status === 'fulfilled' ? redisHealth.value : { status: 'unhealthy', error: redisHealth.reason?.message },
-      queues: queueHealth.status === 'fulfilled' ? queueHealth.value : { status: 'unhealthy', error: queueHealth.reason?.message },
+      database:
+        databaseHealth.status === "fulfilled"
+          ? databaseHealth.value
+          : { status: "unhealthy", error: databaseHealth.reason?.message },
+      redis:
+        redisHealth.status === "fulfilled"
+          ? redisHealth.value
+          : { status: "unhealthy", error: redisHealth.reason?.message },
+      queues:
+        queueHealth.status === "fulfilled"
+          ? queueHealth.value
+          : { status: "unhealthy", error: queueHealth.reason?.message },
     };
 
     // Determine overall status
-    const hasUnhealthy = Object.values(checks).some(check => 
-      typeof check === 'object' && check !== null && 'status' in check && check.status === 'unhealthy'
+    const hasUnhealthy = Object.values(checks).some(
+      (check) =>
+        typeof check === "object" &&
+        check !== null &&
+        "status" in check &&
+        check.status === "unhealthy",
     );
-    const hasDegraded = Object.values(checks).some(check => 
-      typeof check === 'object' && check !== null && 'status' in check && check.status === 'degraded'
+    const hasDegraded = Object.values(checks).some(
+      (check) =>
+        typeof check === "object" &&
+        check !== null &&
+        "status" in check &&
+        check.status === "degraded",
     );
-    
-    let overallStatus = 'healthy';
+
+    let overallStatus = "healthy";
     if (hasUnhealthy) {
-      overallStatus = 'unhealthy';
+      overallStatus = "unhealthy";
     } else if (hasDegraded) {
-      overallStatus = 'degraded';
+      overallStatus = "degraded";
     }
 
     return {
       status: overallStatus,
       timestamp,
       uptime: `${Math.floor(uptime)}s`,
-      version: '1.0.0',
-      service: 'Glimmr API',
-      environment: process.env.NODE_ENV || 'development',
+      version: "1.0.0",
+      service: "Glimmr API",
+      environment: process.env.NODE_ENV || "development",
       checks,
     };
   }
@@ -65,11 +84,11 @@ export class HealthService {
       return result;
     } catch (error) {
       this.logger.error({
-        msg: 'Database health check failed',
+        msg: "Database health check failed",
         error: error.message,
       });
       return {
-        status: 'unhealthy',
+        status: "unhealthy",
         error: error.message,
       };
     }
@@ -79,17 +98,17 @@ export class HealthService {
     try {
       const result = await this.redisHealthIndicator.isHealthy();
       return {
-        status: result.status === 'connected' ? 'healthy' : 'unhealthy',
+        status: result.status === "connected" ? "healthy" : "unhealthy",
         details: result,
       };
     } catch (error) {
       this.logger.error({
-        msg: 'Redis health check failed',
+        msg: "Redis health check failed",
         error: error.message,
       });
 
       return {
-        status: 'unhealthy',
+        status: "unhealthy",
         error: error.message,
       };
     }
@@ -98,16 +117,16 @@ export class HealthService {
   private async checkQueueHealth() {
     try {
       const queueHealthResult = await this.jobsService.getQueueHealth();
-      
+
       // Determine overall queue health status
       const hasErrors = queueHealthResult.summary.error > 0;
       const hasWarnings = queueHealthResult.summary.warning > 0;
-      
-      let status = 'healthy';
+
+      let status = "healthy";
       if (hasErrors) {
-        status = 'unhealthy';
+        status = "unhealthy";
       } else if (hasWarnings) {
-        status = 'degraded';
+        status = "degraded";
       }
 
       return {
@@ -120,16 +139,16 @@ export class HealthService {
           overallStatus: queueHealthResult.overallStatus,
         },
         issues: queueHealthResult.queues
-          .filter(q => q.status !== 'healthy')
-          .map(q => `${q.name}: ${q.issues.join(', ')}`),
+          .filter((q) => q.status !== "healthy")
+          .map((q) => `${q.name}: ${q.issues.join(", ")}`),
       };
     } catch (error) {
       this.logger.error({
-        msg: 'Queue health check failed',
+        msg: "Queue health check failed",
         error: error.message,
       });
       return {
-        status: 'unhealthy',
+        status: "unhealthy",
         error: error.message,
       };
     }

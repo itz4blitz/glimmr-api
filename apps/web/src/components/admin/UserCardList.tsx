@@ -1,9 +1,8 @@
-
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { UserAvatar } from '@/components/ui/user-avatar'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   MoreVertical,
   Edit,
@@ -22,44 +21,44 @@ import {
   Mail,
   Calendar,
   Activity,
-  Building
-} from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import type { UserListItem } from '@/types/userManagement'
-import type { UserRole } from '@/types/auth'
+  Building,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import type { UserListItem } from "@/types/userManagement";
+import type { UserRole } from "@/types/auth";
 
 interface UserCardListProps {
-  users: UserListItem[]
-  selectedUsers: string[]
-  onUserSelect: (userId: string, selected: boolean) => void
-  onUserAction: (userId: string, action: string) => void
-  onUserClick: (userId: string) => void
-  isLoading?: boolean
+  users: UserListItem[];
+  selectedUsers: string[];
+  onUserSelect: (userId: string, selected: boolean) => void;
+  onUserAction: (userId: string, action: string) => void;
+  onUserClick: (userId: string) => void;
+  isLoading?: boolean;
 }
 
-function UserCard({ 
-  user, 
-  isSelected, 
-  onSelect, 
-  onAction, 
-  onClick 
-}: { 
-  user: UserListItem
-  isSelected: boolean
-  onSelect: (selected: boolean) => void
-  onAction: (action: string) => void
-  onClick: () => void
+function UserCard({
+  user,
+  isSelected,
+  onSelect,
+  onAction,
+  onClick,
+}: {
+  user: UserListItem;
+  isSelected: boolean;
+  onSelect: (selected: boolean) => void;
+  onAction: (action: string) => void;
+  onClick: () => void;
 }) {
   const getRoleBadgeVariant = (role: UserRole) => {
     switch (role) {
-      case 'admin':
-        return 'default'
-      case 'super_admin':
-        return 'destructive'
+      case "admin":
+        return "default";
+      case "super_admin":
+        return "destructive";
       default:
-        return 'secondary'
+        return "secondary";
     }
-  }
+  };
 
   return (
     <Card className="cursor-pointer hover:shadow-md transition-shadow">
@@ -73,7 +72,7 @@ function UserCard({
               onClick={(e) => e.stopPropagation()}
               aria-label={`Select ${user.email}`}
             />
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -82,25 +81,25 @@ function UserCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onAction('edit')}>
+                <DropdownMenuItem onClick={() => onAction("edit")}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit User
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {user.isActive ? (
-                  <DropdownMenuItem onClick={() => onAction('deactivate')}>
+                  <DropdownMenuItem onClick={() => onAction("deactivate")}>
                     <UserX className="mr-2 h-4 w-4" />
                     Deactivate
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => onAction('activate')}>
+                  <DropdownMenuItem onClick={() => onAction("activate")}>
                     <UserCheck className="mr-2 h-4 w-4" />
                     Activate
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => onAction('delete')}
+                <DropdownMenuItem
+                  onClick={() => onAction("delete")}
                   className="text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -120,23 +119,24 @@ function UserCard({
               lastName={user.lastName}
               size="md"
             />
-            
+
             <div className="flex-1 min-w-0">
               <div className="font-medium truncate">
-                {user.firstName && user.lastName 
+                {user.firstName && user.lastName
                   ? `${user.firstName} ${user.lastName}`
-                  : user.email
-                }
+                  : user.email}
               </div>
-              <div className="text-sm text-muted-foreground truncate">{user.email}</div>
-              
+              <div className="text-sm text-muted-foreground truncate">
+                {user.email}
+              </div>
+
               {/* Company and job title */}
               {(user.profile?.company || user.profile?.jobTitle) && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                   <Building className="h-3 w-3" />
                   <span className="truncate">
                     {user.profile.company}
-                    {user.profile.company && user.profile.jobTitle && ' • '}
+                    {user.profile.company && user.profile.jobTitle && " • "}
                     {user.profile.jobTitle}
                   </span>
                 </div>
@@ -148,13 +148,13 @@ function UserCard({
           <div className="flex flex-wrap gap-2">
             <Badge variant={getRoleBadgeVariant(user.role)}>
               <Shield className="h-3 w-3 mr-1" />
-              {user.role.replace('_', ' ').toUpperCase()}
+              {user.role.replace("_", " ").toUpperCase()}
             </Badge>
-            
-            <Badge variant={user.isActive ? 'default' : 'secondary'}>
-              {user.isActive ? 'Active' : 'Inactive'}
+
+            <Badge variant={user.isActive ? "default" : "secondary"}>
+              {user.isActive ? "Active" : "Inactive"}
             </Badge>
-            
+
             {!user.emailVerified && (
               <Badge variant="outline" className="text-orange-600">
                 <Mail className="h-3 w-3 mr-1" />
@@ -169,30 +169,31 @@ function UserCard({
               <Activity className="h-3 w-3" />
               <span>{user.activityCount || 0} activities</span>
             </div>
-            
+
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               <span>
-                {user.lastLoginAt 
-                  ? formatDistanceToNow(new Date(user.lastLoginAt), { addSuffix: true })
-                  : 'Never logged in'
-                }
+                {user.lastLoginAt
+                  ? formatDistanceToNow(new Date(user.lastLoginAt), {
+                      addSuffix: true,
+                    })
+                  : "Never logged in"}
               </span>
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
-export function UserCardList({ 
-  users, 
-  selectedUsers, 
-  onUserSelect, 
-  onUserAction, 
+export function UserCardList({
+  users,
+  selectedUsers,
+  onUserSelect,
+  onUserAction,
   onUserClick,
-  isLoading 
+  isLoading,
 }: UserCardListProps) {
   if (isLoading) {
     return (
@@ -225,7 +226,7 @@ export function UserCardList({
           </Card>
         ))}
       </div>
-    )
+    );
   }
 
   if (users.length === 0) {
@@ -237,7 +238,7 @@ export function UserCardList({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -253,5 +254,5 @@ export function UserCardList({
         />
       ))}
     </div>
-  )
+  );
 }

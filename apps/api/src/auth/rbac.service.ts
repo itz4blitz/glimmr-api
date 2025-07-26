@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
+import { Injectable } from "@nestjs/common";
+import { DatabaseService } from "../database/database.service";
 import {
   roles,
   permissions,
   userRoles,
   rolePermissions,
-  users
-} from '../database/schema';
+  users,
+} from "../database/schema";
 import type {
   Role,
   Permission,
@@ -17,10 +17,10 @@ import type {
   NewUserRole,
   NewRolePermission,
   UserWithRoles,
-  RoleWithPermissions
-} from '../database/schema';
-import { eq, and, sql } from 'drizzle-orm';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
+  RoleWithPermissions,
+} from "../database/schema";
+import { eq, and, sql } from "drizzle-orm";
+import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 
 @Injectable()
 export class RbacService {
@@ -41,7 +41,11 @@ export class RbacService {
       .values(roleData as any)
       .returning();
 
-    this.logger.info({ msg: 'Role created', roleId: role.id, roleName: role.name });
+    this.logger.info({
+      msg: "Role created",
+      roleId: role.id,
+      roleName: role.name,
+    });
     return role;
   }
 
@@ -58,11 +62,13 @@ export class RbacService {
       .select()
       .from(roles)
       .where(and(eq(roles.id, id), eq(roles.isActive, true)));
-    
+
     return role || null;
   }
 
-  async getRoleWithPermissions(roleId: string): Promise<RoleWithPermissions | null> {
+  async getRoleWithPermissions(
+    roleId: string,
+  ): Promise<RoleWithPermissions | null> {
     const roleData = await this.db
       .select({
         id: roles.id,
@@ -77,19 +83,21 @@ export class RbacService {
       .from(roles)
       .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
       .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-      .where(and(
-        eq(roles.id, roleId),
-        eq(roles.isActive, true),
-        eq(rolePermissions.isActive, true),
-        eq(permissions.isActive, true)
-      ));
+      .where(
+        and(
+          eq(roles.id, roleId),
+          eq(roles.isActive, true),
+          eq(rolePermissions.isActive, true),
+          eq(permissions.isActive, true),
+        ),
+      );
 
     if (roleData.length === 0) return null;
 
     const role = roleData[0];
     const permissionsSet = new Map();
 
-    roleData.forEach(row => {
+    roleData.forEach((row) => {
       if (row.permissionId) {
         permissionsSet.set(row.permissionId, {
           id: row.permissionId,
@@ -117,9 +125,9 @@ export class RbacService {
       .returning();
 
     this.logger.info({
-      msg: 'Permission created',
+      msg: "Permission created",
       permissionId: permission.id,
-      permissionName: permission.name
+      permissionName: permission.name,
     });
     return permission;
   }
@@ -136,27 +144,32 @@ export class RbacService {
     return this.db
       .select()
       .from(permissions)
-      .where(and(
-        eq(permissions.resource, resource),
-        eq(permissions.isActive, true)
-      ))
+      .where(
+        and(eq(permissions.resource, resource), eq(permissions.isActive, true)),
+      )
       .orderBy(permissions.action);
   }
 
   // User Role Assignment
-  async assignRoleToUser(userId: string, roleId: string, assignedBy?: string): Promise<UserRole> {
+  async assignRoleToUser(
+    userId: string,
+    roleId: string,
+    assignedBy?: string,
+  ): Promise<UserRole> {
     // Check if assignment already exists
     const existing = await this.db
       .select()
       .from(userRoles)
-      .where(and(
-        eq(userRoles.userId, userId),
-        eq(userRoles.roleId, roleId),
-        eq(userRoles.isActive, true)
-      ));
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.roleId, roleId),
+          eq(userRoles.isActive, true),
+        ),
+      );
 
     if (existing.length > 0) {
-      throw new Error('User already has this role assigned');
+      throw new Error("User already has this role assigned");
     }
 
     const [userRole] = await this.db
@@ -168,11 +181,11 @@ export class RbacService {
       })
       .returning();
 
-    this.logger.info({ 
-      msg: 'Role assigned to user', 
-      userId, 
-      roleId, 
-      assignedBy 
+    this.logger.info({
+      msg: "Role assigned to user",
+      userId,
+      roleId,
+      assignedBy,
     });
     return userRole;
   }
@@ -181,17 +194,14 @@ export class RbacService {
     await this.db
       .update(userRoles)
       .set({
-        isActive: false
+        isActive: false,
       })
-      .where(and(
-        eq(userRoles.userId, userId),
-        eq(userRoles.roleId, roleId)
-      ));
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)));
 
     this.logger.info({
-      msg: 'Role removed from user',
+      msg: "Role removed from user",
       userId,
-      roleId
+      roleId,
     });
   }
 
@@ -207,11 +217,13 @@ export class RbacService {
       })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(and(
-        eq(userRoles.userId, userId),
-        eq(userRoles.isActive, true),
-        eq(roles.isActive, true)
-      ));
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+        ),
+      );
 
     return userRoleData;
   }
@@ -232,17 +244,19 @@ export class RbacService {
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
       .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
       .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-      .where(and(
-        eq(userRoles.userId, userId),
-        eq(userRoles.isActive, true),
-        eq(roles.isActive, true),
-        eq(rolePermissions.isActive, true),
-        eq(permissions.isActive, true)
-      ));
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+          eq(rolePermissions.isActive, true),
+          eq(permissions.isActive, true),
+        ),
+      );
 
     // Remove duplicates
     const uniquePermissions = new Map();
-    userPermissions.forEach(permission => {
+    userPermissions.forEach((permission) => {
       uniquePermissions.set(permission.id, permission);
     });
 
@@ -272,22 +286,28 @@ export class RbacService {
   }
 
   // Permission Checking
-  async userHasPermission(userId: string, resource: string, action: string): Promise<boolean> {
+  async userHasPermission(
+    userId: string,
+    resource: string,
+    action: string,
+  ): Promise<boolean> {
     const result = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
       .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
       .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-      .where(and(
-        eq(userRoles.userId, userId),
-        eq(permissions.resource, resource),
-        eq(permissions.action, action),
-        eq(userRoles.isActive, true),
-        eq(roles.isActive, true),
-        eq(rolePermissions.isActive, true),
-        eq(permissions.isActive, true)
-      ));
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(permissions.resource, resource),
+          eq(permissions.action, action),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+          eq(rolePermissions.isActive, true),
+          eq(permissions.isActive, true),
+        ),
+      );
 
     return result[0].count > 0;
   }
@@ -297,30 +317,38 @@ export class RbacService {
       .select({ count: sql<number>`count(*)` })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(and(
-        eq(userRoles.userId, userId),
-        eq(roles.name, roleName),
-        eq(userRoles.isActive, true),
-        eq(roles.isActive, true)
-      ));
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(roles.name, roleName),
+          eq(userRoles.isActive, true),
+          eq(roles.isActive, true),
+        ),
+      );
 
     return result[0].count > 0;
   }
 
   // Role Permission Assignment
-  async assignPermissionToRole(roleId: string, permissionId: string, grantedBy?: string): Promise<RolePermission> {
+  async assignPermissionToRole(
+    roleId: string,
+    permissionId: string,
+    grantedBy?: string,
+  ): Promise<RolePermission> {
     // Check if assignment already exists
     const existing = await this.db
       .select()
       .from(rolePermissions)
-      .where(and(
-        eq(rolePermissions.roleId, roleId),
-        eq(rolePermissions.permissionId, permissionId),
-        eq(rolePermissions.isActive, true)
-      ));
+      .where(
+        and(
+          eq(rolePermissions.roleId, roleId),
+          eq(rolePermissions.permissionId, permissionId),
+          eq(rolePermissions.isActive, true),
+        ),
+      );
 
     if (existing.length > 0) {
-      throw new Error('Role already has this permission assigned');
+      throw new Error("Role already has this permission assigned");
     }
 
     const [rolePermission] = await this.db
@@ -332,30 +360,35 @@ export class RbacService {
       })
       .returning();
 
-    this.logger.info({ 
-      msg: 'Permission assigned to role', 
-      roleId, 
-      permissionId, 
-      grantedBy 
+    this.logger.info({
+      msg: "Permission assigned to role",
+      roleId,
+      permissionId,
+      grantedBy,
     });
     return rolePermission;
   }
 
-  async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
+  async removePermissionFromRole(
+    roleId: string,
+    permissionId: string,
+  ): Promise<void> {
     await this.db
       .update(rolePermissions)
       .set({
-        isActive: false
+        isActive: false,
       })
-      .where(and(
-        eq(rolePermissions.roleId, roleId),
-        eq(rolePermissions.permissionId, permissionId)
-      ));
+      .where(
+        and(
+          eq(rolePermissions.roleId, roleId),
+          eq(rolePermissions.permissionId, permissionId),
+        ),
+      );
 
     this.logger.info({
-      msg: 'Permission removed from role',
+      msg: "Permission removed from role",
       roleId,
-      permissionId
+      permissionId,
     });
   }
 }

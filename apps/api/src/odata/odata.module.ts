@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { ODataController } from './odata.controller';
-import { ODataService } from './odata.service';
+import { Module } from "@nestjs/common";
+import { ODataController } from "./odata.controller";
+import { ODataService } from "./odata.service";
 
 @Module({
   controllers: [ODataController],

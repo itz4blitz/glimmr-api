@@ -1,8 +1,8 @@
-import { ConfigService } from '@nestjs/config';
-import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
-import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
-import { getSharedRedisConnection } from '../../redis/redis.config';
+import { ConfigService } from "@nestjs/config";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
+import { getSharedRedisConnection } from "../../redis/redis.config";
 
 export interface QueueConfig {
   name: string;
@@ -18,16 +18,16 @@ export interface QueueConfig {
 }
 
 export const QUEUE_NAMES = {
-  PRICE_FILE_PARSER: 'price-file-parser',
-  PRICE_UPDATE: 'price-update',
-  ANALYTICS_REFRESH: 'analytics-refresh',
-  EXPORT_DATA: 'export-data',
+  PRICE_FILE_PARSER: "price-file-parser",
+  PRICE_UPDATE: "price-update",
+  ANALYTICS_REFRESH: "analytics-refresh",
+  EXPORT_DATA: "export-data",
   // PRA Data Pipeline Queues
-  PRA_UNIFIED_SCAN: 'pra-unified-scan',
-  PRA_FILE_DOWNLOAD: 'pra-file-download',
+  PRA_UNIFIED_SCAN: "pra-unified-scan",
+  PRA_FILE_DOWNLOAD: "pra-file-download",
 } as const;
 
-export type QueueName = typeof QUEUE_NAMES[keyof typeof QUEUE_NAMES];
+export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
 export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   [QUEUE_NAMES.PRICE_FILE_PARSER]: {
@@ -37,7 +37,7 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
       removeOnFail: 15, // Increased for debugging
       attempts: 3,
       backoff: {
-        type: 'exponential',
+        type: "exponential",
         delay: 60000,
       },
     },
@@ -49,7 +49,7 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
       removeOnFail: 15, // Increased for debugging
       attempts: 5,
       backoff: {
-        type: 'exponential',
+        type: "exponential",
         delay: 1000,
       },
     },
@@ -61,7 +61,7 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
       removeOnFail: 10, // Increased for debugging
       attempts: 2,
       backoff: {
-        type: 'fixed',
+        type: "fixed",
         delay: 5000,
       },
     },
@@ -73,7 +73,7 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
       removeOnFail: 10, // Increased for debugging
       attempts: 2,
       backoff: {
-        type: 'fixed',
+        type: "fixed",
         delay: 3000,
       },
     },
@@ -86,7 +86,7 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
       removeOnFail: 10, // Increased for debugging
       attempts: 2,
       backoff: {
-        type: 'exponential',
+        type: "exponential",
         delay: 60000,
       },
     },
@@ -98,7 +98,7 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
       removeOnFail: 15, // Increased for debugging
       attempts: 5,
       backoff: {
-        type: 'exponential',
+        type: "exponential",
         delay: 60000,
       },
     },
@@ -110,7 +110,10 @@ export function createRedisConnection(configService: ConfigService): IORedis {
   return getSharedRedisConnection(configService);
 }
 
-export function createQueues(redis: IORedis): { queues: Queue[]; adapters: BullMQAdapter[] } {
+export function createQueues(redis: IORedis): {
+  queues: Queue[];
+  adapters: BullMQAdapter[];
+} {
   const queues: Queue[] = [];
   const adapters: BullMQAdapter[] = [];
 
@@ -126,5 +129,3 @@ export function createQueues(redis: IORedis): { queues: Queue[]; adapters: BullM
 
   return { queues, adapters };
 }
-
-

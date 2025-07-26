@@ -1,13 +1,22 @@
-import { useState, useEffect } from 'react'
-import { useAuthStore } from '@/stores/auth'
-import { UnsavedChangesProvider, useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { UserAvatar } from '@/components/ui/user-avatar'
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/stores/auth";
+import {
+  UnsavedChangesProvider,
+  useUnsavedChangesContext,
+} from "@/contexts/UnsavedChangesContext";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { AppLayout } from "@/components/layout/AppLayout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import {
   User,
   Settings,
@@ -22,44 +31,45 @@ import {
   Globe,
   Github,
   Linkedin,
-  Twitter
-} from 'lucide-react'
-import { ProfileForm } from '@/components/profile/ProfileForm'
-import { SecuritySettings } from '@/components/profile/SecuritySettings'
-import { PreferencesSettings } from '@/components/profile/PreferencesSettings'
-import { ActivityHistory } from '@/components/profile/ActivityHistory'
-import { AvatarUpload } from '@/components/profile/AvatarUpload'
+  Twitter,
+} from "lucide-react";
+import { ProfileForm } from "@/components/profile/ProfileForm";
+import { SecuritySettings } from "@/components/profile/SecuritySettings";
+import { PreferencesSettings } from "@/components/profile/PreferencesSettings";
+import { ActivityHistory } from "@/components/profile/ActivityHistory";
+import { AvatarUpload } from "@/components/profile/AvatarUpload";
 
 function ProfilePageContent() {
-  const { user } = useAuthStore()
-  const [activeTab, setActiveTab] = useState('profile')
-  const { checkUnsavedChanges, hasUnsavedChanges } = useUnsavedChangesContext()
+  const { user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState("profile");
+  const { checkUnsavedChanges, hasUnsavedChanges } = useUnsavedChangesContext();
 
   // Protect against browser navigation
   const { blocker } = useUnsavedChanges({
     hasUnsavedChanges,
-    message: 'You have unsaved changes in your profile. Are you sure you want to leave?'
-  })
+    message:
+      "You have unsaved changes in your profile. Are you sure you want to leave?",
+  });
 
   // Handle React Router navigation blocking
   useEffect(() => {
-    if (blocker.state === 'blocked') {
+    if (blocker.state === "blocked") {
       checkUnsavedChanges(() => {
-        blocker.proceed()
-      })
+        blocker.proceed();
+      });
     }
-  }, [blocker.state, checkUnsavedChanges, blocker])
+  }, [blocker.state, checkUnsavedChanges, blocker]);
 
   const handleTabChange = (newTab: string) => {
     if (newTab !== activeTab) {
       checkUnsavedChanges(() => {
-        setActiveTab(newTab)
-      })
+        setActiveTab(newTab);
+      });
     }
-  }
+  };
 
   if (!user) {
-    return null
+    return null;
   }
 
   return (
@@ -99,10 +109,12 @@ function ProfilePageContent() {
                     <h1 className="text-xl font-bold break-words">
                       {user.firstName && user.lastName
                         ? `${user.firstName} ${user.lastName}`
-                        : user.email
-                      }
+                        : user.email}
                     </h1>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                    <Badge
+                      variant={user.role === "admin" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
                       {user.role}
                     </Badge>
                   </div>
@@ -124,13 +136,17 @@ function ProfilePageContent() {
                     {user.profile?.jobTitle && (
                       <div className="flex items-center justify-center gap-1">
                         <Briefcase className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{user.profile.jobTitle}</span>
+                        <span className="truncate">
+                          {user.profile.jobTitle}
+                        </span>
                       </div>
                     )}
                     {user.profile?.city && user.profile?.country && (
                       <div className="flex items-center justify-center gap-1">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{user.profile.city}, {user.profile.country}</span>
+                        <span className="truncate">
+                          {user.profile.city}, {user.profile.country}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -144,29 +160,65 @@ function ProfilePageContent() {
                   {/* Social Links */}
                   <div className="flex items-center justify-center gap-1 pt-2">
                     {user.profile?.website && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.website} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Globe className="h-3 w-3" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.githubUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.githubUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Github className="h-3 w-3" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.linkedinUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Linkedin className="h-3 w-3" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.twitterUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.twitterUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.twitterUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Twitter className="h-3 w-3" />
                         </a>
                       </Button>
@@ -211,10 +263,14 @@ function ProfilePageContent() {
                       <h1 className="text-2xl lg:text-3xl font-bold break-words">
                         {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`
-                          : user.email
-                        }
+                          : user.email}
                       </h1>
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-sm">
+                      <Badge
+                        variant={
+                          user.role === "admin" ? "default" : "secondary"
+                        }
+                        className="text-sm"
+                      >
                         {user.role}
                       </Badge>
                       {user.emailVerified && (
@@ -236,24 +292,36 @@ function ProfilePageContent() {
                       {user.profile?.company && (
                         <div className="flex items-center gap-1">
                           <Building className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{user.profile.company}</span>
+                          <span className="truncate">
+                            {user.profile.company}
+                          </span>
                         </div>
                       )}
                       {user.profile?.jobTitle && (
                         <div className="flex items-center gap-1">
                           <Briefcase className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{user.profile.jobTitle}</span>
+                          <span className="truncate">
+                            {user.profile.jobTitle}
+                          </span>
                         </div>
                       )}
                       {user.profile?.city && user.profile?.country && (
                         <div className="flex items-center gap-1">
                           <MapPin className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{user.profile.city}, {user.profile.country}</span>
+                          <span className="truncate">
+                            {user.profile.city}, {user.profile.country}
+                          </span>
                         </div>
                       )}
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 flex-shrink-0" />
-                        <span>Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                        <span>
+                          Joined{" "}
+                          {new Date(user.createdAt).toLocaleDateString(
+                            "en-US",
+                            { month: "long", year: "numeric" },
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -269,56 +337,101 @@ function ProfilePageContent() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-t border-b">
                     <div className="text-center">
                       <div className="text-lg font-semibold text-foreground">
-                        {new Date().getFullYear() - new Date(user.createdAt).getFullYear() || '< 1'}
+                        {new Date().getFullYear() -
+                          new Date(user.createdAt).getFullYear() || "< 1"}
                       </div>
-                      <div className="text-xs text-muted-foreground">Years Active</div>
+                      <div className="text-xs text-muted-foreground">
+                        Years Active
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-foreground">
-                        {user.lastLoginAt ? 'Recently' : 'Never'}
+                        {user.lastLoginAt ? "Recently" : "Never"}
                       </div>
-                      <div className="text-xs text-muted-foreground">Last Login</div>
+                      <div className="text-xs text-muted-foreground">
+                        Last Login
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-green-600">
                         Active
                       </div>
-                      <div className="text-xs text-muted-foreground">Status</div>
+                      <div className="text-xs text-muted-foreground">
+                        Status
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-foreground">
-                        {user.role === 'admin' ? 'Admin' : 'User'}
+                        {user.role === "admin" ? "Admin" : "User"}
                       </div>
-                      <div className="text-xs text-muted-foreground">Access Level</div>
+                      <div className="text-xs text-muted-foreground">
+                        Access Level
+                      </div>
                     </div>
                   </div>
 
                   {/* Social Links */}
                   <div className="flex items-center gap-2">
                     {user.profile?.website && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.website} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Globe className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.githubUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.githubUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Github className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.linkedinUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Linkedin className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.twitterUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.twitterUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.twitterUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Twitter className="h-4 w-4" />
                         </a>
                       </Button>
@@ -328,29 +441,65 @@ function ProfilePageContent() {
                   {/* Social Links */}
                   <div className="flex items-center gap-1 pt-2">
                     {user.profile?.website && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.website} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Globe className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.githubUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.githubUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Github className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.linkedinUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Linkedin className="h-4 w-4" />
                         </a>
                       </Button>
                     )}
                     {user.profile?.twitterUrl && (
-                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                        <a href={user.profile.twitterUrl} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="h-8 w-8 p-0"
+                      >
+                        <a
+                          href={user.profile.twitterUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Twitter className="h-4 w-4" />
                         </a>
                       </Button>
@@ -365,21 +514,37 @@ function ProfilePageContent() {
         </div>
 
         {/* Profile Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="space-y-6 sm:space-y-8"
+        >
           <TabsList className="tabs-list-enhanced grid w-full grid-cols-4 h-auto p-1.5">
-            <TabsTrigger value="profile" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+            <TabsTrigger
+              value="profile"
+              className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3"
+            >
               <User className="h-4 w-4" />
               <span className="text-xs sm:text-sm font-medium">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+            <TabsTrigger
+              value="security"
+              className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3"
+            >
               <Shield className="h-4 w-4" />
               <span className="text-xs sm:text-sm font-medium">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="preferences" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+            <TabsTrigger
+              value="preferences"
+              className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3"
+            >
               <Settings className="h-4 w-4" />
               <span className="text-xs sm:text-sm font-medium">Settings</span>
             </TabsTrigger>
-            <TabsTrigger value="activity" className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3">
+            <TabsTrigger
+              value="activity"
+              className="tabs-trigger-enhanced flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-3"
+            >
               <Activity className="h-4 w-4" />
               <span className="text-xs sm:text-sm font-medium">Activity</span>
             </TabsTrigger>
@@ -388,7 +553,9 @@ function ProfilePageContent() {
           <TabsContent value="profile" className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="text-lg sm:text-xl">Personal Information</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">
+                  Personal Information
+                </CardTitle>
                 <CardDescription className="text-sm">
                   Update your personal details and profile information.
                 </CardDescription>
@@ -402,9 +569,12 @@ function ProfilePageContent() {
           <TabsContent value="security" className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="text-lg sm:text-xl">Security Settings</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">
+                  Security Settings
+                </CardTitle>
                 <CardDescription className="text-sm">
-                  Manage your password, two-factor authentication, and security preferences.
+                  Manage your password, two-factor authentication, and security
+                  preferences.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
@@ -416,7 +586,9 @@ function ProfilePageContent() {
           <TabsContent value="preferences" className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="text-lg sm:text-xl">Preferences</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">
+                  Preferences
+                </CardTitle>
                 <CardDescription className="text-sm">
                   Customize your application settings and preferences.
                 </CardDescription>
@@ -430,7 +602,9 @@ function ProfilePageContent() {
           <TabsContent value="activity" className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="text-lg sm:text-xl">Activity History</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">
+                  Activity History
+                </CardTitle>
                 <CardDescription className="text-sm">
                   View your recent account activity and login history.
                 </CardDescription>
@@ -443,7 +617,7 @@ function ProfilePageContent() {
         </Tabs>
       </div>
     </AppLayout>
-  )
+  );
 }
 
 export function ProfilePage() {
@@ -451,5 +625,5 @@ export function ProfilePage() {
     <UnsavedChangesProvider>
       <ProfilePageContent />
     </UnsavedChangesProvider>
-  )
+  );
 }

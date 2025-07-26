@@ -1,17 +1,17 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { 
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { 
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -19,83 +19,87 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { 
+} from "@/components/ui/form";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { toast } from 'sonner'
-import { Loader2, UserPlus, Eye, EyeOff } from 'lucide-react'
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
 
 const createUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  firstName: z.string().min(1, 'First name is required').max(50),
-  lastName: z.string().min(1, 'Last name is required').max(50),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['user', 'admin', 'super_admin']),
+  email: z.string().email("Invalid email address"),
+  firstName: z.string().min(1, "First name is required").max(50),
+  lastName: z.string().min(1, "Last name is required").max(50),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  role: z.enum(["user", "admin", "super_admin"]),
   isActive: z.boolean(),
   emailVerified: z.boolean(),
   sendWelcomeEmail: z.boolean(),
-})
+});
 
-type CreateUserFormData = z.infer<typeof createUserSchema>
+type CreateUserFormData = z.infer<typeof createUserSchema>;
 
 interface CreateUserDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+export function CreateUserDialog({
+  open,
+  onOpenChange,
+}: CreateUserDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
-      email: '',
-      firstName: '',
-      lastName: '',
-      password: '',
-      role: 'user',
+      email: "",
+      firstName: "",
+      lastName: "",
+      password: "",
+      role: "user",
       isActive: true,
       emailVerified: false,
       sendWelcomeEmail: true,
     },
-  })
+  });
 
   const onSubmit = async (data: CreateUserFormData) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // Here you would call your API to create the user
-      console.log('Creating user:', data)
-      
+      console.log("Creating user:", data);
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      toast.success('User created successfully!')
-      form.reset()
-      onOpenChange(false)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      toast.success("User created successfully!");
+      form.reset();
+      onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to create user. Please try again.')
+      toast.error("Failed to create user. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const generatePassword = () => {
-    const length = 12
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
-    let password = ''
+    const length = 12;
+    const charset =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
     for (let i = 0; i < length; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length))
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
     }
-    form.setValue('password', password)
-    toast.success('Password generated!')
-  }
+    form.setValue("password", password);
+    toast.success("Password generated!");
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,7 +110,8 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
             Create New User
           </DialogTitle>
           <DialogDescription>
-            Add a new user to the system. They will receive login credentials via email.
+            Add a new user to the system. They will receive login credentials
+            via email.
           </DialogDescription>
         </DialogHeader>
 
@@ -150,7 +155,11 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="john.doe@example.com" {...field} />
+                    <Input
+                      type="email"
+                      placeholder="john.doe@example.com"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -212,7 +221,10 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a role" />
@@ -221,7 +233,9 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                     <SelectContent>
                       <SelectItem value="user">User</SelectItem>
                       <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="super_admin">Super Administrator</SelectItem>
+                      <SelectItem value="super_admin">
+                        Super Administrator
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
@@ -240,7 +254,9 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active Account</FormLabel>
+                      <FormLabel className="text-base">
+                        Active Account
+                      </FormLabel>
                       <FormDescription>
                         User can sign in and access the system
                       </FormDescription>
@@ -261,7 +277,9 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Email Verified</FormLabel>
+                      <FormLabel className="text-base">
+                        Email Verified
+                      </FormLabel>
                       <FormDescription>
                         Mark email as verified (skip verification step)
                       </FormDescription>
@@ -282,7 +300,9 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Send Welcome Email</FormLabel>
+                      <FormLabel className="text-base">
+                        Send Welcome Email
+                      </FormLabel>
                       <FormDescription>
                         Send login credentials and welcome message
                       </FormDescription>
@@ -317,5 +337,5 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { DatabaseService } from '../../database/database.service';
-import { hospitals, priceTransparencyFiles } from '../../database/schema/index';
-import { eq, and, isNotNull, gte } from 'drizzle-orm';
-import { QUEUE_NAMES } from '../queues/queue.config';
-import { PRAUnifiedScanJobData } from '../processors/pra-unified-scan.processor';
+import { Injectable } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
+import { DatabaseService } from "../../../database/database.service";
+import { hospitals, priceTransparencyFiles } from "../../../database/schema/index";
+import { eq, and, isNotNull, gte } from "drizzle-orm";
+import { QUEUE_NAMES } from "../../queues/queue.config";
+import { PRAUnifiedScanJobData } from "../../processors/pra-unified-scan.processor";
 
 export interface PriceFileDownloadJobData {
   hospitalId: string;
@@ -38,12 +38,12 @@ export class HospitalMonitorService {
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async scheduleDailyHospitalRefresh(): Promise<void> {
     this.logger.info({
-      msg: 'Starting daily hospital data refresh',
+      msg: "Starting daily hospital data refresh",
     });
 
     try {
       await this.praUnifiedScanQueue.add(
-        'daily-refresh',
+        "daily-refresh",
         {
           testMode: false,
           states: [], // Empty array means all states
@@ -53,18 +53,18 @@ export class HospitalMonitorService {
           priority: 10,
           attempts: 3,
           backoff: {
-            type: 'exponential',
+            type: "exponential",
             delay: 60000, // 1 minute
           },
         },
       );
 
       this.logger.info({
-        msg: 'Daily hospital refresh job queued successfully',
+        msg: "Daily hospital refresh job queued successfully",
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to queue daily hospital refresh',
+        msg: "Failed to queue daily hospital refresh",
         error: error.message,
       });
     }
@@ -76,7 +76,7 @@ export class HospitalMonitorService {
   @Cron(CronExpression.EVERY_4_HOURS)
   async monitorPriceFileUpdates(): Promise<void> {
     this.logger.info({
-      msg: 'Starting price file update monitoring',
+      msg: "Starting price file update monitoring",
     });
 
     try {
@@ -103,8 +103,8 @@ export class HospitalMonitorService {
 
       for (const hospital of hospitalsWithFiles) {
         try {
-          const files = JSON.parse(hospital.priceTransparencyFiles || '[]');
-          
+          const files = JSON.parse(hospital.priceTransparencyFiles || "[]");
+
           for (const file of files) {
             // Check if file needs processing
             const shouldProcess = await this.shouldProcessFile(
@@ -119,12 +119,12 @@ export class HospitalMonitorService {
               queuedJobs++;
 
               // Add delay between jobs to avoid overwhelming the system
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              await new Promise((resolve) => setTimeout(resolve, 1000));
             }
           }
         } catch (error) {
           this.logger.warn({
-            msg: 'Failed to process hospital files',
+            msg: "Failed to process hospital files",
             hospitalId: hospital.id,
             hospitalName: hospital.name,
             error: error.message,
@@ -133,13 +133,13 @@ export class HospitalMonitorService {
       }
 
       this.logger.info({
-        msg: 'Price file monitoring completed',
+        msg: "Price file monitoring completed",
         hospitalsChecked: hospitalsWithFiles.length,
         jobsQueued: queuedJobs,
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Price file monitoring failed',
+        msg: "Price file monitoring failed",
         error: error.message,
       });
     }
@@ -151,12 +151,12 @@ export class HospitalMonitorService {
   @Cron(CronExpression.EVERY_WEEK)
   async scheduleWeeklyFullRefresh(): Promise<void> {
     this.logger.info({
-      msg: 'Starting weekly full hospital refresh',
+      msg: "Starting weekly full hospital refresh",
     });
 
     try {
       await this.praUnifiedScanQueue.add(
-        'weekly-full-refresh',
+        "weekly-full-refresh",
         {
           testMode: false,
           states: [], // Empty array means all states
@@ -166,18 +166,18 @@ export class HospitalMonitorService {
           priority: 5,
           attempts: 5,
           backoff: {
-            type: 'exponential',
+            type: "exponential",
             delay: 120000, // 2 minutes
           },
         },
       );
 
       this.logger.info({
-        msg: 'Weekly full refresh job queued successfully',
+        msg: "Weekly full refresh job queued successfully",
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to queue weekly full refresh',
+        msg: "Failed to queue weekly full refresh",
         error: error.message,
       });
     }
@@ -186,9 +186,12 @@ export class HospitalMonitorService {
   /**
    * Manual trigger for hospital import by state
    */
-  async triggerHospitalImportByState(state: string, forceRefresh = false): Promise<void> {
+  async triggerHospitalImportByState(
+    state: string,
+    forceRefresh = false,
+  ): Promise<void> {
     this.logger.info({
-      msg: 'Triggering manual hospital import by state',
+      msg: "Triggering manual hospital import by state",
       state,
       forceRefresh,
     });
@@ -205,19 +208,19 @@ export class HospitalMonitorService {
           priority: 20, // High priority for manual triggers
           attempts: 3,
           backoff: {
-            type: 'exponential',
+            type: "exponential",
             delay: 30000, // 30 seconds
           },
         },
       );
 
       this.logger.info({
-        msg: 'Manual hospital import job queued successfully',
+        msg: "Manual hospital import job queued successfully",
         state,
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to queue manual hospital import',
+        msg: "Failed to queue manual hospital import",
         state,
         error: error.message,
       });
@@ -234,7 +237,7 @@ export class HospitalMonitorService {
     forceReprocess = false,
   ): Promise<void> {
     this.logger.info({
-      msg: 'Triggering manual price file download',
+      msg: "Triggering manual price file download",
       hospitalId,
       fileId,
       forceReprocess,
@@ -242,7 +245,7 @@ export class HospitalMonitorService {
 
     try {
       const db = this.databaseService.db;
-      
+
       // Get hospital and file info
       const hospital = await db
         .select()
@@ -254,7 +257,7 @@ export class HospitalMonitorService {
         throw new Error(`Hospital not found: ${hospitalId}`);
       }
 
-      const files = JSON.parse(hospital[0].priceTransparencyFiles || '[]');
+      const files = JSON.parse(hospital[0].priceTransparencyFiles || "[]");
       const file = files.find((f: any) => f.fileid === fileId);
 
       if (!file) {
@@ -264,13 +267,13 @@ export class HospitalMonitorService {
       await this.queueFileDownload(hospital[0], file, forceReprocess);
 
       this.logger.info({
-        msg: 'Manual price file download job queued successfully',
+        msg: "Manual price file download job queued successfully",
         hospitalId,
         fileId,
       });
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to queue manual price file download',
+        msg: "Failed to queue manual price file download",
         hospitalId,
         fileId,
         error: error.message,
@@ -306,9 +309,12 @@ export class HospitalMonitorService {
 
     const processedFile = existingFile[0];
     const fileRetrievedDate = new Date(retrieved);
-    
+
     // Check if file has been updated since last processing
-    if (processedFile.lastRetrieved && fileRetrievedDate > processedFile.lastRetrieved) {
+    if (
+      processedFile.lastRetrieved &&
+      fileRetrievedDate > processedFile.lastRetrieved
+    ) {
       return true;
     }
 
@@ -344,7 +350,7 @@ export class HospitalMonitorService {
         priority: forceReprocess ? 15 : 5,
         attempts: 3,
         backoff: {
-          type: 'exponential',
+          type: "exponential",
           delay: 60000, // 1 minute
         },
         removeOnComplete: 10, // Keep last 10 completed jobs
@@ -353,7 +359,7 @@ export class HospitalMonitorService {
     );
 
     this.logger.info({
-      msg: 'Price file download job queued',
+      msg: "Price file download job queued",
       hospitalId: hospital.id,
       hospitalName: hospital.name,
       fileId: file.fileid,
@@ -375,23 +381,38 @@ export class HospitalMonitorService {
       processedFiles,
       recentlyProcessed,
     ] = await Promise.all([
-      db.select({ count: hospitals.id }).from(hospitals).where(eq(hospitals.isActive, true)),
-      db.select({ count: hospitals.id }).from(hospitals).where(
-        and(
-          eq(hospitals.isActive, true),
-          isNotNull(hospitals.priceTransparencyFiles),
+      db
+        .select({ count: hospitals.id })
+        .from(hospitals)
+        .where(eq(hospitals.isActive, true)),
+      db
+        .select({ count: hospitals.id })
+        .from(hospitals)
+        .where(
+          and(
+            eq(hospitals.isActive, true),
+            isNotNull(hospitals.priceTransparencyFiles),
+          ),
         ),
-      ),
-      db.select({ count: priceTransparencyFiles.id }).from(priceTransparencyFiles),
-      db.select({ count: priceTransparencyFiles.id }).from(priceTransparencyFiles).where(
-        isNotNull(priceTransparencyFiles.processedAt),
-      ),
-      db.select({ count: priceTransparencyFiles.id }).from(priceTransparencyFiles).where(
-        and(
-          isNotNull(priceTransparencyFiles.processedAt),
-          gte(priceTransparencyFiles.processedAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+      db
+        .select({ count: priceTransparencyFiles.id })
+        .from(priceTransparencyFiles),
+      db
+        .select({ count: priceTransparencyFiles.id })
+        .from(priceTransparencyFiles)
+        .where(isNotNull(priceTransparencyFiles.processedAt)),
+      db
+        .select({ count: priceTransparencyFiles.id })
+        .from(priceTransparencyFiles)
+        .where(
+          and(
+            isNotNull(priceTransparencyFiles.processedAt),
+            gte(
+              priceTransparencyFiles.processedAt,
+              new Date(Date.now() - 24 * 60 * 60 * 1000),
+            ),
+          ),
         ),
-      ),
     ]);
 
     return {
@@ -400,7 +421,10 @@ export class HospitalMonitorService {
       totalFiles: totalFiles.length,
       processedFiles: processedFiles.length,
       recentlyProcessed: recentlyProcessed.length,
-      processingRate: totalFiles.length > 0 ? (processedFiles.length / totalFiles.length) * 100 : 0,
+      processingRate:
+        totalFiles.length > 0
+          ? (processedFiles.length / totalFiles.length) * 100
+          : 0,
     };
   }
 }

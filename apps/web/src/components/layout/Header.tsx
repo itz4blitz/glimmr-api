@@ -1,8 +1,8 @@
-import { Link, useLocation } from 'react-router-dom'
-import { Search, Command, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Link, useLocation } from "react-router-dom";
+import { Search, Command, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,43 +10,43 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { MobileNav } from './MobileNav'
-import { ThemeToggle } from '@/components/common/ThemeToggle'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
-import { useAuthStore } from '@/stores/auth'
+} from "@/components/ui/dropdown-menu";
+import { MobileNav } from "./MobileNav";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useAuthStore } from "@/stores/auth";
 
 // Breadcrumb helper function
 const getBreadcrumbs = (pathname: string) => {
-  const segments = pathname.split('/').filter(Boolean)
-  const breadcrumbs = [{ label: 'Dashboard', href: '/dashboard' }]
+  const segments = pathname.split("/").filter(Boolean);
+  const breadcrumbs = [{ label: "Dashboard", href: "/dashboard" }];
 
-  if (segments.length === 0 || segments[0] === 'dashboard') {
-    return breadcrumbs
+  if (segments.length === 0 || segments[0] === "dashboard") {
+    return breadcrumbs;
   }
 
-  if (segments[0] === 'profile') {
-    breadcrumbs.push({ label: 'Profile', href: '/profile' })
-  } else if (segments[0] === 'admin') {
-    breadcrumbs.push({ label: 'Administration', href: '/admin' })
-    if (segments[1] === 'users') {
-      breadcrumbs.push({ label: 'User Management', href: '/admin/users' })
-    } else if (segments[1] === 'queues') {
-      breadcrumbs.push({ label: 'Queue Dashboard', href: '/admin/queues' })
-    } else if (segments[1] === 'settings') {
-      breadcrumbs.push({ label: 'System Settings', href: '/admin/settings' })
+  if (segments[0] === "profile") {
+    breadcrumbs.push({ label: "Profile", href: "/profile" });
+  } else if (segments[0] === "admin") {
+    breadcrumbs.push({ label: "Administration", href: "/admin" });
+    if (segments[1] === "users") {
+      breadcrumbs.push({ label: "User Management", href: "/admin/users" });
+    } else if (segments[1] === "queues") {
+      breadcrumbs.push({ label: "Queue Dashboard", href: "/admin/queues" });
+    } else if (segments[1] === "settings") {
+      breadcrumbs.push({ label: "System Settings", href: "/admin/settings" });
     }
-  } else if (segments[0] === 'settings') {
-    breadcrumbs.push({ label: 'Settings', href: '/settings' })
+  } else if (segments[0] === "settings") {
+    breadcrumbs.push({ label: "Settings", href: "/settings" });
   }
 
-  return breadcrumbs
-}
+  return breadcrumbs;
+};
 
 export function Header() {
-  const { user, logout } = useAuthStore()
-  const location = useLocation()
-  const breadcrumbs = getBreadcrumbs(location.pathname)
+  const { user, logout } = useAuthStore();
+  const location = useLocation();
+  const breadcrumbs = getBreadcrumbs(location.pathname);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -58,9 +58,13 @@ export function Header() {
         <div className="flex items-center space-x-2 mr-4">
           <Link to="/dashboard" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">G</span>
+              <span className="text-primary-foreground font-bold text-sm">
+                G
+              </span>
             </div>
-            <span className="hidden sm:inline-block font-semibold text-lg">Glimmr</span>
+            <span className="hidden sm:inline-block font-semibold text-lg">
+              Glimmr
+            </span>
           </Link>
         </div>
 
@@ -72,7 +76,9 @@ export function Header() {
               <Link
                 to={crumb.href}
                 className={`hover:text-foreground transition-colors ${
-                  index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : ''
+                  index === breadcrumbs.length - 1
+                    ? "text-foreground font-medium"
+                    : ""
                 }`}
               >
                 {crumb.label}
@@ -118,22 +124,24 @@ export function Header() {
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 px-3 rounded-lg">
+                <Button
+                  variant="ghost"
+                  className="relative h-10 px-3 rounded-lg"
+                >
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="text-xs">
-                        {user.email?.charAt(0).toUpperCase() || 'U'}
+                        {user.email?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="hidden xl:block text-left">
                       <p className="text-sm font-medium leading-none">
                         {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`
-                          : user.email?.split('@')[0] || 'User'
-                        }
+                          : user.email?.split("@")[0] || "User"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {user.role.replace('_', ' ').toLowerCase()}
+                        {user.role.replace("_", " ").toLowerCase()}
                       </p>
                     </div>
                   </div>
@@ -142,7 +150,9 @@ export function Header() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.email}</p>
+                    <p className="text-sm font-medium leading-none">
+                      {user.email}
+                    </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.role}
                     </p>
@@ -156,14 +166,12 @@ export function Header() {
                   <Link to="/settings">Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
-                  Log out
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div>
       </div>
     </header>
-  )
+  );
 }

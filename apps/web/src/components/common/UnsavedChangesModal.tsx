@@ -7,17 +7,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { AlertTriangle, Save, Trash2 } from 'lucide-react'
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle, Save, Trash2 } from "lucide-react";
 
 interface UnsavedChangesModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onDiscard: () => void
-  onSave?: () => void
-  title?: string
-  description?: string
-  canSave?: boolean
+  isOpen: boolean;
+  onClose: () => void;
+  onDiscard: () => void;
+  onSave?: () => void;
+  title?: string;
+  description?: string;
+  canSave?: boolean;
 }
 
 export function UnsavedChangesModal({
@@ -25,8 +25,8 @@ export function UnsavedChangesModal({
   onClose,
   onDiscard,
   onSave,
-  title = 'Unsaved Changes',
-  description = 'You have unsaved changes that will be lost if you continue. What would you like to do?',
+  title = "Unsaved Changes",
+  description = "You have unsaved changes that will be lost if you continue. What would you like to do?",
   canSave = true,
 }: UnsavedChangesModalProps) {
   return (
@@ -44,19 +44,19 @@ export function UnsavedChangesModal({
             </div>
           </div>
         </AlertDialogHeader>
-        
+
         <AlertDialogDescription className="text-muted-foreground leading-relaxed">
           {description}
         </AlertDialogDescription>
 
         <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <AlertDialogCancel 
+          <AlertDialogCancel
             onClick={onClose}
             className="button-enhanced w-full sm:w-auto order-3 sm:order-1"
           >
             Cancel
           </AlertDialogCancel>
-          
+
           <AlertDialogAction
             onClick={onDiscard}
             className="w-full sm:w-auto order-2 sm:order-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -77,5 +77,5 @@ export function UnsavedChangesModal({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

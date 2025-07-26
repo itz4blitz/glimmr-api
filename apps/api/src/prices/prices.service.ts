@@ -1,8 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { eq, and, like, gte, lte, desc, asc, count, sql, or, ilike, inArray } from 'drizzle-orm';
-import { DatabaseService } from '../database/database.service';
-import { prices, hospitals, analytics } from '../database/schema';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
+import {
+  eq,
+  and,
+  like,
+  gte,
+  lte,
+  desc,
+  asc,
+  count,
+  sql,
+  or,
+  ilike,
+  inArray,
+} from "drizzle-orm";
+import { DatabaseService } from "../database/database.service";
+import { prices, hospitals, analytics } from "../database/schema";
 
 @Injectable()
 export class PricesService {
@@ -21,9 +34,9 @@ export class PricesService {
     offset?: number;
   }) {
     this.logger.info({
-      msg: 'Fetching prices with filters',
+      msg: "Fetching prices with filters",
       filters,
-      operation: 'getPrices',
+      operation: "getPrices",
     });
 
     const startTime = Date.now();
@@ -102,11 +115,11 @@ export class PricesService {
 
       const duration = Date.now() - startTime;
       this.logger.info({
-        msg: 'Prices fetched successfully',
+        msg: "Prices fetched successfully",
         count: result.data.length,
         total: result.total,
         duration,
-        operation: 'getPrices',
+        operation: "getPrices",
         filters,
       });
 
@@ -114,10 +127,10 @@ export class PricesService {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger.error({
-        msg: 'Failed to fetch prices',
+        msg: "Failed to fetch prices",
         error: error.message,
         duration,
-        operation: 'getPrices',
+        operation: "getPrices",
         filters,
       });
       throw error;
@@ -130,10 +143,10 @@ export class PricesService {
     limit?: number;
   }) {
     this.logger.info({
-      msg: 'Comparing prices for service',
+      msg: "Comparing prices for service",
       service: filters.service,
       state: filters.state,
-      operation: 'comparePrices',
+      operation: "comparePrices",
     });
 
     try {
@@ -143,7 +156,7 @@ export class PricesService {
       // Build where conditions
       const conditions = [
         eq(prices.isActive, true),
-        like(prices.serviceName, `%${filters.service}%`)
+        like(prices.serviceName, `%${filters.service}%`),
       ];
 
       if (filters.state) {
@@ -175,22 +188,29 @@ export class PricesService {
       }));
 
       // Calculate analytics
-      const priceValues = comparison.map(item => parseFloat(item.price || '0'));
+      const priceValues = comparison.map((item) =>
+        parseFloat(item.price || "0"),
+      );
       const sortedPrices = [...priceValues].sort((a, b) => a - b);
       const analytics = {
-        averagePrice: priceValues.reduce((a, b) => a + b, 0) / priceValues.length,
+        averagePrice:
+          priceValues.reduce((a, b) => a + b, 0) / priceValues.length,
         medianPrice: sortedPrices[Math.floor(sortedPrices.length / 2)],
         lowestPrice: Math.min(...priceValues),
         highestPrice: Math.max(...priceValues),
-        priceVariation: priceValues.length > 1 ?
-          ((Math.max(...priceValues) - Math.min(...priceValues)) / Math.min(...priceValues)) * 100 : 0,
+        priceVariation:
+          priceValues.length > 1
+            ? ((Math.max(...priceValues) - Math.min(...priceValues)) /
+                Math.min(...priceValues)) *
+              100
+            : 0,
       };
 
       this.logger.info({
-        msg: 'Price comparison completed',
+        msg: "Price comparison completed",
         service: filters.service,
         resultCount: comparison.length,
-        operation: 'comparePrices',
+        operation: "comparePrices",
       });
 
       return {
@@ -201,23 +221,20 @@ export class PricesService {
       };
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to compare prices',
+        msg: "Failed to compare prices",
         service: filters.service,
         error: error.message,
-        operation: 'comparePrices',
+        operation: "comparePrices",
       });
       throw error;
     }
   }
 
-  async getPricingAnalytics(filters: {
-    service?: string;
-    state?: string;
-  }) {
+  async getPricingAnalytics(filters: { service?: string; state?: string }) {
     this.logger.info({
-      msg: 'Generating pricing analytics',
+      msg: "Generating pricing analytics",
       filters,
-      operation: 'getPricingAnalytics',
+      operation: "getPricingAnalytics",
     });
 
     try {
@@ -260,23 +277,27 @@ export class PricesService {
         .limit(5);
 
       // Get state comparison (if not filtered by state)
-      const stateComparison = filters.state ? [] : await db
-        .select({
-          state: hospitals.state,
-          avgPrice: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
-          hospitalCount: sql<number>`COUNT(DISTINCT ${prices.hospitalId})`,
-        })
-        .from(prices)
-        .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
-        .where(eq(prices.isActive, true))
-        .groupBy(hospitals.state)
-        .orderBy(desc(sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`))
-        .limit(5);
+      const stateComparison = filters.state
+        ? []
+        : await db
+            .select({
+              state: hospitals.state,
+              avgPrice: sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`,
+              hospitalCount: sql<number>`COUNT(DISTINCT ${prices.hospitalId})`,
+            })
+            .from(prices)
+            .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
+            .where(eq(prices.isActive, true))
+            .groupBy(hospitals.state)
+            .orderBy(
+              desc(sql<number>`AVG(CAST(${prices.grossCharge} AS DECIMAL))`),
+            )
+            .limit(5);
 
       this.logger.info({
-        msg: 'Pricing analytics generated successfully',
+        msg: "Pricing analytics generated successfully",
         totalPrices: summaryResult.totalPrices,
-        operation: 'getPricingAnalytics',
+        operation: "getPricingAnalytics",
       });
 
       return {
@@ -286,12 +307,12 @@ export class PricesService {
           totalServices: summaryResult.totalServices,
           lastUpdated: new Date().toISOString(),
         },
-        topServices: topServices.map(service => ({
+        topServices: topServices.map((service) => ({
           service: service.service,
           avgPrice: Number(service.avgPrice),
           count: service.count,
         })),
-        stateComparison: stateComparison.map(state => ({
+        stateComparison: stateComparison.map((state) => ({
           state: state.state,
           avgPrice: Number(state.avgPrice),
           hospitalCount: state.hospitalCount,
@@ -299,9 +320,9 @@ export class PricesService {
       };
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to generate pricing analytics',
+        msg: "Failed to generate pricing analytics",
         error: error.message,
-        operation: 'getPricingAnalytics',
+        operation: "getPricingAnalytics",
         filters,
       });
       throw error;
@@ -310,9 +331,9 @@ export class PricesService {
 
   async getPriceById(id: string) {
     this.logger.info({
-      msg: 'Fetching price by ID',
+      msg: "Fetching price by ID",
       priceId: id,
-      operation: 'getPriceById',
+      operation: "getPriceById",
     });
 
     try {
@@ -340,42 +361,52 @@ export class PricesService {
 
       if (!priceData) {
         this.logger.warn({
-          msg: 'Price not found',
+          msg: "Price not found",
           priceId: id,
-          operation: 'getPriceById',
+          operation: "getPriceById",
         });
         return null;
       }
 
       this.logger.info({
-        msg: 'Price fetched successfully',
+        msg: "Price fetched successfully",
         priceId: id,
         hospitalName: priceData.hospitalName,
-        operation: 'getPriceById',
+        operation: "getPriceById",
       });
 
       return priceData;
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to fetch price',
+        msg: "Failed to fetch price",
         priceId: id,
         error: error.message,
-        operation: 'getPriceById',
+        operation: "getPriceById",
       });
       throw error;
     }
   }
 
-  async getHospitalPrices(hospitalId: string, params: {
-    serviceCode?: string;
-    serviceName?: string;
-    category?: string;
-    codeType?: string;
-    limit?: number;
-    offset?: number;
-  }) {
+  async getHospitalPrices(
+    hospitalId: string,
+    params: {
+      serviceCode?: string;
+      serviceName?: string;
+      category?: string;
+      codeType?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) {
     const db = this.databaseService.db;
-    const { serviceCode, serviceName, category, codeType, limit = 50, offset = 0 } = params;
+    const {
+      serviceCode,
+      serviceName,
+      category,
+      codeType,
+      limit = 50,
+      offset = 0,
+    } = params;
 
     // Verify hospital exists
     const [hospital] = await db
@@ -467,8 +498,8 @@ export class PricesService {
         minGrossCharge: stats.minGrossCharge,
         maxGrossCharge: stats.maxGrossCharge,
         totalServices: stats.totalServices,
-        negotiatedRateCoverage: stats.pricesWithNegotiatedRates 
-          ? (stats.pricesWithNegotiatedRates / Number(totalCount)) * 100 
+        negotiatedRateCoverage: stats.pricesWithNegotiatedRates
+          ? (stats.pricesWithNegotiatedRates / Number(totalCount)) * 100
           : 0,
       },
     };
@@ -497,7 +528,7 @@ export class PricesService {
     } = params;
 
     if (!zipcode) {
-      throw new Error('Zipcode is required');
+      throw new Error("Zipcode is required");
     }
 
     // Find hospitals within the radius
@@ -512,11 +543,13 @@ export class PricesService {
         distance: sql<number>`0`, // Placeholder - would calculate actual distance
       })
       .from(hospitals)
-      .where(and(
-        eq(hospitals.isActive, true),
-        // Simplified zipcode matching - in production, use proper geospatial queries
-        sql`substring(${hospitals.zipCode}, 1, 3) = substring(${zipcode}, 1, 3)`
-      ))
+      .where(
+        and(
+          eq(hospitals.isActive, true),
+          // Simplified zipcode matching - in production, use proper geospatial queries
+          sql`substring(${hospitals.zipCode}, 1, 3) = substring(${zipcode}, 1, 3)`,
+        ),
+      )
       .limit(100); // Get more hospitals to filter by services
 
     if (nearbyHospitals.length === 0) {
@@ -526,7 +559,7 @@ export class PricesService {
       };
     }
 
-    const hospitalIds = nearbyHospitals.map(h => h.id);
+    const hospitalIds = nearbyHospitals.map((h) => h.id);
 
     // Build price query
     const priceConditions = [
@@ -602,7 +635,7 @@ export class PricesService {
         serviceName,
         category,
       },
-      results: priceResults.map(r => ({
+      results: priceResults.map((r) => ({
         price: {
           id: r.priceId,
           code: r.code,

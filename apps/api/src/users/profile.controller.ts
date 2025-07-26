@@ -15,12 +15,23 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ProfileService, ProfileUpdateData, PreferencesUpdateData } from './profile.service';
-import { UserManagementService } from './user-management.service';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiQuery,
+} from "@nestjs/swagger";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import {
+  ProfileService,
+  ProfileUpdateData,
+  PreferencesUpdateData,
+} from "./profile.service";
+import { UserManagementService } from "./user-management.service";
 
 // DTOs for API documentation and validation
 export class UpdateProfileDto implements ProfileUpdateData {
@@ -52,9 +63,9 @@ export class UpdatePreferencesDto implements PreferencesUpdateData {
   dashboardLayout?: any;
 }
 
-@ApiTags('User Profile')
+@ApiTags("User Profile")
 @ApiBearerAuth()
-@Controller('profile')
+@Controller("profile")
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(
@@ -63,17 +74,17 @@ export class ProfileController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  @ApiOperation({ summary: "Get current user profile" })
+  @ApiResponse({ status: 200, description: "Profile retrieved successfully" })
   async getCurrentUserProfile(@Request() req: any) {
     const userId = req.user.id;
     const profileData = await this.profileService.getUserProfile(userId);
-    
+
     // Log activity
     await this.userManagementService.logActivity({
       userId,
-      action: 'profile_view',
-      resourceType: 'profile',
+      action: "profile_view",
+      resourceType: "profile",
       resourceId: userId,
     });
 
@@ -81,20 +92,23 @@ export class ProfileController {
   }
 
   @Put()
-  @ApiOperation({ summary: 'Update current user profile' })
-  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiOperation({ summary: "Update current user profile" })
+  @ApiResponse({ status: 200, description: "Profile updated successfully" })
   async updateCurrentUserProfile(
     @Request() req: any,
     @Body() profileData: UpdateProfileDto,
   ) {
     const userId = req.user.id;
-    const updatedProfile = await this.profileService.createOrUpdateProfile(userId, profileData);
-    
+    const updatedProfile = await this.profileService.createOrUpdateProfile(
+      userId,
+      profileData,
+    );
+
     // Log activity
     await this.userManagementService.logActivity({
       userId,
-      action: 'profile_update',
-      resourceType: 'profile',
+      action: "profile_update",
+      resourceType: "profile",
       resourceId: userId,
       metadata: {
         updatedFields: Object.keys(profileData),
@@ -104,31 +118,38 @@ export class ProfileController {
     return updatedProfile;
   }
 
-  @Get('preferences')
-  @ApiOperation({ summary: 'Get current user preferences' })
-  @ApiResponse({ status: 200, description: 'Preferences retrieved successfully' })
+  @Get("preferences")
+  @ApiOperation({ summary: "Get current user preferences" })
+  @ApiResponse({
+    status: 200,
+    description: "Preferences retrieved successfully",
+  })
   async getCurrentUserPreferences(@Request() req: any) {
     const userId = req.user.id;
     const { preferences } = await this.profileService.getUserProfile(userId);
-    
+
     return preferences;
   }
 
-  @Put('preferences')
-  @ApiOperation({ summary: 'Update current user preferences' })
-  @ApiResponse({ status: 200, description: 'Preferences updated successfully' })
+  @Put("preferences")
+  @ApiOperation({ summary: "Update current user preferences" })
+  @ApiResponse({ status: 200, description: "Preferences updated successfully" })
   async updateCurrentUserPreferences(
     @Request() req: any,
     @Body() preferencesData: UpdatePreferencesDto,
   ) {
     const userId = req.user.id;
-    const updatedPreferences = await this.profileService.createOrUpdatePreferences(userId, preferencesData);
-    
+    const updatedPreferences =
+      await this.profileService.createOrUpdatePreferences(
+        userId,
+        preferencesData,
+      );
+
     // Log activity
     await this.userManagementService.logActivity({
       userId,
-      action: 'preferences_update',
-      resourceType: 'preferences',
+      action: "preferences_update",
+      resourceType: "preferences",
       resourceId: userId,
       metadata: {
         updatedFields: Object.keys(preferencesData),
@@ -138,18 +159,15 @@ export class ProfileController {
     return updatedPreferences;
   }
 
-  @Post('avatar')
-  @UseInterceptors(FileInterceptor('avatar'))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload user avatar' })
-  @ApiResponse({ status: 201, description: 'Avatar uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid file or file too large' })
-  async uploadAvatar(
-    @Request() req: any,
-    @UploadedFile() file: any,
-  ) {
+  @Post("avatar")
+  @UseInterceptors(FileInterceptor("avatar"))
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Upload user avatar" })
+  @ApiResponse({ status: 201, description: "Avatar uploaded successfully" })
+  @ApiResponse({ status: 400, description: "Invalid file or file too large" })
+  async uploadAvatar(@Request() req: any, @UploadedFile() file: any) {
     if (!file) {
-      throw new BadRequestException('No file provided');
+      throw new BadRequestException("No file provided");
     }
 
     const userId = req.user.id;
@@ -157,14 +175,14 @@ export class ProfileController {
       originalName: file.originalname,
       buffer: file.buffer,
       mimeType: file.mimetype,
-      fileType: 'avatar',
+      fileType: "avatar",
     });
 
     // Log activity
     await this.userManagementService.logActivity({
       userId,
-      action: 'avatar_upload',
-      resourceType: 'file',
+      action: "avatar_upload",
+      resourceType: "file",
       resourceId: uploadedFile.id as string,
       metadata: {
         fileName: file.originalname,
@@ -180,56 +198,56 @@ export class ProfileController {
     };
   }
 
-  @Delete('avatar')
-  @ApiOperation({ summary: 'Remove user avatar' })
-  @ApiResponse({ status: 200, description: 'Avatar removed successfully' })
+  @Delete("avatar")
+  @ApiOperation({ summary: "Remove user avatar" })
+  @ApiResponse({ status: 200, description: "Avatar removed successfully" })
   async removeAvatar(@Request() req: any) {
     const userId = req.user.id;
-    
+
     // Get current avatar
-    const avatarFiles = await this.profileService.getUserFiles(userId, 'avatar');
-    const currentAvatar = avatarFiles.find(f => f.isActive);
-    
+    const avatarFiles = await this.profileService.getUserFiles(
+      userId,
+      "avatar",
+    );
+    const currentAvatar = avatarFiles.find((f) => f.isActive);
+
     if (currentAvatar) {
       await this.profileService.deleteFile(userId, currentAvatar.id as string);
-      
+
       // Log activity
       await this.userManagementService.logActivity({
         userId,
-        action: 'avatar_remove',
-        resourceType: 'file',
+        action: "avatar_remove",
+        resourceType: "file",
         resourceId: currentAvatar.id as string,
       });
     }
 
-    return { success: true, message: 'Avatar removed successfully' };
+    return { success: true, message: "Avatar removed successfully" };
   }
 
-  @Get('files')
-  @ApiOperation({ summary: 'Get user files' })
-  @ApiResponse({ status: 200, description: 'Files retrieved successfully' })
+  @Get("files")
+  @ApiOperation({ summary: "Get user files" })
+  @ApiResponse({ status: 200, description: "Files retrieved successfully" })
   async getUserFiles(@Request() req: any) {
     const userId = req.user.id;
     const files = await this.profileService.getUserFiles(userId);
-    
-    return files.map(file => ({
+
+    return files.map((file) => ({
       ...file,
       url: `/api/v1/users/files/${file.id}`,
     }));
   }
 
-  @Post('files')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload user document' })
-  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid file or file too large' })
-  async uploadFile(
-    @Request() req: any,
-    @UploadedFile() file: any,
-  ) {
+  @Post("files")
+  @UseInterceptors(FileInterceptor("file"))
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Upload user document" })
+  @ApiResponse({ status: 201, description: "File uploaded successfully" })
+  @ApiResponse({ status: 400, description: "Invalid file or file too large" })
+  async uploadFile(@Request() req: any, @UploadedFile() file: any) {
     if (!file) {
-      throw new BadRequestException('No file provided');
+      throw new BadRequestException("No file provided");
     }
 
     const userId = req.user.id;
@@ -237,14 +255,14 @@ export class ProfileController {
       originalName: file.originalname,
       buffer: file.buffer,
       mimeType: file.mimetype,
-      fileType: 'document',
+      fileType: "document",
     });
 
     // Log activity
     await this.userManagementService.logActivity({
       userId,
-      action: 'file_upload',
-      resourceType: 'file',
+      action: "file_upload",
+      resourceType: "file",
       resourceId: uploadedFile.id as string,
       metadata: {
         fileName: file.originalname,
@@ -260,57 +278,71 @@ export class ProfileController {
     };
   }
 
-  @Delete('files/:fileId')
-  @ApiOperation({ summary: 'Delete user file' })
-  @ApiResponse({ status: 200, description: 'File deleted successfully' })
-  @ApiResponse({ status: 404, description: 'File not found' })
+  @Delete("files/:fileId")
+  @ApiOperation({ summary: "Delete user file" })
+  @ApiResponse({ status: 200, description: "File deleted successfully" })
+  @ApiResponse({ status: 404, description: "File not found" })
   async deleteFile(
     @Request() req: any,
-    @Param('fileId', ParseUUIDPipe) fileId: string,
+    @Param("fileId", ParseUUIDPipe) fileId: string,
   ) {
     const userId = req.user.id;
     await this.profileService.deleteFile(userId, fileId);
-    
+
     // Log activity
     await this.userManagementService.logActivity({
       userId,
-      action: 'file_delete',
-      resourceType: 'file',
+      action: "file_delete",
+      resourceType: "file",
       resourceId: fileId,
     });
 
-    return { success: true, message: 'File deleted successfully' };
+    return { success: true, message: "File deleted successfully" };
   }
 
-  @Get('activity')
-  @ApiOperation({ summary: 'Get current user activity log' })
-  @ApiResponse({ status: 200, description: 'Activity log retrieved successfully' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10, max: 100)' })
+  @Get("activity")
+  @ApiOperation({ summary: "Get current user activity log" })
+  @ApiResponse({
+    status: 200,
+    description: "Activity log retrieved successfully",
+  })
+  @ApiQuery({
+    name: "page",
+    required: false,
+    type: Number,
+    description: "Page number (default: 1)",
+  })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    type: Number,
+    description: "Items per page (default: 10, max: 100)",
+  })
   async getCurrentUserActivity(
     @Request() req: any,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     const userId = req.user.id;
-    
+
     // Ensure limit is reasonable
     const safeLimit = Math.min(Math.max(1, limit), 100);
     const offset = (Math.max(1, page) - 1) * safeLimit;
-    
-    const { activities, total } = await this.userManagementService.getUserActivityPaginated(userId, { 
-      limit: safeLimit,
-      offset,
-    });
-    
-    return { 
+
+    const { activities, total } =
+      await this.userManagementService.getUserActivityPaginated(userId, {
+        limit: safeLimit,
+        offset,
+      });
+
+    return {
       activities,
       pagination: {
         page,
         limit: safeLimit,
         total,
         totalPages: Math.ceil(total / safeLimit),
-      }
+      },
     };
   }
 }

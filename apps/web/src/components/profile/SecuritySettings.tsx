@@ -1,12 +1,18 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useAuthStore } from '@/stores/auth'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useAuthStore } from "@/stores/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -14,101 +20,105 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import { toast } from 'sonner'
-import { 
-  Shield, 
-  Key, 
-  Smartphone, 
+} from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  Shield,
+  Key,
+  Smartphone,
   Eye,
   EyeOff,
   Loader2,
-  Clock
-} from 'lucide-react'
+  Clock,
+} from "lucide-react";
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string().min(1, 'Please confirm your password'),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-})
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
-type PasswordFormData = z.infer<typeof passwordSchema>
+type PasswordFormData = z.infer<typeof passwordSchema>;
 
 export function SecuritySettings() {
-  const { user } = useAuthStore()
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const { user } = useAuthStore();
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
     confirm: false,
-  })
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  });
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const passwordForm = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     },
-  })
+  });
 
   const onPasswordSubmit = async (_data: PasswordFormData) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // Here you would call your API to change the password
-      await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
 
-      toast.success('Password changed successfully! 🔒', {
-        description: 'Your account is now more secure.',
-      })
-      passwordForm.reset()
-      setIsChangingPassword(false)
+      toast.success("Password changed successfully! 🔒", {
+        description: "Your account is now more secure.",
+      });
+      passwordForm.reset();
+      setIsChangingPassword(false);
     } catch (error) {
-      toast.error('Failed to change password', {
-        description: 'Please check your current password and try again.',
-      })
+      toast.error("Failed to change password", {
+        description: "Please check your current password and try again.",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleTwoFactorToggle = async (enabled: boolean) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // Here you would call your API to enable/disable 2FA
-      await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
 
-      setTwoFactorEnabled(enabled)
+      setTwoFactorEnabled(enabled);
       toast.success(
-        enabled ? 'Two-factor authentication enabled! 🛡️' : 'Two-factor authentication disabled! 🔓',
+        enabled
+          ? "Two-factor authentication enabled! 🛡️"
+          : "Two-factor authentication disabled! 🔓",
         {
           description: enabled
-            ? 'Your account is now more secure with 2FA.'
-            : 'Two-factor authentication has been turned off.',
-        }
-      )
+            ? "Your account is now more secure with 2FA."
+            : "Two-factor authentication has been turned off.",
+        },
+      );
     } catch (error) {
-      toast.error('Failed to update two-factor authentication', {
-        description: 'Please try again later.',
-      })
+      toast.error("Failed to update two-factor authentication", {
+        description: "Please try again later.",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
-    setShowPasswords(prev => ({
+  const togglePasswordVisibility = (field: "current" | "new" | "confirm") => {
+    setShowPasswords((prev) => ({
       ...prev,
-      [field]: !prev[field]
-    }))
-  }
+      [field]: !prev[field],
+    }));
+  };
 
   // TODO: Fetch real session data from API
   const activeSessions: Array<{
@@ -117,7 +127,7 @@ export function SecuritySettings() {
     location: string;
     lastActive: string;
     current: boolean;
-  }> = []
+  }> = [];
 
   return (
     <div className="space-y-6">
@@ -138,7 +148,10 @@ export function SecuritySettings() {
               <div>
                 <p className="text-sm font-medium">Password</p>
                 <p className="text-sm text-muted-foreground">
-                  Last changed: {user?.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'Unknown'}
+                  Last changed:{" "}
+                  {user?.updatedAt
+                    ? new Date(user.updatedAt).toLocaleDateString()
+                    : "Unknown"}
                 </p>
               </div>
               <Button onClick={() => setIsChangingPassword(true)}>
@@ -147,7 +160,10 @@ export function SecuritySettings() {
             </div>
           ) : (
             <Form {...passwordForm}>
-              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+              <form
+                onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={passwordForm.control}
                   name="currentPassword"
@@ -167,7 +183,7 @@ export function SecuritySettings() {
                             variant="ghost"
                             size="sm"
                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => togglePasswordVisibility('current')}
+                            onClick={() => togglePasswordVisibility("current")}
                           >
                             {showPasswords.current ? (
                               <EyeOff className="h-4 w-4" />
@@ -201,7 +217,7 @@ export function SecuritySettings() {
                             variant="ghost"
                             size="sm"
                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => togglePasswordVisibility('new')}
+                            onClick={() => togglePasswordVisibility("new")}
                           >
                             {showPasswords.new ? (
                               <EyeOff className="h-4 w-4" />
@@ -238,7 +254,7 @@ export function SecuritySettings() {
                             variant="ghost"
                             size="sm"
                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => togglePasswordVisibility('confirm')}
+                            onClick={() => togglePasswordVisibility("confirm")}
                           >
                             {showPasswords.confirm ? (
                               <EyeOff className="h-4 w-4" />
@@ -255,15 +271,17 @@ export function SecuritySettings() {
 
                 <div className="flex items-center gap-4 pt-4">
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isLoading && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     Update Password
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
-                      setIsChangingPassword(false)
-                      passwordForm.reset()
+                      setIsChangingPassword(false);
+                      passwordForm.reset();
                     }}
                   >
                     Cancel
@@ -296,10 +314,9 @@ export function SecuritySettings() {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {twoFactorEnabled 
-                  ? "Your account is protected with 2FA" 
-                  : "Secure your account with an authenticator app"
-                }
+                {twoFactorEnabled
+                  ? "Your account is protected with 2FA"
+                  : "Secure your account with an authenticator app"}
               </p>
             </div>
             <Switch
@@ -327,39 +344,53 @@ export function SecuritySettings() {
             {activeSessions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No active sessions found</p>
-                <p className="text-xs mt-1">Session management is not yet implemented</p>
+                <p className="text-xs mt-1">
+                  Session management is not yet implemented
+                </p>
               </div>
             ) : (
               activeSessions.map((session) => (
-              <div key={session.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <p className="text-sm font-medium break-words">{session.device}</p>
-                    {session.current && (
-                      <Badge variant="default" className="text-xs self-start sm:self-auto">
-                        Current Session
-                      </Badge>
-                    )}
+                <div
+                  key={session.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border rounded-lg"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <p className="text-sm font-medium break-words">
+                        {session.device}
+                      </p>
+                      {session.current && (
+                        <Badge
+                          variant="default"
+                          className="text-xs self-start sm:self-auto"
+                        >
+                          Current Session
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{session.lastActive}</span>
+                      </span>
+                      <span className="truncate">{session.location}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{session.lastActive}</span>
-                    </span>
-                    <span className="truncate">{session.location}</span>
-                  </div>
+                  {!session.current && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      Revoke
+                    </Button>
+                  )}
                 </div>
-                {!session.current && (
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                    Revoke
-                  </Button>
-                )}
-              </div>
               ))
             )}
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -1,23 +1,23 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { IsOptional, IsString } from "class-validator";
 
 export class RequestDto {
   @ApiProperty({
-    description: 'Request object',
+    description: "Request object",
     required: false,
   })
   @IsOptional()
   url?: string;
 
   @ApiProperty({
-    description: 'Request headers',
+    description: "Request headers",
     required: false,
   })
   @IsOptional()
   headers?: Record<string, string>;
 
   @ApiProperty({
-    description: 'Request method',
+    description: "Request method",
     required: false,
   })
   @IsOptional()
@@ -27,14 +27,14 @@ export class RequestDto {
 
 export class ResponseDto {
   @ApiProperty({
-    description: 'Response object',
+    description: "Response object",
     required: false,
   })
   @IsOptional()
   status?: number;
 
   @ApiProperty({
-    description: 'Response headers',
+    description: "Response headers",
     required: false,
   })
   @IsOptional()

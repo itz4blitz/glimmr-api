@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { eq, and, like, asc, count, sql } from 'drizzle-orm';
-import { DatabaseService } from '../database/database.service';
-import { hospitals, prices } from '../database/schema';
-import { PatientRightsAdvocateService } from '../external-apis/patient-rights-advocate.service';
-import { HospitalNotFoundException, DatabaseOperationException } from '../common/exceptions';
+import { Injectable } from "@nestjs/common";
+import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
+import { eq, and, like, asc, count, sql } from "drizzle-orm";
+import { DatabaseService } from "../database/database.service";
+import { hospitals, prices } from "../database/schema";
+import { PatientRightsAdvocateService } from "../external-apis/patient-rights-advocate.service";
+import {
+  HospitalNotFoundException,
+  DatabaseOperationException,
+} from "../common/exceptions";
 
 @Injectable()
 export class HospitalsService {
@@ -22,9 +25,9 @@ export class HospitalsService {
     offset?: number;
   }) {
     this.logger.info({
-      msg: 'Fetching hospitals with filters',
+      msg: "Fetching hospitals with filters",
       filters,
-      operation: 'getHospitals',
+      operation: "getHospitals",
     });
 
     const startTime = Date.now();
@@ -49,7 +52,8 @@ export class HospitalsService {
       // Add active filter
       conditions.push(eq(hospitals.isActive, true));
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       // Get total count
       const [totalResult] = await db
@@ -87,11 +91,11 @@ export class HospitalsService {
 
       const duration = Date.now() - startTime;
       this.logger.info({
-        msg: 'Hospitals fetched successfully',
+        msg: "Hospitals fetched successfully",
         count: result.data.length,
         total: result.total,
         duration,
-        operation: 'getHospitals',
+        operation: "getHospitals",
         filters,
       });
 
@@ -99,21 +103,21 @@ export class HospitalsService {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger.error({
-        msg: 'Failed to fetch hospitals',
+        msg: "Failed to fetch hospitals",
         error: error.message,
         duration,
-        operation: 'getHospitals',
+        operation: "getHospitals",
         filters,
       });
-      throw new DatabaseOperationException('fetch hospitals', error.message);
+      throw new DatabaseOperationException("fetch hospitals", error.message);
     }
   }
 
   async getHospitalById(id: string) {
     this.logger.info({
-      msg: 'Fetching hospital by ID',
+      msg: "Fetching hospital by ID",
       hospitalId: id,
-      operation: 'getHospitalById',
+      operation: "getHospitalById",
     });
 
     try {
@@ -127,9 +131,9 @@ export class HospitalsService {
 
       if (!hospital) {
         this.logger.warn({
-          msg: 'Hospital not found',
+          msg: "Hospital not found",
           hospitalId: id,
-          operation: 'getHospitalById',
+          operation: "getHospitalById",
         });
         throw new HospitalNotFoundException(id);
       }
@@ -141,7 +145,7 @@ export class HospitalsService {
         .where(and(eq(prices.hospitalId, id), eq(prices.isActive, true)))
         .groupBy(prices.category);
 
-      const services = servicesResult.map(s => s.category).filter(Boolean);
+      const services = servicesResult.map((s) => s.category).filter(Boolean);
 
       const result = {
         ...hospital,
@@ -149,10 +153,10 @@ export class HospitalsService {
       };
 
       this.logger.info({
-        msg: 'Hospital fetched successfully',
+        msg: "Hospital fetched successfully",
         hospitalId: id,
         hospitalName: result.name,
-        operation: 'getHospitalById',
+        operation: "getHospitalById",
       });
 
       return result;
@@ -160,33 +164,30 @@ export class HospitalsService {
       if (error instanceof HospitalNotFoundException) {
         throw error;
       }
-      
+
       this.logger.error({
-        msg: 'Failed to fetch hospital',
+        msg: "Failed to fetch hospital",
         hospitalId: id,
         error: error.message,
-        operation: 'getHospitalById',
+        operation: "getHospitalById",
       });
-      throw new DatabaseOperationException('fetch hospital', error.message);
+      throw new DatabaseOperationException("fetch hospital", error.message);
     }
   }
 
   async getHospitalPrices(id: string, filters: { service?: string }) {
     this.logger.info({
-      msg: 'Fetching hospital prices',
+      msg: "Fetching hospital prices",
       hospitalId: id,
       filters,
-      operation: 'getHospitalPrices',
+      operation: "getHospitalPrices",
     });
 
     try {
       const db = this.databaseService.db;
 
       // Build where conditions
-      const conditions = [
-        eq(prices.hospitalId, id),
-        eq(prices.isActive, true)
-      ];
+      const conditions = [eq(prices.hospitalId, id), eq(prices.isActive, true)];
 
       if (filters.service) {
         conditions.push(like(prices.serviceName, `%${filters.service}%`));
@@ -223,19 +224,19 @@ export class HospitalsService {
       };
 
       this.logger.info({
-        msg: 'Hospital prices fetched successfully',
+        msg: "Hospital prices fetched successfully",
         hospitalId: id,
         priceCount: result.data.length,
-        operation: 'getHospitalPrices',
+        operation: "getHospitalPrices",
       });
 
       return result;
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to fetch hospital prices',
+        msg: "Failed to fetch hospital prices",
         hospitalId: id,
         error: error.message,
-        operation: 'getHospitalPrices',
+        operation: "getHospitalPrices",
       });
       throw error;
     }
@@ -244,11 +245,13 @@ export class HospitalsService {
   /**
    * Sync hospitals from Patient Rights Advocate API to database
    */
-  async syncHospitalsFromPRA(state?: string): Promise<{ imported: number; updated: number; errors: number }> {
+  async syncHospitalsFromPRA(
+    state?: string,
+  ): Promise<{ imported: number; updated: number; errors: number }> {
     this.logger.info({
-      msg: 'Starting hospital sync from Patient Rights Advocate API',
+      msg: "Starting hospital sync from Patient Rights Advocate API",
       state,
-      operation: 'syncHospitalsFromPRA',
+      operation: "syncHospitalsFromPRA",
     });
 
     const startTime = Date.now();
@@ -265,16 +268,16 @@ export class HospitalsService {
         : await this.patientRightsAdvocateService.getAllHospitals();
 
       this.logger.info({
-        msg: 'Fetched hospitals from PRA API',
+        msg: "Fetched hospitals from PRA API",
         count: praHospitals.length,
         state,
-        operation: 'syncHospitalsFromPRA',
+        operation: "syncHospitalsFromPRA",
       });
 
       // Prepare data for batch upsert to eliminate N+1 queries
       const hospitalDataBatch = praHospitals
-        .filter(praHospital => praHospital.ccn) // Only process hospitals with CCN
-        .map(praHospital => ({
+        .filter((praHospital) => praHospital.ccn) // Only process hospitals with CCN
+        .map((praHospital) => ({
           name: praHospital.name,
           address: praHospital.address,
           city: praHospital.city,
@@ -287,7 +290,7 @@ export class HospitalsService {
           longitude: praHospital.long ? praHospital.long : null,
           ccn: praHospital.ccn,
           externalId: praHospital.id, // Store PRA ID as external ID
-          dataSource: 'patient_rights_advocate' as const,
+          dataSource: "patient_rights_advocate" as const,
           sourceUrl: praHospital.url || null,
           isActive: true,
           lastUpdated: new Date(),
@@ -300,9 +303,9 @@ export class HospitalsService {
 
       if (hospitalDataBatch.length === 0) {
         this.logger.warn({
-          msg: 'No valid hospitals to process (all missing CCN)',
+          msg: "No valid hospitals to process (all missing CCN)",
           totalHospitals: praHospitals.length,
-          operation: 'syncHospitalsFromPRA',
+          operation: "syncHospitalsFromPRA",
         });
       } else {
         // Perform batch upsert using INSERT ... ON CONFLICT
@@ -313,23 +316,25 @@ export class HospitalsService {
             .onConflictDoUpdate({
               target: hospitals.ccn,
               set: {
-                name: sql.raw('excluded.name'),
-                address: sql.raw('excluded.address'),
-                city: sql.raw('excluded.city'),
-                state: sql.raw('excluded.state'),
-                zipCode: sql.raw('excluded.zip_code'),
-                phone: sql.raw('excluded.phone'),
-                website: sql.raw('excluded.website'),
-                bedCount: sql.raw('excluded.bed_count'),
-                latitude: sql.raw('excluded.latitude'),
-                longitude: sql.raw('excluded.longitude'),
-                externalId: sql.raw('excluded.external_id'),
-                sourceUrl: sql.raw('excluded.source_url'),
-                isActive: sql.raw('excluded.is_active'),
-                lastUpdated: sql.raw('excluded.last_updated'),
-                priceTransparencyFiles: sql.raw('excluded.price_transparency_files'),
-                lastFileCheck: sql.raw('excluded.last_file_check'),
-                updatedAt: sql.raw('excluded.updated_at'),
+                name: sql.raw("excluded.name"),
+                address: sql.raw("excluded.address"),
+                city: sql.raw("excluded.city"),
+                state: sql.raw("excluded.state"),
+                zipCode: sql.raw("excluded.zip_code"),
+                phone: sql.raw("excluded.phone"),
+                website: sql.raw("excluded.website"),
+                bedCount: sql.raw("excluded.bed_count"),
+                latitude: sql.raw("excluded.latitude"),
+                longitude: sql.raw("excluded.longitude"),
+                externalId: sql.raw("excluded.external_id"),
+                sourceUrl: sql.raw("excluded.source_url"),
+                isActive: sql.raw("excluded.is_active"),
+                lastUpdated: sql.raw("excluded.last_updated"),
+                priceTransparencyFiles: sql.raw(
+                  "excluded.price_transparency_files",
+                ),
+                lastFileCheck: sql.raw("excluded.last_file_check"),
+                updatedAt: sql.raw("excluded.updated_at"),
               },
             })
             .returning({ id: hospitals.id, ccn: hospitals.ccn });
@@ -340,19 +345,19 @@ export class HospitalsService {
           updated = 0; // We can't easily distinguish between insert/update with this method
 
           this.logger.info({
-            msg: 'Batch upsert completed',
+            msg: "Batch upsert completed",
             processed: result.length,
             totalReceived: praHospitals.length,
             validForProcessing: hospitalDataBatch.length,
-            operation: 'syncHospitalsFromPRA',
+            operation: "syncHospitalsFromPRA",
           });
         } catch (error) {
           errors += hospitalDataBatch.length;
           this.logger.error({
-            msg: 'Batch upsert failed',
+            msg: "Batch upsert failed",
             error: error.message,
             batchSize: hospitalDataBatch.length,
-            operation: 'syncHospitalsFromPRA',
+            operation: "syncHospitalsFromPRA",
           });
         }
       }
@@ -361,22 +366,22 @@ export class HospitalsService {
       const result = { imported, updated, errors };
 
       this.logger.info({
-        msg: 'Hospital sync completed',
+        msg: "Hospital sync completed",
         result,
         duration,
         state,
-        operation: 'syncHospitalsFromPRA',
+        operation: "syncHospitalsFromPRA",
       });
 
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger.error({
-        msg: 'Hospital sync failed',
+        msg: "Hospital sync failed",
         error: error.message,
         duration,
         state,
-        operation: 'syncHospitalsFromPRA',
+        operation: "syncHospitalsFromPRA",
       });
       throw error;
     }
@@ -387,41 +392,45 @@ export class HospitalsService {
    */
   async getHospitalPriceFiles(hospitalId: string) {
     this.logger.info({
-      msg: 'Fetching price files for hospital',
+      msg: "Fetching price files for hospital",
       hospitalId,
-      operation: 'getHospitalPriceFiles',
+      operation: "getHospitalPriceFiles",
     });
 
     try {
       const db = this.databaseService.db;
-      
+
       // Import the price transparency files table
-      const { priceTransparencyFiles } = await import('../database/schema/price-transparency-files');
-      
+      const { priceTransparencyFiles } = await import(
+        "../database/schema/price-transparency-files"
+      );
+
       // Get price files for the hospital
       const files = await db
         .select()
         .from(priceTransparencyFiles)
-        .where(and(
-          eq(priceTransparencyFiles.hospitalId, hospitalId),
-          eq(priceTransparencyFiles.isActive, true)
-        ))
+        .where(
+          and(
+            eq(priceTransparencyFiles.hospitalId, hospitalId),
+            eq(priceTransparencyFiles.isActive, true),
+          ),
+        )
         .orderBy(asc(priceTransparencyFiles.createdAt));
 
       this.logger.info({
-        msg: 'Price files fetched successfully',
+        msg: "Price files fetched successfully",
         hospitalId,
         fileCount: files.length,
-        operation: 'getHospitalPriceFiles',
+        operation: "getHospitalPriceFiles",
       });
 
       return files;
     } catch (error) {
       this.logger.error({
-        msg: 'Failed to fetch hospital price files',
+        msg: "Failed to fetch hospital price files",
         hospitalId,
         error: error.message,
-        operation: 'getHospitalPriceFiles',
+        operation: "getHospitalPriceFiles",
       });
       throw error;
     }

@@ -1,10 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
-import { userActivityLogs, users } from '../database/schema';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { Request } from 'express';
+import { Injectable } from "@nestjs/common";
+import { DatabaseService } from "../database/database.service";
+import { userActivityLogs, users } from "../database/schema";
+import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
+import { Request } from "express";
 // import { EventEmitter2 } from '@nestjs/event-emitter';
-import { eq, and, gte, count, desc, inArray, or, like, isNotNull, lt } from 'drizzle-orm';
+import {
+  eq,
+  and,
+  gte,
+  count,
+  desc,
+  inArray,
+  or,
+  like,
+  isNotNull,
+  lt,
+} from "drizzle-orm";
 
 export interface ActivityLogData {
   userId?: string;
@@ -45,18 +56,20 @@ export class ActivityLoggingService {
    */
   private extractIpAddress(request?: Request): string | undefined {
     if (!request) return undefined;
-    
+
     // Check common headers used by proxies
-    const forwardedFor = request.headers['x-forwarded-for'];
+    const forwardedFor = request.headers["x-forwarded-for"];
     if (forwardedFor) {
-      return Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0].trim();
+      return Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor.split(",")[0].trim();
     }
-    
-    const realIp = request.headers['x-real-ip'];
+
+    const realIp = request.headers["x-real-ip"];
     if (realIp) {
       return Array.isArray(realIp) ? realIp[0] : realIp;
     }
-    
+
     // Fallback to socket connection
     return request.socket?.remoteAddress;
   }
@@ -66,11 +79,11 @@ export class ActivityLoggingService {
    */
   private extractContext(request?: Request): ActivityContext {
     if (!request) return {};
-    
+
     return {
       ipAddress: this.extractIpAddress(request),
-      userAgent: request.headers['user-agent'] as string,
-      referrer: request.headers['referer'] as string,
+      userAgent: request.headers["user-agent"] as string,
+      referrer: request.headers["referer"] as string,
       url: request.originalUrl || request.url,
       method: request.method,
       sessionId: (request as any).session?.id,
@@ -82,23 +95,34 @@ export class ActivityLoggingService {
    */
   private sanitizeData(data: any): any {
     if (!data) return data;
-    
-    const sensitiveKeys = ['password', 'token', 'secret', 'apiKey', 'authorization', 'cookie'];
-    
-    if (typeof data === 'object') {
+
+    const sensitiveKeys = [
+      "password",
+      "token",
+      "secret",
+      "apiKey",
+      "authorization",
+      "cookie",
+    ];
+
+    if (typeof data === "object") {
       const sanitized = { ...data };
-      
+
       for (const key of Object.keys(sanitized)) {
-        if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
-          sanitized[key] = '[REDACTED]';
-        } else if (typeof sanitized[key] === 'object') {
+        if (
+          sensitiveKeys.some((sensitive) =>
+            key.toLowerCase().includes(sensitive),
+          )
+        ) {
+          sanitized[key] = "[REDACTED]";
+        } else if (typeof sanitized[key] === "object") {
           sanitized[key] = this.sanitizeData(sanitized[key]);
         }
       }
-      
+
       return sanitized;
     }
-    
+
     return data;
   }
 
@@ -108,7 +132,7 @@ export class ActivityLoggingService {
   async logActivity(data: ActivityLogData): Promise<void> {
     try {
       const context = this.extractContext(data.request);
-      
+
       const activityLog = {
         userId: data.userId,
         action: data.action,
@@ -131,38 +155,48 @@ export class ActivityLoggingService {
       };
 
       await this.db.insert(userActivityLogs).values(activityLog);
-      
+
       // Emit event for real-time monitoring
       // this.eventEmitter.emit('activity.logged', activityLog);
-      
-      this.logger.debug({ activityLog }, 'Activity logged');
+
+      this.logger.debug({ activityLog }, "Activity logged");
     } catch (error) {
-      this.logger.error({ error, data }, 'Failed to log activity');
+      this.logger.error({ error, data }, "Failed to log activity");
     }
   }
 
   /**
    * Log authentication events
    */
-  async logAuth(event: 'login' | 'logout' | 'login_failed' | 'token_refresh', userId?: string, metadata?: any, request?: Request) {
+  async logAuth(
+    event: "login" | "logout" | "login_failed" | "token_refresh",
+    userId?: string,
+    metadata?: any,
+    request?: Request,
+  ) {
     await this.logActivity({
       userId,
       action: event,
-      resourceType: 'auth',
+      resourceType: "auth",
       metadata,
       request,
-      success: event !== 'login_failed',
+      success: event !== "login_failed",
     });
   }
 
   /**
    * Log page views
    */
-  async logPageView(userId: string, page: string, metadata?: any, request?: Request) {
+  async logPageView(
+    userId: string,
+    page: string,
+    metadata?: any,
+    request?: Request,
+  ) {
     await this.logActivity({
       userId,
-      action: 'page_view',
-      resourceType: 'navigation',
+      action: "page_view",
+      resourceType: "navigation",
       metadata: {
         page,
         ...metadata,
@@ -174,7 +208,14 @@ export class ActivityLoggingService {
   /**
    * Log CRUD operations
    */
-  async logCrud(operation: 'create' | 'read' | 'update' | 'delete', resourceType: string, resourceId: string, userId?: string, metadata?: any, request?: Request) {
+  async logCrud(
+    operation: "create" | "read" | "update" | "delete",
+    resourceType: string,
+    resourceId: string,
+    userId?: string,
+    metadata?: any,
+    request?: Request,
+  ) {
     await this.logActivity({
       userId,
       action: `${resourceType}_${operation}`,
@@ -188,11 +229,17 @@ export class ActivityLoggingService {
   /**
    * Log search operations
    */
-  async logSearch(searchType: string, query: any, resultCount: number, userId?: string, request?: Request) {
+  async logSearch(
+    searchType: string,
+    query: any,
+    resultCount: number,
+    userId?: string,
+    request?: Request,
+  ) {
     await this.logActivity({
       userId,
       action: `${searchType}_search`,
-      resourceType: 'search',
+      resourceType: "search",
       metadata: {
         query: this.sanitizeData(query),
         resultCount,
@@ -204,11 +251,18 @@ export class ActivityLoggingService {
   /**
    * Log file operations
    */
-  async logFileOperation(operation: 'upload' | 'download' | 'delete' | 'view', fileId: string, fileName: string, userId?: string, metadata?: any, request?: Request) {
+  async logFileOperation(
+    operation: "upload" | "download" | "delete" | "view",
+    fileId: string,
+    fileName: string,
+    userId?: string,
+    metadata?: any,
+    request?: Request,
+  ) {
     await this.logActivity({
       userId,
       action: `file_${operation}`,
-      resourceType: 'file',
+      resourceType: "file",
       resourceId: fileId,
       metadata: {
         fileName,
@@ -221,11 +275,17 @@ export class ActivityLoggingService {
   /**
    * Log admin actions
    */
-  async logAdminAction(action: string, targetUserId?: string, metadata?: any, adminUserId?: string, request?: Request) {
+  async logAdminAction(
+    action: string,
+    targetUserId?: string,
+    metadata?: any,
+    adminUserId?: string,
+    request?: Request,
+  ) {
     await this.logActivity({
       userId: adminUserId,
       action: `admin_${action}`,
-      resourceType: 'admin',
+      resourceType: "admin",
       resourceId: targetUserId,
       metadata,
       request,
@@ -235,9 +295,12 @@ export class ActivityLoggingService {
   /**
    * Get user activities with pagination
    */
-  async getUserActivities(userId: string, options: { limit?: number; offset?: number; actions?: string[] } = {}) {
+  async getUserActivities(
+    userId: string,
+    options: { limit?: number; offset?: number; actions?: string[] } = {},
+  ) {
     const { limit = 50, offset = 0, actions } = options;
-    
+
     const query = this.db
       .select()
       .from(userActivityLogs)
@@ -245,13 +308,13 @@ export class ActivityLoggingService {
       .orderBy(desc(userActivityLogs.timestamp))
       .limit(limit)
       .offset(offset);
-    
+
     const activities = await query;
-    
+
     if (actions && actions.length > 0) {
-      return activities.filter(a => actions.includes(a.action));
+      return activities.filter((a) => actions.includes(a.action));
     }
-    
+
     return activities;
   }
 
@@ -261,7 +324,7 @@ export class ActivityLoggingService {
   async getUserActivitySummary(userId: string, days: number = 30) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    
+
     const activities = await this.db
       .select({
         action: userActivityLogs.action,
@@ -271,11 +334,11 @@ export class ActivityLoggingService {
       .where(
         and(
           eq(userActivityLogs.userId, userId),
-          gte(userActivityLogs.timestamp, startDate)
-        )
+          gte(userActivityLogs.timestamp, startDate),
+        ),
       )
       .groupBy(userActivityLogs.action);
-    
+
     return activities;
   }
 
@@ -289,24 +352,24 @@ export class ActivityLoggingService {
       .where(
         and(
           eq(userActivityLogs.userId, userId),
-          eq(userActivityLogs.action, 'login_failed'),
+          eq(userActivityLogs.action, "login_failed"),
           eq(userActivityLogs.ipAddress, ipAddress),
-          gte(userActivityLogs.timestamp, new Date(Date.now() - 3600000)) // Last hour
-        )
+          gte(userActivityLogs.timestamp, new Date(Date.now() - 3600000)), // Last hour
+        ),
       );
-    
+
     if (recentFailedLogins[0]?.count > 5) {
       await this.logActivity({
         userId,
-        action: 'suspicious_activity_detected',
-        resourceType: 'security',
+        action: "suspicious_activity_detected",
+        resourceType: "security",
         metadata: {
-          reason: 'multiple_failed_logins',
+          reason: "multiple_failed_logins",
           failedAttempts: recentFailedLogins[0].count,
           ipAddress,
         },
       });
-      
+
       // this.eventEmitter.emit('security.alert', {
       //   type: 'multiple_failed_logins',
       //   userId,
@@ -319,67 +382,78 @@ export class ActivityLoggingService {
   /**
    * Get all activities with filters
    */
-  async getAllActivities(options: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-    action?: string;
-    resourceType?: string;
-    success?: boolean;
-    timeRange?: string;
-  } = {}): Promise<any[]> {
-    const { limit = 50, offset = 0, search, action, resourceType, success, timeRange } = options;
-    
+  async getAllActivities(
+    options: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+      action?: string;
+      resourceType?: string;
+      success?: boolean;
+      timeRange?: string;
+    } = {},
+  ): Promise<any[]> {
+    const {
+      limit = 50,
+      offset = 0,
+      search,
+      action,
+      resourceType,
+      success,
+      timeRange,
+    } = options;
+
     const whereConditions = [];
-    
+
     if (search) {
       whereConditions.push(
         or(
           like(userActivityLogs.action, `%${search}%`),
           like(userActivityLogs.resourceType, `%${search}%`),
-          like(userActivityLogs.metadata, `%${search}%`)
-        )
+          like(userActivityLogs.metadata, `%${search}%`),
+        ),
       );
     }
-    
+
     if (action) {
       whereConditions.push(like(userActivityLogs.action, `%${action}%`));
     }
-    
+
     if (resourceType) {
       whereConditions.push(eq(userActivityLogs.resourceType, resourceType));
     }
-    
+
     if (success !== undefined) {
       whereConditions.push(eq(userActivityLogs.success, success));
     }
-    
+
     if (timeRange) {
       const now = new Date();
       let startTime: Date;
-      
+
       switch (timeRange) {
-        case '1h':
+        case "1h":
           startTime = new Date(now.getTime() - 3600000);
           break;
-        case '24h':
+        case "24h":
           startTime = new Date(now.getTime() - 86400000);
           break;
-        case '7d':
+        case "7d":
           startTime = new Date(now.getTime() - 604800000);
           break;
-        case '30d':
+        case "30d":
           startTime = new Date(now.getTime() - 2592000000);
           break;
         default:
           startTime = new Date(now.getTime() - 86400000); // Default to 24h
       }
-      
+
       whereConditions.push(gte(userActivityLogs.timestamp, startTime));
     }
-    
-    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-    
+
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
     const activities = await this.db
       .select({
         id: userActivityLogs.id,
@@ -403,14 +477,16 @@ export class ActivityLoggingService {
       .orderBy(desc(userActivityLogs.timestamp))
       .limit(limit)
       .offset(offset);
-    
-    return activities.map(a => ({
+
+    return activities.map((a) => ({
       ...a,
-      user: a.userEmail ? {
-        email: a.userEmail,
-        firstName: a.userFirstName,
-        lastName: a.userLastName,
-      } : undefined,
+      user: a.userEmail
+        ? {
+            email: a.userEmail,
+            firstName: a.userFirstName,
+            lastName: a.userLastName,
+          }
+        : undefined,
       metadata: a.metadata ? JSON.parse(a.metadata as string) : {},
     }));
   }
@@ -418,105 +494,108 @@ export class ActivityLoggingService {
   /**
    * Get activity count with filters
    */
-  async getActivityCount(options: {
-    search?: string;
-    action?: string;
-    resourceType?: string;
-    success?: boolean;
-    timeRange?: string;
-  } = {}): Promise<number> {
+  async getActivityCount(
+    options: {
+      search?: string;
+      action?: string;
+      resourceType?: string;
+      success?: boolean;
+      timeRange?: string;
+    } = {},
+  ): Promise<number> {
     const { search, action, resourceType, success, timeRange } = options;
-    
+
     const whereConditions = [];
-    
+
     if (search) {
       whereConditions.push(
         or(
           like(userActivityLogs.action, `%${search}%`),
           like(userActivityLogs.resourceType, `%${search}%`),
-          like(userActivityLogs.metadata, `%${search}%`)
-        )
+          like(userActivityLogs.metadata, `%${search}%`),
+        ),
       );
     }
-    
+
     if (action) {
       whereConditions.push(like(userActivityLogs.action, `%${action}%`));
     }
-    
+
     if (resourceType) {
       whereConditions.push(eq(userActivityLogs.resourceType, resourceType));
     }
-    
+
     if (success !== undefined) {
       whereConditions.push(eq(userActivityLogs.success, success));
     }
-    
+
     if (timeRange) {
       const now = new Date();
       let startTime: Date;
-      
+
       switch (timeRange) {
-        case '1h':
+        case "1h":
           startTime = new Date(now.getTime() - 3600000);
           break;
-        case '24h':
+        case "24h":
           startTime = new Date(now.getTime() - 86400000);
           break;
-        case '7d':
+        case "7d":
           startTime = new Date(now.getTime() - 604800000);
           break;
-        case '30d':
+        case "30d":
           startTime = new Date(now.getTime() - 2592000000);
           break;
         default:
           startTime = new Date(now.getTime() - 86400000); // Default to 24h
       }
-      
+
       whereConditions.push(gte(userActivityLogs.timestamp, startTime));
     }
-    
-    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-    
+
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
     const [result] = await this.db
       .select({ count: count() })
       .from(userActivityLogs)
       .where(whereClause);
-    
+
     return result?.count || 0;
   }
 
   /**
    * Get activity statistics
    */
-  async getActivityStats(timeRange: string = '24h'): Promise<any> {
+  async getActivityStats(timeRange: string = "24h"): Promise<any> {
     const now = new Date();
     let startTime: Date;
-    
+
     switch (timeRange) {
-      case '1h':
+      case "1h":
         startTime = new Date(now.getTime() - 3600000);
         break;
-      case '24h':
+      case "24h":
         startTime = new Date(now.getTime() - 86400000);
         break;
-      case '7d':
+      case "7d":
         startTime = new Date(now.getTime() - 604800000);
         break;
-      case '30d':
+      case "30d":
         startTime = new Date(now.getTime() - 2592000000);
         break;
       default:
         startTime = new Date(now.getTime() - 86400000); // Default to 24h
     }
-    
+
     // Total activities
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(userActivityLogs)
       .where(gte(userActivityLogs.timestamp, startTime));
-    
+
     const totalActivities = totalResult?.count || 0;
-    
+
     // Successful activities
     const [successResult] = await this.db
       .select({ count: count() })
@@ -524,15 +603,15 @@ export class ActivityLoggingService {
       .where(
         and(
           gte(userActivityLogs.timestamp, startTime),
-          eq(userActivityLogs.success, true)
-        )
+          eq(userActivityLogs.success, true),
+        ),
       );
-    
+
     const successfulActivities = successResult?.count || 0;
-    
+
     // Failed activities
     const failedActivities = totalActivities - successfulActivities;
-    
+
     // Unique users
     const uniqueUsersResult = await this.db
       .selectDistinct({ userId: userActivityLogs.userId })
@@ -540,12 +619,12 @@ export class ActivityLoggingService {
       .where(
         and(
           gte(userActivityLogs.timestamp, startTime),
-          isNotNull(userActivityLogs.userId)
-        )
+          isNotNull(userActivityLogs.userId),
+        ),
       );
-    
+
     const uniqueUsers = uniqueUsersResult.length;
-    
+
     // Top actions
     const topActionsResult = await this.db
       .select({
@@ -557,34 +636,34 @@ export class ActivityLoggingService {
       .groupBy(userActivityLogs.action)
       .orderBy(desc(count()))
       .limit(10);
-    
-    const topActions = topActionsResult.map(r => ({
+
+    const topActions = topActionsResult.map((r) => ({
       action: r.action,
       count: r.count,
     }));
-    
+
     // Activity by hour (last 24 hours)
     const hourlyActivity = [];
     for (let i = 0; i < 24; i++) {
       const hourStart = new Date(now.getTime() - (i + 1) * 3600000);
       const hourEnd = new Date(now.getTime() - i * 3600000);
-      
+
       const [hourResult] = await this.db
         .select({ count: count() })
         .from(userActivityLogs)
         .where(
           and(
             gte(userActivityLogs.timestamp, hourStart),
-            lt(userActivityLogs.timestamp, hourEnd)
-          )
+            lt(userActivityLogs.timestamp, hourEnd),
+          ),
         );
-      
+
       hourlyActivity.push({
         hour: 23 - i,
         count: hourResult?.count || 0,
       });
     }
-    
+
     return {
       totalActivities,
       successfulActivities,

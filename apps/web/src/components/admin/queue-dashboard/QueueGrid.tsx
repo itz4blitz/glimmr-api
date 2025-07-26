@@ -1,39 +1,39 @@
-import { QueueCard } from './QueueCard'
+import { QueueCard } from "./QueueCard";
 
 interface QueueStats {
-  name: string
-  displayName: string
-  waiting: number
-  active: number
-  completed: number
-  failed: number
-  paused?: boolean
-  error?: string
-  processingRate?: number
-  avgProcessingTime?: number
-  lastProcessed?: string
+  name: string;
+  displayName: string;
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  paused?: boolean;
+  error?: string;
+  processingRate?: number;
+  avgProcessingTime?: number;
+  lastProcessed?: string;
 }
 
 interface QueueGridProps {
-  queues: QueueStats[]
-  onViewLogs: (queueName: string, displayName: string) => void
-  onPause: (queueName: string) => void
-  onResume: (queueName: string) => void
-  onRetryFailed: (queueName: string) => void
-  onDrain: (queueName: string) => void
-  onConfigure: (queueName: string) => void
-  onTriggerJob?: (queueName: string) => void
+  queues: QueueStats[];
+  onViewLogs: (queueName: string, displayName: string) => void;
+  onPause: (queueName: string) => void;
+  onResume: (queueName: string) => void;
+  onRetryFailed: (queueName: string) => void;
+  onDrain: (queueName: string) => void;
+  onConfigure: (queueName: string) => void;
+  onTriggerJob?: (queueName: string) => void;
 }
 
-export function QueueGrid({ 
-  queues, 
-  onViewLogs, 
-  onPause, 
-  onResume, 
-  onRetryFailed, 
+export function QueueGrid({
+  queues,
+  onViewLogs,
+  onPause,
+  onResume,
+  onRetryFailed,
   onDrain,
   onConfigure,
-  onTriggerJob
+  onTriggerJob,
 }: QueueGridProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -52,5 +52,5 @@ export function QueueGrid({
         />
       ))}
     </div>
-  )
+  );
 }

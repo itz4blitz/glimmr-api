@@ -1,8 +1,8 @@
-import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
-import { DatabaseService } from '../../database/database.service';
-import { jobs, jobLogs } from '../../database/schema';
-import { eq } from 'drizzle-orm';
+import { Job } from "bullmq";
+import { Logger } from "@nestjs/common";
+import { DatabaseService } from "../../database/database.service";
+import { jobs, jobLogs } from "../../database/schema";
+import { eq } from "drizzle-orm";
 
 export interface ProcessorContext {
   logger: Logger;
@@ -30,46 +30,54 @@ export abstract class BaseProcessor {
    */
   async execute(job: Job): Promise<any> {
     const startTime = Date.now();
-    
+
     try {
       // Create database job record
       await this.createJobRecord(job);
-      
+
       // Log job start
-      await this.logToDatabase('info', `Job ${job.name} started`, {
+      await this.logToDatabase("info", `Job ${job.name} started`, {
         queueName: job.queueName,
         attemptNumber: job.attemptsMade,
-        data: job.data
+        data: job.data,
       });
 
       // Execute the actual processing
       const result = await this.process(job);
-      
+
       // Calculate duration
       const duration = Date.now() - startTime;
-      
+
       // Update job record as completed
-      await this.updateJobRecord('completed', result, duration);
-      
+      await this.updateJobRecord("completed", result, duration);
+
       // Log completion
-      await this.logToDatabase('success', `Job ${job.name} completed successfully`, {
-        duration,
-        result: result?.summary || result
-      });
+      await this.logToDatabase(
+        "success",
+        `Job ${job.name} completed successfully`,
+        {
+          duration,
+          result: result?.summary || result,
+        },
+      );
 
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       // Update job record as failed
-      await this.updateJobRecord('failed', null, duration, error);
-      
+      await this.updateJobRecord("failed", null, duration, error);
+
       // Log error
-      await this.logToDatabase('error', `Job ${job.name} failed: ${error.message}`, {
-        error: error.message,
-        stack: error.stack,
-        duration
-      });
+      await this.logToDatabase(
+        "error",
+        `Job ${job.name} failed: ${error.message}`,
+        {
+          error: error.message,
+          stack: error.stack,
+          duration,
+        },
+      );
 
       throw error;
     }
@@ -87,17 +95,17 @@ export abstract class BaseProcessor {
           jobName: job.name,
           description: `${job.queueName} - ${job.name}`,
           queue: job.queueName,
-          status: 'running',
+          status: "running",
           priority: job.opts.priority || 0,
           startedAt: new Date(),
           inputData: JSON.stringify(job.data),
-          createdBy: 'system',
+          createdBy: "system",
         })
         .returning({ id: jobs.id });
 
       this.dbJobId = dbJob.id;
     } catch (error) {
-      this.logger.error('Failed to create job record', error);
+      this.logger.error("Failed to create job record", error);
     }
   }
 
@@ -105,10 +113,10 @@ export abstract class BaseProcessor {
    * Update job record with completion status
    */
   private async updateJobRecord(
-    status: 'completed' | 'failed',
+    status: "completed" | "failed",
     output: any,
     duration: number,
-    error?: Error
+    error?: Error,
   ) {
     if (!this.dbJobId) return;
 
@@ -122,12 +130,12 @@ export abstract class BaseProcessor {
           outputData: output ? JSON.stringify(output) : null,
           errorMessage: error?.message,
           errorStack: error?.stack,
-          progressPercentage: status === 'completed' ? 100 : undefined,
+          progressPercentage: status === "completed" ? 100 : undefined,
           updatedAt: new Date(),
         })
         .where(eq(jobs.id, this.dbJobId));
     } catch (err) {
-      this.logger.error('Failed to update job record', err);
+      this.logger.error("Failed to update job record", err);
     }
   }
 
@@ -135,30 +143,32 @@ export abstract class BaseProcessor {
    * Log message to database
    */
   protected async logToDatabase(
-    level: 'info' | 'warn' | 'error' | 'debug' | 'success',
+    level: "info" | "warn" | "error" | "debug" | "success",
     message: string,
-    data?: any
+    data?: any,
   ) {
     if (!this.dbJobId) return;
 
     try {
-      await this.databaseService.db
-        .insert(jobLogs)
-        .values({
-          jobId: this.dbJobId,
-          level: level === 'success' ? 'info' : level,
-          message,
-          data: data ? JSON.stringify(data) : null,
-        });
+      await this.databaseService.db.insert(jobLogs).values({
+        jobId: this.dbJobId,
+        level: level === "success" ? "info" : level,
+        message,
+        data: data ? JSON.stringify(data) : null,
+      });
     } catch (error) {
-      this.logger.error('Failed to log to database', error);
+      this.logger.error("Failed to log to database", error);
     }
   }
 
   /**
    * Update job progress
    */
-  protected async updateProgress(percentage: number, completedSteps?: number, totalSteps?: number) {
+  protected async updateProgress(
+    percentage: number,
+    completedSteps?: number,
+    totalSteps?: number,
+  ) {
     if (!this.dbJobId) return;
 
     try {
@@ -172,7 +182,7 @@ export abstract class BaseProcessor {
         })
         .where(eq(jobs.id, this.dbJobId));
     } catch (error) {
-      this.logger.error('Failed to update job progress', error);
+      this.logger.error("Failed to update job progress", error);
     }
   }
 
@@ -181,14 +191,14 @@ export abstract class BaseProcessor {
    */
   private getJobType(queueName: string): string {
     const typeMap: Record<string, string> = {
-      'price-file-download': 'data_import',
-      'price-update': 'price_update',
-      'analytics-refresh': 'analytics_calculation',
-      'export-data': 'report_generation',
-      'pra-unified-scan': 'data_import',
-      'pra-file-download': 'data_import',
+      "price-file-download": "data_import",
+      "price-update": "price_update",
+      "analytics-refresh": "analytics_calculation",
+      "export-data": "report_generation",
+      "pra-unified-scan": "data_import",
+      "pra-file-download": "data_import",
     };
 
-    return typeMap[queueName] || 'data_import';
+    return typeMap[queueName] || "data_import";
   }
 }

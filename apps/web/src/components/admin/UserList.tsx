@@ -1,21 +1,26 @@
-import { useState, useEffect } from 'react'
-import { useUserManagementStore } from '@/stores/userManagement'
-import { UserDetailDialog } from './UserDetailDialog'
-import { UserTable } from './user-list/UserTable'
-import { UserTablePagination } from './user-list/UserTablePagination'
-import type { UserSortField } from '@/types/userManagement'
+import { useState, useEffect } from "react";
+import { useUserManagementStore } from "@/stores/userManagement";
+import { UserDetailDialog } from "./UserDetailDialog";
+import { UserTable } from "./user-list/UserTable";
+import { UserTablePagination } from "./user-list/UserTablePagination";
+import type { UserSortField } from "@/types/userManagement";
 
 interface UserListProps {
-  selectedUsers: string[]
-  onUserSelect: (userId: string, selected: boolean) => void
-  onSelectAll: (selected: boolean) => void
-  onUserEdit?: (userId: string) => void
+  selectedUsers: string[];
+  onUserSelect: (userId: string, selected: boolean) => void;
+  onSelectAll: (selected: boolean) => void;
+  onUserEdit?: (userId: string) => void;
 }
 
-export function UserList({ selectedUsers, onUserSelect, onSelectAll, onUserEdit }: UserListProps) {
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<UserSortField>('createdAt')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+export function UserList({
+  selectedUsers,
+  onUserSelect,
+  onSelectAll,
+  onUserEdit,
+}: UserListProps) {
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<UserSortField>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const {
     users,
@@ -26,58 +31,60 @@ export function UserList({ selectedUsers, onUserSelect, onSelectAll, onUserEdit 
     setPagination,
     activateUser,
     deactivateUser,
-    deleteUser
-  } = useUserManagementStore()
+    deleteUser,
+  } = useUserManagementStore();
 
   // Load users when component mounts or sort changes
   useEffect(() => {
     const searchParams = {
       sortBy: sortField,
-      sortOrder: sortOrder
-    }
-    loadUsers(searchParams)
-  }, [sortField, sortOrder, loadUsers])
+      sortOrder: sortOrder,
+    };
+    loadUsers(searchParams);
+  }, [sortField, sortOrder, loadUsers]);
 
   const handleSort = (field: UserSortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortField(field)
-      setSortOrder('asc')
+      setSortField(field);
+      setSortOrder("asc");
     }
-  }
+  };
 
   const handleUserAction = async (userId: string, action: string) => {
     try {
       switch (action) {
-        case 'edit':
+        case "edit":
           if (onUserEdit) {
-            onUserEdit(userId)
+            onUserEdit(userId);
           } else {
-            setSelectedUserId(userId)
+            setSelectedUserId(userId);
           }
-          break
-        case 'activate':
-          await activateUser(userId)
-          break
-        case 'deactivate':
-          await deactivateUser(userId)
-          break
-        case 'delete':
-          const confirmed = window.confirm('Are you sure you want to delete this user?')
+          break;
+        case "activate":
+          await activateUser(userId);
+          break;
+        case "deactivate":
+          await deactivateUser(userId);
+          break;
+        case "delete":
+          const confirmed = window.confirm(
+            "Are you sure you want to delete this user?",
+          );
           if (confirmed) {
-            await deleteUser(userId)
+            await deleteUser(userId);
           }
-          break
+          break;
       }
     } catch (error) {
-      console.error(`Failed to ${action} user:`, error)
+      console.error(`Failed to ${action} user:`, error);
     }
-  }
+  };
 
   const handlePageChange = (page: number) => {
-    setPagination({ page })
-  }
+    setPagination({ page });
+  };
 
   return (
     <div className="bg-background/95 backdrop-blur-sm">
@@ -114,5 +121,5 @@ export function UserList({ selectedUsers, onUserSelect, onSelectAll, onUserEdit 
         onOpenChange={(open) => !open && setSelectedUserId(null)}
       />
     </div>
-  )
+  );
 }

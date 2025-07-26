@@ -1,53 +1,65 @@
-import { useState } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { motion } from 'framer-motion'
-import { Eye, EyeOff, LogIn } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { motion } from "framer-motion";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { toast } from "sonner";
 
-import { useAuthStore } from '@/stores/auth'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { useAuthStore } from "@/stores/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-})
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
-type LoginFormData = z.infer<typeof loginSchema>
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false)
-  const { login, isLoading, error, clearError } = useAuthStore()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading, error, clearError } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/dashboard'
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
-  })
+  });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      clearError()
-      await login(data)
-      toast.success('Login successful! Welcome back.')
-      navigate(from, { replace: true })
+      clearError();
+      await login(data);
+      toast.success("Login successful! Welcome back.");
+      navigate(from, { replace: true });
     } catch (error) {
-      toast.error('Login failed. Please check your credentials.')
+      toast.error("Login failed. Please check your credentials.");
     }
-  }
+  };
 
   return (
     <motion.div
@@ -58,7 +70,9 @@ export function LoginForm() {
     >
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">
+            Welcome back
+          </CardTitle>
           <CardDescription className="text-center">
             Enter your credentials to access your account
           </CardDescription>
@@ -101,7 +115,7 @@ export function LoginForm() {
                     <FormControl>
                       <div className="relative">
                         <Input
-                          type={showPassword ? 'text' : 'password'}
+                          type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           autoComplete="current-password"
                           {...field}
@@ -128,11 +142,7 @@ export function LoginForm() {
                 )}
               />
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -158,7 +168,7 @@ export function LoginForm() {
           </div>
 
           <div className="mt-4 text-center text-sm">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link
               to="/register"
               className="text-primary hover:underline font-medium"
@@ -169,5 +179,5 @@ export function LoginForm() {
         </CardContent>
       </Card>
     </motion.div>
-  )
+  );
 }

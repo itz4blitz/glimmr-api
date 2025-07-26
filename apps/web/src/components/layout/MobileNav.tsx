@@ -1,31 +1,36 @@
-import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Menu, Home, User, Settings, Shield, LogOut } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { useAuthStore } from '@/stores/auth'
-import { ThemeToggle } from '@/components/common/ThemeToggle'
-import { isAdmin } from '@/lib/permissions'
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Menu, Home, User, Settings, Shield, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useAuthStore } from "@/stores/auth";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { isAdmin } from "@/lib/permissions";
 
 export function MobileNav() {
-  const [isOpen, setIsOpen] = useState(false)
-  const { user, logout } = useAuthStore()
-  const location = useLocation()
+  const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useAuthStore();
+  const location = useLocation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Profile', href: '/profile', icon: User },
-    ...(user && isAdmin(user.role) 
-      ? [{ name: 'Admin Panel', href: '/admin', icon: Shield }]
-      : []
-    ),
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ]
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "Profile", href: "/profile", icon: User },
+    ...(user && isAdmin(user.role)
+      ? [{ name: "Admin Panel", href: "/admin", icon: Shield }]
+      : []),
+    { name: "Settings", href: "/settings", icon: Settings },
+  ];
 
   const handleLogout = () => {
-    logout()
-    setIsOpen(false)
-  }
+    logout();
+    setIsOpen(false);
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -45,7 +50,9 @@ export function MobileNav() {
           <div className="flex items-center justify-between pb-4 border-b">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">G</span>
+                <span className="text-primary-foreground font-bold text-sm">
+                  G
+                </span>
               </div>
               <span className="font-semibold text-lg">Glimmr</span>
             </div>
@@ -61,7 +68,9 @@ export function MobileNav() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{user.email}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.role}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user.role}
+                  </p>
                 </div>
               </div>
             </div>
@@ -71,9 +80,9 @@ export function MobileNav() {
           <nav className="flex-1 py-4">
             <ul className="space-y-2">
               {navigation.map((item) => {
-                const Icon = item.icon
-                const isActive = location.pathname === item.href
-                
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+
                 return (
                   <li key={item.name}>
                     <Link
@@ -81,15 +90,15 @@ export function MobileNav() {
                       onClick={() => setIsOpen(false)}
                       className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.name}</span>
                     </Link>
                   </li>
-                )
+                );
               })}
             </ul>
           </nav>
@@ -112,5 +121,5 @@ export function MobileNav() {
         </div>
       </SheetContent>
     </Sheet>
-  )
+  );
 }

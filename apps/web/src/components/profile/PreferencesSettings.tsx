@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useAuthStore } from '@/stores/auth'
-import { useTheme } from '@/hooks/useTheme'
-import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useAuthStore } from "@/stores/auth";
+import { useTheme } from "@/hooks/useTheme";
+import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -15,121 +21,125 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { 
+} from "@/components/ui/form";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { toast } from 'sonner'
-import { 
-  Settings, 
-  Bell, 
-  Palette, 
-  Globe, 
-  Clock, 
-  Calendar,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import {
+  
+  
+  Palette,
+  Globe,
+  
+  
   Loader2,
-  Save
-} from 'lucide-react'
-import { NotificationPreferences } from '@/components/notifications/NotificationPreferences'
+  Save,
+} from "lucide-react";
+import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 
 const preferencesSchema = z.object({
   notificationEmail: z.boolean(),
   notificationPush: z.boolean(),
   notificationSms: z.boolean(),
-  themePreference: z.enum(['light', 'dark']),
+  themePreference: z.enum(["light", "dark"]),
   languagePreference: z.string(),
   timezonePreference: z.string(),
   dateFormat: z.string(),
-  timeFormat: z.enum(['12h', '24h']),
-})
+  timeFormat: z.enum(["12h", "24h"]),
+});
 
-type PreferencesFormData = z.infer<typeof preferencesSchema>
+type PreferencesFormData = z.infer<typeof preferencesSchema>;
 
 const timezones = [
-  { value: 'UTC', label: 'UTC' },
-  { value: 'America/New_York', label: 'Eastern Time (ET)' },
-  { value: 'America/Chicago', label: 'Central Time (CT)' },
-  { value: 'America/Denver', label: 'Mountain Time (MT)' },
-  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
-  { value: 'Europe/London', label: 'London (GMT)' },
-  { value: 'Europe/Paris', label: 'Paris (CET)' },
-  { value: 'Europe/Berlin', label: 'Berlin (CET)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
-  { value: 'Australia/Sydney', label: 'Sydney (AEDT)' },
-]
+  { value: "UTC", label: "UTC" },
+  { value: "America/New_York", label: "Eastern Time (ET)" },
+  { value: "America/Chicago", label: "Central Time (CT)" },
+  { value: "America/Denver", label: "Mountain Time (MT)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  { value: "Europe/London", label: "London (GMT)" },
+  { value: "Europe/Paris", label: "Paris (CET)" },
+  { value: "Europe/Berlin", label: "Berlin (CET)" },
+  { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+  { value: "Asia/Shanghai", label: "Shanghai (CST)" },
+  { value: "Australia/Sydney", label: "Sydney (AEDT)" },
+];
 
 const languages = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'pt', label: 'Português' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
-  { value: 'zh', label: '中文' },
-]
+  { value: "en", label: "English" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "it", label: "Italiano" },
+  { value: "pt", label: "Português" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
+  { value: "zh", label: "中文" },
+];
 
 const dateFormats = [
-  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)' },
-  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (UK)' },
-  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (ISO)' },
-  { value: 'DD.MM.YYYY', label: 'DD.MM.YYYY (DE)' },
-]
+  { value: "MM/DD/YYYY", label: "MM/DD/YYYY (US)" },
+  { value: "DD/MM/YYYY", label: "DD/MM/YYYY (UK)" },
+  { value: "YYYY-MM-DD", label: "YYYY-MM-DD (ISO)" },
+  { value: "DD.MM.YYYY", label: "DD.MM.YYYY (DE)" },
+];
 
 export function PreferencesSettings() {
-  const { user, updateUser } = useAuthStore()
-  const { theme, setTheme } = useTheme()
-  const { setHasUnsavedChanges, registerSaveFunction } = useUnsavedChangesContext()
-  const [isLoading, setIsLoading] = useState(false)
-  const [hasChanges, setHasChanges] = useState(false)
+  const { user, updateUser } = useAuthStore();
+  const { theme, setTheme } = useTheme();
+  const { setHasUnsavedChanges, registerSaveFunction } =
+    useUnsavedChangesContext();
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const defaultValues = {
     notificationEmail: user?.preferences?.notificationEmail ?? true,
     notificationPush: user?.preferences?.notificationPush ?? true,
     notificationSms: user?.preferences?.notificationSms ?? false,
-    themePreference: (user?.preferences?.themePreference as 'light' | 'dark') ?? theme,
-    languagePreference: user?.preferences?.languagePreference ?? 'en',
-    timezonePreference: user?.preferences?.timezonePreference ?? 'UTC',
-    dateFormat: user?.preferences?.dateFormat ?? 'MM/DD/YYYY',
-    timeFormat: (user?.preferences?.timeFormat as '12h' | '24h') ?? '12h',
-  }
+    themePreference:
+      (user?.preferences?.themePreference as "light" | "dark") ?? theme,
+    languagePreference: user?.preferences?.languagePreference ?? "en",
+    timezonePreference: user?.preferences?.timezonePreference ?? "UTC",
+    dateFormat: user?.preferences?.dateFormat ?? "MM/DD/YYYY",
+    timeFormat: (user?.preferences?.timeFormat as "12h" | "24h") ?? "12h",
+  };
 
   const form = useForm<PreferencesFormData>({
     resolver: zodResolver(preferencesSchema),
     defaultValues,
-  })
+  });
 
   // Watch for changes to enable/disable save button
-  const watchedValues = form.watch()
+  const watchedValues = form.watch();
 
   useEffect(() => {
-    if (!user) return
+    if (!user) return;
 
-    const hasFormChanges = Object.keys(defaultValues).some(key => {
-      return watchedValues[key as keyof PreferencesFormData] !== defaultValues[key as keyof typeof defaultValues]
-    })
-    setHasChanges(hasFormChanges)
-    setHasUnsavedChanges(hasFormChanges)
-  }, [watchedValues, user, setHasUnsavedChanges])
+    const hasFormChanges = Object.keys(defaultValues).some((key) => {
+      return (
+        watchedValues[key as keyof PreferencesFormData] !==
+        defaultValues[key as keyof typeof defaultValues]
+      );
+    });
+    setHasChanges(hasFormChanges);
+    setHasUnsavedChanges(hasFormChanges);
+  }, [watchedValues, user, setHasUnsavedChanges]);
 
   const savePreferences = async () => {
-    const data = form.getValues()
-    if (!user) return
+    const data = form.getValues();
+    if (!user) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // Update theme immediately
-      setTheme(data.themePreference)
+      setTheme(data.themePreference);
 
       // Here you would call your API to update preferences
-      await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
 
       // Update user preferences in store
       await updateUser({
@@ -138,27 +148,27 @@ export function PreferencesSettings() {
           ...user.preferences,
           ...data,
         },
-      })
+      });
 
-      setHasChanges(false)
-      setHasUnsavedChanges(false)
+      setHasChanges(false);
+      setHasUnsavedChanges(false);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const onSubmit = async (data: PreferencesFormData) => {
-    await savePreferences()
-    toast.success('Preferences updated successfully!', {
-      description: 'Your settings have been saved and applied.',
+    await savePreferences();
+    toast.success("Preferences updated successfully!", {
+      description: "Your settings have been saved and applied.",
       duration: 3000,
-    })
-  }
+    });
+  };
 
   // Register save function with context
   useEffect(() => {
-    registerSaveFunction(savePreferences)
-  }, [registerSaveFunction])
+    registerSaveFunction(savePreferences);
+  }, [registerSaveFunction]);
 
   return (
     <Form {...form}>
@@ -184,7 +194,10 @@ export function PreferencesSettings() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Theme</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger className="select-enhanced">
                         <SelectValue placeholder="Select a theme" />
@@ -224,7 +237,10 @@ export function PreferencesSettings() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Language</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger className="select-enhanced">
                           <SelectValue placeholder="Select a language" />
@@ -232,7 +248,10 @@ export function PreferencesSettings() {
                       </FormControl>
                       <SelectContent className="select-content-enhanced">
                         {languages.map((language) => (
-                          <SelectItem key={language.value} value={language.value}>
+                          <SelectItem
+                            key={language.value}
+                            value={language.value}
+                          >
                             {language.label}
                           </SelectItem>
                         ))}
@@ -249,7 +268,10 @@ export function PreferencesSettings() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Timezone</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger className="select-enhanced">
                           <SelectValue placeholder="Select a timezone" />
@@ -257,7 +279,10 @@ export function PreferencesSettings() {
                       </FormControl>
                       <SelectContent className="select-content-enhanced">
                         {timezones.map((timezone) => (
-                          <SelectItem key={timezone.value} value={timezone.value}>
+                          <SelectItem
+                            key={timezone.value}
+                            value={timezone.value}
+                          >
                             {timezone.label}
                           </SelectItem>
                         ))}
@@ -276,7 +301,10 @@ export function PreferencesSettings() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Date Format</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger className="select-enhanced">
                           <SelectValue placeholder="Select date format" />
@@ -301,7 +329,10 @@ export function PreferencesSettings() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Time Format</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger className="select-enhanced">
                           <SelectValue placeholder="Select time format" />
@@ -322,7 +353,11 @@ export function PreferencesSettings() {
 
         {/* Save Button */}
         <div className="flex justify-start pt-4 border-t border-border/50 mt-6">
-          <Button type="submit" disabled={isLoading || !hasChanges} className="button-primary-enhanced w-full sm:w-auto">
+          <Button
+            type="submit"
+            disabled={isLoading || !hasChanges}
+            className="button-primary-enhanced w-full sm:w-auto"
+          >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
             Save Preferences
@@ -330,5 +365,5 @@ export function PreferencesSettings() {
         </div>
       </form>
     </Form>
-  )
+  );
 }

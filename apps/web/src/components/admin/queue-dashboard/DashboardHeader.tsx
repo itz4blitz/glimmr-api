@@ -1,8 +1,8 @@
-import { Button } from '@/components/ui/button'
-import { Database, FileText } from 'lucide-react'
+import { Button } from "@/components/ui/button";
+import { Database, FileText } from "lucide-react";
 
 interface DashboardHeaderProps {
-  onViewAllLogs: () => void
+  onViewAllLogs: () => void;
 }
 
 export function DashboardHeader({ onViewAllLogs }: DashboardHeaderProps) {
@@ -28,5 +28,5 @@ export function DashboardHeader({ onViewAllLogs }: DashboardHeaderProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

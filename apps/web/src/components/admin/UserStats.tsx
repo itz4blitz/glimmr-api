@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
   UserCheck,
@@ -12,40 +18,45 @@ import {
   TrendingDown,
   Calendar,
   Activity,
-  AlertTriangle
-} from 'lucide-react'
+  AlertTriangle,
+} from "lucide-react";
 
 interface UserStatsData {
-  totalUsers: number
-  activeUsers: number
-  inactiveUsers: number
-  verifiedUsers: number
-  unverifiedUsers: number
-  adminUsers: number
-  regularUsers: number
-  newUsersThisMonth: number
-  newUsersThisWeek: number
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  verifiedUsers: number;
+  unverifiedUsers: number;
+  adminUsers: number;
+  regularUsers: number;
+  newUsersThisMonth: number;
+  newUsersThisWeek: number;
 }
-
-
 
 interface StatCardProps {
-  title: string
-  value: number
-  description: string
-  icon: React.ReactNode
+  title: string;
+  value: number;
+  description: string;
+  icon: React.ReactNode;
   trend?: {
-    value: number
-    isPositive: boolean
-    period: string
-  }
+    value: number;
+    isPositive: boolean;
+    period: string;
+  };
   badge?: {
-    text: string
-    variant: 'default' | 'secondary' | 'destructive' | 'outline'
-  }
+    text: string;
+    variant: "default" | "secondary" | "destructive" | "outline";
+  };
 }
 
-function StatCard({ title, value, description, icon, trend, badge }: StatCardProps) {
+function StatCard({
+  title,
+  value,
+  description,
+  icon,
+  trend,
+  badge,
+}: StatCardProps) {
   return (
     <div className="bg-gradient-to-br from-background to-muted/20 rounded-xl shadow-2xl border border-border/20 overflow-hidden group hover:shadow-3xl transition-all duration-300">
       <div className="px-6 py-4 bg-gradient-to-r from-muted/30 to-muted/20 border-b border-border/20">
@@ -79,44 +90,47 @@ function StatCard({ title, value, description, icon, trend, badge }: StatCardPro
             ) : (
               <TrendingDown className="h-4 w-4 text-red-500" />
             )}
-            <span className={`text-sm font-medium ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
-              {trend.isPositive ? '+' : ''}{trend.value}% {trend.period}
+            <span
+              className={`text-sm font-medium ${trend.isPositive ? "text-green-500" : "text-red-500"}`}
+            >
+              {trend.isPositive ? "+" : ""}
+              {trend.value}% {trend.period}
             </span>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export function UserStats() {
-  const [stats, setStats] = useState<UserStatsData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<UserStatsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
       try {
         // Fetch real stats from API
-        const response = await fetch('/api/v1/admin/users/stats')
+        const response = await fetch("/api/v1/users/stats");
         if (!response.ok) {
-          throw new Error(`Failed to fetch user stats: ${response.status}`)
+          throw new Error(`Failed to fetch user stats: ${response.status}`);
         }
-        const data = await response.json()
-        setStats(data)
+        const data = await response.json();
+        setStats(data);
       } catch (error) {
-        console.error('Failed to fetch user stats:', error)
-        setError(error.message)
-        setStats(null)
+        console.error("Failed to fetch user stats:", error);
+        setError(error.message);
+        setStats(null);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchStats()
-  }, [])
+    fetchStats();
+  }, []);
 
   if (isLoading) {
     return (
@@ -135,7 +149,7 @@ export function UserStats() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !stats) {
@@ -144,19 +158,27 @@ export function UserStats() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
             <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Unable to Load User Statistics</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Unable to Load User Statistics
+            </h3>
             <p className="text-muted-foreground text-center">
-              {error || 'Failed to fetch user statistics from the API'}
+              {error || "Failed to fetch user statistics from the API"}
             </p>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const activePercentage = Math.round((stats.activeUsers / stats.totalUsers) * 100)
-  const verifiedPercentage = Math.round((stats.verifiedUsers / stats.totalUsers) * 100)
-  const adminPercentage = Math.round((stats.adminUsers / stats.totalUsers) * 100)
+  const activePercentage = Math.round(
+    (stats.activeUsers / stats.totalUsers) * 100,
+  );
+  const verifiedPercentage = Math.round(
+    (stats.verifiedUsers / stats.totalUsers) * 100,
+  );
+  const adminPercentage = Math.round(
+    (stats.adminUsers / stats.totalUsers) * 100,
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -170,7 +192,7 @@ export function UserStats() {
           trend={{
             value: 12,
             isPositive: true,
-            period: "from last month"
+            period: "from last month",
           }}
         />
 
@@ -181,7 +203,7 @@ export function UserStats() {
           icon={<UserCheck className="h-4 w-4 text-green-500" />}
           badge={{
             text: `${activePercentage}%`,
-            variant: activePercentage > 90 ? 'default' : 'secondary'
+            variant: activePercentage > 90 ? "default" : "secondary",
           }}
         />
 
@@ -192,7 +214,7 @@ export function UserStats() {
           icon={<Mail className="h-4 w-4 text-blue-500" />}
           badge={{
             text: `${verifiedPercentage}%`,
-            variant: verifiedPercentage > 95 ? 'default' : 'secondary'
+            variant: verifiedPercentage > 95 ? "default" : "secondary",
           }}
         />
 
@@ -203,7 +225,7 @@ export function UserStats() {
           icon={<Shield className="h-4 w-4 text-purple-500" />}
           badge={{
             text: `${adminPercentage}%`,
-            variant: 'outline'
+            variant: "outline",
           }}
         />
       </div>
@@ -228,7 +250,9 @@ export function UserStats() {
                 <span className="text-sm font-medium">Active Users</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">{stats.activeUsers.toLocaleString()}</span>
+                <span className="text-sm font-bold">
+                  {stats.activeUsers.toLocaleString()}
+                </span>
                 <Badge variant="default">{activePercentage}%</Badge>
               </div>
             </div>
@@ -239,14 +263,16 @@ export function UserStats() {
                 <span className="text-sm font-medium">Inactive Users</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">{stats.inactiveUsers.toLocaleString()}</span>
+                <span className="text-sm font-bold">
+                  {stats.inactiveUsers.toLocaleString()}
+                </span>
                 <Badge variant="secondary">{100 - activePercentage}%</Badge>
               </div>
             </div>
 
             <div className="w-full bg-secondary rounded-full h-2">
-              <div 
-                className="bg-green-500 h-2 rounded-full" 
+              <div
+                className="bg-green-500 h-2 rounded-full"
                 style={{ width: `${activePercentage}%` }}
               ></div>
             </div>
@@ -271,7 +297,9 @@ export function UserStats() {
                 <span className="text-sm font-medium">Verified</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">{stats.verifiedUsers.toLocaleString()}</span>
+                <span className="text-sm font-bold">
+                  {stats.verifiedUsers.toLocaleString()}
+                </span>
                 <Badge variant="default">{verifiedPercentage}%</Badge>
               </div>
             </div>
@@ -282,14 +310,16 @@ export function UserStats() {
                 <span className="text-sm font-medium">Unverified</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">{stats.unverifiedUsers.toLocaleString()}</span>
+                <span className="text-sm font-bold">
+                  {stats.unverifiedUsers.toLocaleString()}
+                </span>
                 <Badge variant="destructive">{100 - verifiedPercentage}%</Badge>
               </div>
             </div>
 
             <div className="w-full bg-secondary rounded-full h-2">
-              <div 
-                className="bg-green-500 h-2 rounded-full" 
+              <div
+                className="bg-green-500 h-2 rounded-full"
                 style={{ width: `${verifiedPercentage}%` }}
               ></div>
             </div>
@@ -309,11 +339,16 @@ export function UserStats() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.newUsersThisWeek}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((stats.newUsersThisWeek / stats.totalUsers) * 100 * 100) / 100}% of total users
+              {Math.round(
+                (stats.newUsersThisWeek / stats.totalUsers) * 100 * 100,
+              ) / 100}
+              % of total users
             </p>
             <div className="flex items-center pt-1">
               <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-xs ml-1 text-green-500">+15% from last week</span>
+              <span className="text-xs ml-1 text-green-500">
+                +15% from last week
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -328,11 +363,16 @@ export function UserStats() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.newUsersThisMonth}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((stats.newUsersThisMonth / stats.totalUsers) * 100 * 100) / 100}% of total users
+              {Math.round(
+                (stats.newUsersThisMonth / stats.totalUsers) * 100 * 100,
+              ) / 100}
+              % of total users
             </p>
             <div className="flex items-center pt-1">
               <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-xs ml-1 text-green-500">+8% from last month</span>
+              <span className="text-xs ml-1 text-green-500">
+                +8% from last month
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -355,8 +395,8 @@ export function UserStats() {
                 <span className="font-medium">{stats.adminUsers}</span>
               </div>
               <div className="w-full bg-secondary rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full" 
+                <div
+                  className="bg-blue-500 h-2 rounded-full"
                   style={{ width: `${100 - adminPercentage}%` }}
                 ></div>
               </div>
@@ -365,5 +405,5 @@ export function UserStats() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

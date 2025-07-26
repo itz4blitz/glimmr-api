@@ -37,6 +37,7 @@ Glimmr API is a comprehensive TypeScript monorepo that automates the collection 
 ### Development Setup
 
 1. **Clone and install dependencies**:
+
 ```bash
 git clone <repository-url>
 cd glimmr-api
@@ -44,6 +45,7 @@ pnpm install
 ```
 
 2. **Start development environment**:
+
 ```bash
 # Option A: Start just infrastructure services (recommended for development)
 pnpm dev:services
@@ -56,6 +58,7 @@ cp apps/api/.env.production.example apps/api/.env
 ```
 
 3. **Set up database**:
+
 ```bash
 cd apps/api
 pnpm db:migrate    # Apply migrations
@@ -63,6 +66,7 @@ pnpm db:seed       # Seed initial data
 ```
 
 4. **Start development server**:
+
 ```bash
 # Option A: Start API bare metal (faster, better for development)
 cd apps/api && pnpm start:dev
@@ -137,6 +141,7 @@ apps/api/src/
 ## Development Commands
 
 ### Database Operations
+
 ```bash
 cd apps/api
 pnpm db:generate      # Generate migrations from schema changes
@@ -147,6 +152,7 @@ pnpm db:seed         # Seed initial data
 ```
 
 ### Code Quality
+
 ```bash
 pnpm lint            # Fix linting issues
 pnpm format          # Format code with Prettier
@@ -154,6 +160,7 @@ pnpm check-types     # TypeScript type checking
 ```
 
 ### Testing
+
 ```bash
 cd apps/api
 pnpm test            # Run unit tests
@@ -163,6 +170,7 @@ pnpm test:e2e        # Run end-to-end tests
 ```
 
 ### Build & Production
+
 ```bash
 pnpm build           # Build all packages
 cd apps/api && pnpm start:prod  # Run production build
@@ -203,6 +211,7 @@ curl http://localhost:3000/api/v1/jobs/status
 ### Health Monitoring
 
 The application provides comprehensive health checks:
+
 - Database connectivity
 - Redis connectivity
 - Storage service availability

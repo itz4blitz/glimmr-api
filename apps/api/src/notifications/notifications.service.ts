@@ -1,12 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common'
-import { DatabaseService } from '../database/database.service'
-import { notifications, notificationPreferences } from '../database/schema'
-import { eq, desc, and, or, isNull } from 'drizzle-orm'
-import { CreateNotificationDto, UpdateNotificationDto, NotificationFiltersDto } from './dto/notifications.dto'
+import { Injectable, Logger } from "@nestjs/common";
+import { DatabaseService } from "../database/database.service";
+import { notifications, notificationPreferences } from "../database/schema";
+import { eq, desc, and, or, isNull } from "drizzle-orm";
+import {
+  CreateNotificationDto,
+  UpdateNotificationDto,
+  NotificationFiltersDto,
+} from "./dto/notifications.dto";
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name)
+  private readonly logger = new Logger(NotificationsService.name);
 
   constructor(private readonly databaseService: DatabaseService) {}
 
@@ -20,138 +24,140 @@ export class NotificationsService {
       .values({
         ...createNotificationDto,
         type: createNotificationDto.type as any,
-        priority: (createNotificationDto.priority || 'medium') as any
+        priority: (createNotificationDto.priority || "medium") as any,
       })
-      .returning()
+      .returning();
 
-    this.logger.log(`Created notification: ${notification.id}`)
-    return notification
+    this.logger.log(`Created notification: ${notification.id}`);
+    return notification;
   }
 
   async findAll(userId?: string, filters?: NotificationFiltersDto) {
     const query = this.db
       .select()
       .from(notifications)
-      .orderBy(desc(notifications.createdAt))
+      .orderBy(desc(notifications.createdAt));
 
-    const conditions = []
-    
+    const conditions = [];
+
     if (userId) {
-      conditions.push(eq(notifications.userId, userId))
+      conditions.push(eq(notifications.userId, userId));
     }
 
     if (filters?.read !== undefined) {
-      conditions.push(eq(notifications.read, filters.read))
+      conditions.push(eq(notifications.read, filters.read));
     }
 
     if (filters?.type) {
-      conditions.push(eq(notifications.type, filters.type as any))
+      conditions.push(eq(notifications.type, filters.type as any));
     }
 
     if (filters?.priority) {
-      conditions.push(eq(notifications.priority, filters.priority as any))
+      conditions.push(eq(notifications.priority, filters.priority as any));
     }
 
     if (conditions.length > 0) {
-      query.where(and(...conditions))
+      query.where(and(...conditions));
     }
 
     if (filters?.limit) {
-      query.limit(filters.limit)
+      query.limit(filters.limit);
     }
 
     if (filters?.offset) {
-      query.offset(filters.offset)
+      query.offset(filters.offset);
     }
 
-    return await query
+    return await query;
   }
 
   async findOne(id: string, userId?: string) {
-    const conditions = [eq(notifications.id, id)]
-    
+    const conditions = [eq(notifications.id, id)];
+
     if (userId) {
-      conditions.push(eq(notifications.userId, userId))
+      conditions.push(eq(notifications.userId, userId));
     }
 
     const [notification] = await this.db
       .select()
       .from(notifications)
-      .where(and(...conditions))
+      .where(and(...conditions));
 
-    return notification
+    return notification;
   }
 
-  async update(id: string, updateNotificationDto: UpdateNotificationDto, userId?: string) {
-    const conditions = [eq(notifications.id, id)]
-    
+  async update(
+    id: string,
+    updateNotificationDto: UpdateNotificationDto,
+    userId?: string,
+  ) {
+    const conditions = [eq(notifications.id, id)];
+
     if (userId) {
-      conditions.push(eq(notifications.userId, userId))
+      conditions.push(eq(notifications.userId, userId));
     }
 
     const updateData: any = {
       ...updateNotificationDto,
-      updatedAt: new Date()
-    }
+      updatedAt: new Date(),
+    };
 
     if (updateNotificationDto.read === true && !updateData.readAt) {
-      updateData.readAt = new Date()
+      updateData.readAt = new Date();
     }
 
     const [updated] = await this.db
       .update(notifications)
       .set(updateData)
       .where(and(...conditions))
-      .returning()
+      .returning();
 
-    return updated
+    return updated;
   }
 
   async markAsRead(id: string, userId?: string) {
-    return this.update(id, { read: true }, userId)
+    return this.update(id, { read: true }, userId);
   }
 
   async markAllAsRead(userId: string) {
     await this.db
       .update(notifications)
-      .set({ 
-        read: true, 
+      .set({
+        read: true,
         readAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
-      .where(and(
-        eq(notifications.userId, userId),
-        eq(notifications.read, false)
-      ))
+      .where(
+        and(eq(notifications.userId, userId), eq(notifications.read, false)),
+      );
 
-    return { success: true }
+    return { success: true };
   }
 
   async delete(id: string, userId?: string) {
-    const conditions = [eq(notifications.id, id)]
-    
+    const conditions = [eq(notifications.id, id)];
+
     if (userId) {
-      conditions.push(eq(notifications.userId, userId))
+      conditions.push(eq(notifications.userId, userId));
     }
 
     const [deleted] = await this.db
       .delete(notifications)
       .where(and(...conditions))
-      .returning()
+      .returning();
 
-    return deleted
+    return deleted;
   }
 
   async getUnreadCount(userId: string) {
     const result = await this.db
       .select({ count: notifications.id })
       .from(notifications)
-      .where(and(
-        eq(notifications.userId, userId),
-        eq(notifications.read, false)
-      ))
+      .where(
+        and(eq(notifications.userId, userId), eq(notifications.read, false)),
+      );
 
-    return { count: result.length }
+    return { count: result.length };
   }
 
   // Notification preferences
@@ -159,19 +165,19 @@ export class NotificationsService {
     const [preferences] = await this.db
       .select()
       .from(notificationPreferences)
-      .where(eq(notificationPreferences.userId, userId))
+      .where(eq(notificationPreferences.userId, userId));
 
     // If no preferences exist, create default ones
     if (!preferences) {
       const [newPreferences] = await this.db
         .insert(notificationPreferences)
         .values({ userId })
-        .returning()
-      
-      return newPreferences
+        .returning();
+
+      return newPreferences;
     }
 
-    return preferences
+    return preferences;
   }
 
   async updatePreferences(userId: string, updatePreferencesDto: any) {
@@ -179,10 +185,10 @@ export class NotificationsService {
       .update(notificationPreferences)
       .set({
         ...updatePreferencesDto,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(notificationPreferences.userId, userId))
-      .returning()
+      .returning();
 
     // If no preferences existed, create them
     if (!updated) {
@@ -190,32 +196,44 @@ export class NotificationsService {
         .insert(notificationPreferences)
         .values({
           userId,
-          ...updatePreferencesDto
+          ...updatePreferencesDto,
         })
-        .returning()
-      
-      return created
+        .returning();
+
+      return created;
     }
 
-    return updated
+    return updated;
   }
 
   // Job-related notifications
-  async createJobNotification(jobId: string, userId: string, type: 'job_success' | 'job_failure' | 'job_warning', title: string, message: string, data?: any) {
-    const preferences = await this.getPreferences(userId)
-    
+  async createJobNotification(
+    jobId: string,
+    userId: string,
+    type: "job_success" | "job_failure" | "job_warning",
+    title: string,
+    message: string,
+    data?: any,
+  ) {
+    const preferences = await this.getPreferences(userId);
+
     // Check if user wants this type of notification
     const shouldNotify = {
       job_success: preferences.jobSuccessEnabled,
       job_failure: preferences.jobFailureEnabled,
-      job_warning: preferences.jobWarningEnabled
-    }
+      job_warning: preferences.jobWarningEnabled,
+    };
 
     if (!preferences.inAppEnabled || !shouldNotify[type]) {
-      return null
+      return null;
     }
 
-    const priority = type === 'job_failure' ? 'high' : type === 'job_warning' ? 'medium' : 'low'
+    const priority =
+      type === "job_failure"
+        ? "high"
+        : type === "job_warning"
+          ? "medium"
+          : "low";
 
     return this.create({
       userId,
@@ -224,7 +242,7 @@ export class NotificationsService {
       priority: priority as any,
       title,
       message,
-      data
-    })
+      data,
+    });
   }
 }

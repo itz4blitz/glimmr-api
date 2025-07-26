@@ -1,2 +1,2 @@
 // Turbo generators index file
-export * from './config';
+export * from "./config";

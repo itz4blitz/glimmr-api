@@ -1,7 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppService } from './app.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { AppService } from "./app.service";
 
-describe('AppService', () => {
+describe("AppService", () => {
   let service: AppService;
 
   beforeEach(async () => {
@@ -12,27 +12,29 @@ describe('AppService', () => {
     service = module.get<AppService>(AppService);
   });
 
-  describe('getApiInfo', () => {
-    it('should be defined', () => {
+  describe("getApiInfo", () => {
+    it("should be defined", () => {
       expect(service).toBeDefined();
     });
 
-    it('should return an object', () => {
+    it("should return an object", () => {
       const result = service.getApiInfo();
-      expect(typeof result).toBe('object');
+      expect(typeof result).toBe("object");
     });
 
-    it('should return api info with required properties', () => {
+    it("should return api info with required properties", () => {
       const result = service.getApiInfo();
-      expect(result.name).toBe('Glimmr API');
-      expect(result.version).toBe('1.0.0');
-      expect(result.description).toBe('Hospital pricing data aggregation and analytics platform');
-      expect(result.status).toBe('operational');
+      expect(result.name).toBe("Glimmr API");
+      expect(result.version).toBe("1.0.0");
+      expect(result.description).toBe(
+        "Hospital pricing data aggregation and analytics platform",
+      );
+      expect(result.status).toBe("operational");
       expect(result.timestamp).toBeDefined();
       expect(result.endpoints).toBeDefined();
     });
 
-    it('should return consistent result', () => {
+    it("should return consistent result", () => {
       const result1 = service.getApiInfo();
       const result2 = service.getApiInfo();
       expect(result1.name).toBe(result2.name);
@@ -41,14 +43,14 @@ describe('AppService', () => {
       expect(result1.status).toBe(result2.status);
     });
 
-    it('should return endpoints object', () => {
+    it("should return endpoints object", () => {
       const result = service.getApiInfo();
       expect(result.endpoints).toBeDefined();
-      expect(result.endpoints.health).toBe('/api/v1/health');
-      expect(result.endpoints.docs).toBe('/api/v1/docs');
+      expect(result.endpoints.health).toBe("/api/v1/health");
+      expect(result.endpoints.docs).toBe("/api/v1/docs");
     });
 
-    it('should return valid timestamp', () => {
+    it("should return valid timestamp", () => {
       const result = service.getApiInfo();
       const timestamp = new Date(result.timestamp);
       expect(timestamp.getTime()).not.toBeNaN();

@@ -1,12 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { UsersService } from '../../users/users.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { JwtAuthGuard } from "./jwt-auth.guard";
+import { UsersService } from "../../users/users.service";
 
-describe('JwtAuthGuard', () => {
+describe("JwtAuthGuard", () => {
   let guard: JwtAuthGuard;
   let jwtService: jest.Mocked<JwtService>;
   let usersService: jest.Mocked<UsersService>;
@@ -30,7 +30,7 @@ describe('JwtAuthGuard', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('test-secret'),
+            get: jest.fn().mockReturnValue("test-secret"),
           },
         },
         {
@@ -47,7 +47,7 @@ describe('JwtAuthGuard', () => {
     usersService = module.get(UsersService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(guard).toBeDefined();
   });
 

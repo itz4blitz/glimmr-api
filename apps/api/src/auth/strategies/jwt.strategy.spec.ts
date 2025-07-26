@@ -1,22 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './jwt.strategy';
-import { UsersService } from '../../users/users.service';
-import { User } from '../../database/schema/users';
+import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
+import { JwtStrategy } from "./jwt.strategy";
+import { UsersService } from "../../users/users.service";
+import { User } from "../../database/schema/users";
 
-describe('JwtStrategy', () => {
+describe("JwtStrategy", () => {
   let strategy: JwtStrategy;
   let usersService: jest.Mocked<UsersService>;
   let configService: jest.Mocked<ConfigService>;
 
   const mockUser: User = {
-    id: 'user-123',
-    email: 'testuser@example.com',
-    password: 'hashedpassword',
-    role: 'api-user',
-    apiKey: 'gapi_test123',
-    firstName: 'Test',
-    lastName: 'User',
+    id: "user-123",
+    email: "testuser@example.com",
+    password: "hashedpassword",
+    role: "api-user",
+    apiKey: "gapi_test123",
+    firstName: "Test",
+    lastName: "User",
     isActive: true,
     lastLoginAt: null,
     emailVerified: false,
@@ -32,7 +32,7 @@ describe('JwtStrategy', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('test-secret'),
+            get: jest.fn().mockReturnValue("test-secret"),
           },
         },
         {
@@ -49,16 +49,16 @@ describe('JwtStrategy', () => {
     configService = module.get(ConfigService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(strategy).toBeDefined();
   });
 
-  describe('validate', () => {
-    it('should return user object when user exists', async () => {
+  describe("validate", () => {
+    it("should return user object when user exists", async () => {
       const payload = {
-        sub: 'user-123',
-        email: 'testuser@example.com',
-        role: 'api-user',
+        sub: "user-123",
+        email: "testuser@example.com",
+        role: "api-user",
       };
 
       usersService.findById.mockResolvedValue(mockUser);
@@ -70,15 +70,15 @@ describe('JwtStrategy', () => {
         email: mockUser.email,
         role: mockUser.role,
       });
-      expect(usersService.findById).toHaveBeenCalledWith('user-123');
+      expect(usersService.findById).toHaveBeenCalledWith("user-123");
     });
 
-    it('should return user object for admin user', async () => {
-      const adminUser = { ...mockUser, role: 'admin' as const };
+    it("should return user object for admin user", async () => {
+      const adminUser = { ...mockUser, role: "admin" as const };
       const payload = {
-        sub: 'admin-123',
-        email: 'admin@example.com',
-        role: 'admin',
+        sub: "admin-123",
+        email: "admin@example.com",
+        role: "admin",
       };
 
       usersService.findById.mockResolvedValue(adminUser);
@@ -92,11 +92,11 @@ describe('JwtStrategy', () => {
       });
     });
 
-    it('should handle user not found', async () => {
+    it("should handle user not found", async () => {
       const payload = {
-        sub: 'nonexistent-123',
-        email: 'nonexistent@example.com',
-        role: 'api-user',
+        sub: "nonexistent-123",
+        email: "nonexistent@example.com",
+        role: "api-user",
       };
 
       usersService.findById.mockResolvedValue(null);
@@ -104,40 +104,42 @@ describe('JwtStrategy', () => {
       await expect(strategy.validate(payload)).rejects.toThrow();
     });
 
-    it('should handle database errors', async () => {
+    it("should handle database errors", async () => {
       const payload = {
-        sub: 'user-123',
-        email: 'testuser@example.com',
-        role: 'api-user',
+        sub: "user-123",
+        email: "testuser@example.com",
+        role: "api-user",
       };
 
-      usersService.findById.mockRejectedValue(new Error('Database error'));
+      usersService.findById.mockRejectedValue(new Error("Database error"));
 
-      await expect(strategy.validate(payload)).rejects.toThrow('Database error');
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        "Database error",
+      );
     });
 
-    it('should extract user ID from sub field', async () => {
+    it("should extract user ID from sub field", async () => {
       const payload = {
-        sub: 'different-id-456',
-        email: 'testuser@example.com',
-        role: 'api-user',
+        sub: "different-id-456",
+        email: "testuser@example.com",
+        role: "api-user",
       };
 
       usersService.findById.mockResolvedValue(mockUser);
 
       await strategy.validate(payload);
 
-      expect(usersService.findById).toHaveBeenCalledWith('different-id-456');
+      expect(usersService.findById).toHaveBeenCalledWith("different-id-456");
     });
 
-    it('should handle payload with additional fields', async () => {
+    it("should handle payload with additional fields", async () => {
       const payload = {
-        sub: 'user-123',
-        email: 'testuser@example.com',
-        role: 'api-user',
+        sub: "user-123",
+        email: "testuser@example.com",
+        role: "api-user",
         iat: 1234567890,
         exp: 1234567890,
-        extraField: 'should be ignored',
+        extraField: "should be ignored",
       };
 
       usersService.findById.mockResolvedValue(mockUser);
@@ -151,41 +153,41 @@ describe('JwtStrategy', () => {
       });
     });
 
-    it('should not include sensitive fields in response', async () => {
+    it("should not include sensitive fields in response", async () => {
       const payload = {
-        sub: 'user-123',
-        email: 'testuser@example.com',
-        role: 'api-user',
+        sub: "user-123",
+        email: "testuser@example.com",
+        role: "api-user",
       };
 
       usersService.findById.mockResolvedValue(mockUser);
 
       const result = await strategy.validate(payload);
 
-      expect(result).not.toHaveProperty('password');
-      expect(result).not.toHaveProperty('apiKey');
-      expect(result).not.toHaveProperty('createdAt');
-      expect(result).not.toHaveProperty('updatedAt');
+      expect(result).not.toHaveProperty("password");
+      expect(result).not.toHaveProperty("apiKey");
+      expect(result).not.toHaveProperty("createdAt");
+      expect(result).not.toHaveProperty("updatedAt");
     });
 
-    it('should handle empty payload sub field', async () => {
+    it("should handle empty payload sub field", async () => {
       const payload = {
-        sub: '',
-        email: 'testuser@example.com',
-        role: 'api-user',
+        sub: "",
+        email: "testuser@example.com",
+        role: "api-user",
       };
 
       usersService.findById.mockResolvedValue(null);
 
       await expect(strategy.validate(payload)).rejects.toThrow();
-      expect(usersService.findById).toHaveBeenCalledWith('');
+      expect(usersService.findById).toHaveBeenCalledWith("");
     });
 
-    it('should handle undefined payload sub field', async () => {
+    it("should handle undefined payload sub field", async () => {
       const payload = {
         sub: undefined as any,
-        email: 'testuser@example.com',
-        role: 'api-user',
+        email: "testuser@example.com",
+        role: "api-user",
       };
 
       usersService.findById.mockResolvedValue(null);
@@ -195,10 +197,10 @@ describe('JwtStrategy', () => {
     });
   });
 
-  describe('constructor', () => {
-    it('should be configured with correct JWT options', () => {
-      expect(configService.get).toHaveBeenCalledWith('JWT_SECRET');
-      
+  describe("constructor", () => {
+    it("should be configured with correct JWT options", () => {
+      expect(configService.get).toHaveBeenCalledWith("JWT_SECRET");
+
       // Verify that the strategy is configured with the expected options
       // Note: These are internal to PassportStrategy, so we mainly test that
       // the configService.get was called with the right parameter
