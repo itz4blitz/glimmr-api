@@ -13,13 +13,9 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("auth_token");
-    console.log("[API] Request to:", config.url);
-    console.log("[API] Token found:", !!token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("[API] Authorization header set");
     } else {
-      console.log("[API] No token found in localStorage");
     }
     return config;
   },
@@ -39,9 +35,6 @@ apiClient.interceptors.response.use(
 
       // Since the backend doesn't have a refresh endpoint yet,
       // clear auth and redirect to login
-      console.log(
-        "[API] 401 Unauthorized - clearing auth and redirecting to login",
-      );
       localStorage.removeItem("auth_token");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("auth-storage");

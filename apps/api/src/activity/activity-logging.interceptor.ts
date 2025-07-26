@@ -14,6 +14,7 @@ import {
   getActivityConfig,
   DEFAULT_ACTIVITY_CONFIG,
 } from "./activity-config";
+import { AuthenticatedRequest, SanitizedValue } from "./types";
 
 export const SKIP_ACTIVITY_LOG = "skipActivityLog";
 export const ACTIVITY_ACTION = "activityAction";
@@ -26,7 +27,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
     const controller = context.getClass();
@@ -48,7 +49,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
       controller,
     );
 
-    const user = (request as any).user;
+    const user = (request as AuthenticatedRequest).user;
     const startTime = Date.now();
 
     // Extract action from route
@@ -58,7 +59,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: (response) => {
+        next: (_response) => {
           const duration = Date.now() - startTime;
 
           // Don't log certain endpoints
@@ -258,7 +259,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     return skipPaths.some((skip) => path.includes(skip));
   }
 
-  private sanitizeQuery(query: any): any {
+  private sanitizeQuery(query: Record<string, unknown>): SanitizedValue {
     if (!query) return {};
 
     const sanitized = { ...query };
@@ -273,7 +274,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     return sanitized;
   }
 
-  private sanitizeParams(params: any): any {
+  private sanitizeParams(params: Record<string, unknown>): SanitizedValue {
     if (!params) return {};
 
     const sanitized = { ...params };
@@ -307,7 +308,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     return pathParts[0] || "api";
   }
 
-  private extractResourceId(path: string, params: any): string | undefined {
+  private extractResourceId(path: string, params: Record<string, unknown>): string | undefined {
     // Common ID parameter names
     const idParams = [
       "id",

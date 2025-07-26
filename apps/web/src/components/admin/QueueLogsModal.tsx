@@ -114,8 +114,7 @@ export function QueueLogsModal({
       const logsData = Array.isArray(logsResponse.data) ? logsResponse.data : [];
       setLogs(logsData);
       setMetrics(metricsResponse.data);
-    } catch (error) {
-      console.error("Failed to fetch logs:", error);
+    } catch (_error) {
       toast.error("Failed to load logs");
     } finally {
       setLoading(false);
@@ -183,8 +182,7 @@ export function QueueLogsModal({
       link.remove();
 
       toast.success("Logs exported successfully");
-    } catch (error) {
-      console.error("Export failed:", error);
+    } catch (_error) {
       toast.error("Failed to export logs");
     }
   };
@@ -196,8 +194,7 @@ export function QueueLogsModal({
       // Clear logs is not available in current API
       toast.info("Clear logs feature is not available");
       return;
-    } catch (error) {
-      console.error("Failed to clear logs:", error);
+    } catch (_error) {
       toast.error("Failed to clear logs");
     }
   };
@@ -207,8 +204,7 @@ export function QueueLogsModal({
       const response = await api.get(`/jobs/job/${jobId}/details`);
       setSelectedJob(response.data);
       setActiveTab("details");
-    } catch (error) {
-      console.error("Failed to fetch job details:", error);
+    } catch (_error) {
       toast.error("Failed to load job details");
     }
   };
@@ -442,7 +438,7 @@ export function QueueLogsModal({
                                   variant="link"
                                   size="sm"
                                   className="text-xs p-0 h-auto font-mono"
-                                  onClick={() => fetchJobDetails(log.jobId!)}
+                                  onClick={() => log.jobId && fetchJobDetails(log.jobId)}
                                 >
                                   #{log.jobId}
                                 </Button>

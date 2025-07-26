@@ -7,7 +7,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { Request, Response } from "express";
-import { ValidationError } from "class-validator";
+// import { ValidationError } from "class-validator";
 import { ErrorResponseDto } from "./error-response.dto";
 import { ERROR_CODES } from "./error-codes";
 
@@ -15,7 +15,7 @@ import { ERROR_CODES } from "./error-codes";
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
 
-  catch(exception: any, host: ArgumentsHost): void {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -29,7 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   private createErrorResponse(
-    exception: any,
+    exception: unknown,
     request: Request,
   ): ErrorResponseDto {
     const timestamp = new Date().toISOString();

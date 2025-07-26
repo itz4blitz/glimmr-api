@@ -114,7 +114,7 @@ export function MobileFiltersDrawer({
     return count;
   };
 
-  const getFilterLabel = (options: any[], value: string) => {
+  const getFilterLabel = (options: Array<{ value: string; label: string }>, value: string) => {
     return options.find((option) => option.value === value)?.label || value;
   };
 

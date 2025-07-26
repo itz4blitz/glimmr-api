@@ -60,7 +60,7 @@ export class DatabaseOperationException extends BusinessLogicException {
 }
 
 export class ValidationException extends BusinessLogicException {
-  constructor(field: string, value: any, reason?: string) {
+  constructor(field: string, value: unknown, reason?: string) {
     super(
       `Validation failed for field '${field}' with value '${value}'${
         reason ? `: ${reason}` : ""

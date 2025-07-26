@@ -9,6 +9,7 @@ import { LoggerModule } from "nestjs-pino";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
+import { ExtendedRequest, SerializedRequest, SerializedResponse, SerializedError } from "./common/types/http";
 
 @Module({
   imports: [
@@ -43,21 +44,21 @@ import { HealthModule } from "./health/health.module";
               },
             },
             timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
-            genReqId: (req: any) => {
+            genReqId: (req: ExtendedRequest) => {
               return (
                 req.headers["x-request-id"] ??
                 req.headers["x-correlation-id"] ??
                 `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
               );
             },
-            customProps: (req: any) => ({
+            customProps: (req: ExtendedRequest) => ({
               userAgent: req.headers["user-agent"],
               ip: req.ip ?? req.connection?.remoteAddress,
               method: req.method,
               url: req.url,
             }),
             serializers: {
-              req: (req: any) => ({
+              req: (req: ExtendedRequest): SerializedRequest => ({
                 id: req.id,
                 method: req.method,
                 url: req.url,
@@ -74,14 +75,14 @@ import { HealthModule } from "./health/health.module";
                 remoteAddress: req.remoteAddress,
                 remotePort: req.remotePort,
               }),
-              res: (res: any) => ({
+              res: (res: { statusCode: number }): SerializedResponse => ({
                 statusCode: res.statusCode,
                 headers: {
                   "content-type": res.headers?.["content-type"],
                   "content-length": res.headers?.["content-length"],
                 },
               }),
-              err: (err: any) => ({
+              err: (err: Error & { code?: string }): SerializedError => ({
                 type: err.constructor.name,
                 message: err.message,
                 stack: err.stack,
@@ -105,7 +106,7 @@ import { HealthModule } from "./health/health.module";
   providers: [AppService],
 })
 export class AppTestModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
+  configure(_consumer: MiddlewareConsumer) {
     // Skip middleware configuration for testing
   }
 }

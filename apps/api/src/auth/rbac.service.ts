@@ -6,18 +6,14 @@ import {
   userRoles,
   rolePermissions,
   users,
-} from "../database/schema";
-import type {
-  Role,
-  Permission,
-  UserRole,
-  RolePermission,
-  NewRole,
-  NewPermission,
-  NewUserRole,
-  NewRolePermission,
-  UserWithRoles,
-  RoleWithPermissions,
+  type Role,
+  type Permission,
+  type UserRole,
+  type RolePermission,
+  type NewRole,
+  type NewPermission,
+  type UserWithRoles,
+  type RoleWithPermissions,
 } from "../database/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
@@ -38,7 +34,7 @@ export class RbacService {
   async createRole(roleData: NewRole): Promise<Role> {
     const [role] = await this.db
       .insert(roles)
-      .values(roleData as any)
+      .values(roleData as NewRole)
       .returning();
 
     this.logger.info({
@@ -49,7 +45,7 @@ export class RbacService {
     return role;
   }
 
-  async getRoles(): Promise<Role[]> {
+  getRoles(): Promise<Role[]> {
     return this.db
       .select()
       .from(roles)
@@ -121,7 +117,7 @@ export class RbacService {
   async createPermission(permissionData: NewPermission): Promise<Permission> {
     const [permission] = await this.db
       .insert(permissions)
-      .values(permissionData as any)
+      .values(permissionData as NewPermission)
       .returning();
 
     this.logger.info({
@@ -132,7 +128,7 @@ export class RbacService {
     return permission;
   }
 
-  async getPermissions(): Promise<Permission[]> {
+  getPermissions(): Promise<Permission[]> {
     return this.db
       .select()
       .from(permissions)
@@ -140,7 +136,7 @@ export class RbacService {
       .orderBy(permissions.resource, permissions.action);
   }
 
-  async getPermissionsByResource(resource: string): Promise<Permission[]> {
+  getPermissionsByResource(resource: string): Promise<Permission[]> {
     return this.db
       .select()
       .from(permissions)

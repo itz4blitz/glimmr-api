@@ -80,7 +80,7 @@ export function AvatarUpload({ children }: AvatarUploadProps) {
       setIsOpen(false);
       setPreview(null);
       setSelectedFile(null);
-    } catch (error) {
+    } catch {
       toast.error("Failed to upload avatar", {
         description: "Please check your file and try again.",
         duration: 5000,
@@ -112,7 +112,7 @@ export function AvatarUpload({ children }: AvatarUploadProps) {
         duration: 3000,
       });
       setIsOpen(false);
-    } catch (error) {
+    } catch {
       toast.error("Failed to remove avatar", {
         description: "Please try again later.",
       });

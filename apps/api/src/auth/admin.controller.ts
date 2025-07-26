@@ -2,11 +2,11 @@ import {
   Controller,
   Get,
   Post,
-  Put,
+  // Put,
   Delete,
   Body,
   Param,
-  Query,
+  // Query,
   UseGuards,
   Request,
   HttpException,
@@ -18,7 +18,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
-  ApiQuery,
+  // ApiQuery,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { RolesGuard } from "./guards/roles.guard";
@@ -47,7 +47,7 @@ export class AdminController {
   @ApiOperation({ summary: "Get all roles" })
   @ApiResponse({ status: 200, description: "Roles retrieved successfully" })
   @Roles("admin")
-  async getRoles() {
+  getRoles() {
     return this.rbacService.getRoles();
   }
 
@@ -56,7 +56,7 @@ export class AdminController {
   @ApiResponse({ status: 201, description: "Role created successfully" })
   @ApiResponse({ status: 400, description: "Invalid role data" })
   @Roles("admin")
-  async createRole(@Body() createRoleDto: CreateRoleDto, @Request() req) {
+  async createRole(@Body() createRoleDto: CreateRoleDto, @Request() _req) {
     try {
       const role = await this.rbacService.createRole(createRoleDto);
       return role;
@@ -87,7 +87,7 @@ export class AdminController {
     description: "Permissions retrieved successfully",
   })
   @Roles("admin")
-  async getPermissions() {
+  getPermissions() {
     return this.rbacService.getPermissions();
   }
 
@@ -112,7 +112,7 @@ export class AdminController {
   @ApiResponse({ status: 201, description: "Role assigned successfully" })
   @ApiResponse({ status: 400, description: "Invalid assignment data" })
   @Roles("admin")
-  async assignRole(@Body() assignRoleDto: AssignRoleDto, @Request() req) {
+  async assignRole(@Body() assignRoleDto: AssignRoleDto, @Request() _req) {
     try {
       const assignment = await this.rbacService.assignRoleToUser(
         assignRoleDto.userId,
@@ -146,7 +146,7 @@ export class AdminController {
   @Roles("admin")
   async assignPermissionToRole(
     @Body() assignDto: AssignPermissionToRoleDto,
-    @Request() req,
+    @Request() _req,
   ) {
     try {
       const assignment = await this.rbacService.assignPermissionToRole(

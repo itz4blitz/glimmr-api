@@ -24,6 +24,7 @@ import { JobExportService } from "../services/operations/job-export.service";
 import { JobSchedulingService } from "../services/operations/job-scheduling.service";
 import { JobEventListener } from "../listeners/job-event.listener";
 import { JobsController } from "../controllers/jobs.controller";
+import { JobSchedulingController } from "../controllers/job-scheduling.controller";
 import { JobsService } from "../services/core/jobs.service";
 import { JobsGateway } from "../gateways/jobs.gateway";
 import { ScheduleProcessor } from "../processors/schedule.processor";
@@ -83,7 +84,7 @@ import { ScheduleProcessor } from "../processors/schedule.processor";
       },
     ),
   ],
-  controllers: [JobsController],
+  controllers: [JobsController, JobSchedulingController],
   providers: [
     JobsService,
     JobsGateway,

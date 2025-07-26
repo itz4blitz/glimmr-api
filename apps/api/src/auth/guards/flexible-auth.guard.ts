@@ -35,7 +35,7 @@ export class FlexibleAuthGuard implements CanActivate {
             role: payload.role,
           };
           return true;
-        } catch (error) {
+        } catch (_error) {
           // JWT verification failed, try API key fallback
         }
       }

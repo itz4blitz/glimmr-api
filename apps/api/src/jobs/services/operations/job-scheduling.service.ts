@@ -86,7 +86,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     return queueMap[queueName] || null;
   }
 
-  async createSchedule(dto: CreateJobScheduleDto) {
+  async createSchedule(dto: CreateJobScheduleDto, userId?: string) {
     const db = this.databaseService.db;
 
     // Validate template exists
@@ -128,7 +128,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
         maxConsecutiveFailures: dto.maxConsecutiveFailures || 5,
         disableOnMaxFailures: dto.disableOnMaxFailures ?? true,
         nextRunAt,
-        createdBy: "system", // TODO: Get from auth context
+        createdBy: userId || "system",
       })
       .returning();
 
@@ -142,12 +142,13 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
       scheduleId: schedule.id,
       name: schedule.name,
       nextRunAt: schedule.nextRunAt,
+      createdBy: userId || "system",
     });
 
     return schedule;
   }
 
-  async updateSchedule(scheduleId: string, dto: UpdateJobScheduleDto) {
+  async updateSchedule(scheduleId: string, dto: UpdateJobScheduleDto, userId?: string) {
     const db = this.databaseService.db;
 
     // Get existing schedule

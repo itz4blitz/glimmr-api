@@ -13,16 +13,16 @@ jest.mock("bcrypt", () => ({
   compare: jest.fn(),
 }));
 
-const bcrypt = require("bcrypt");
+import * as bcrypt from "bcrypt";
 
 describe("AuthService", () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
-  let configService: jest.Mocked<ConfigService>;
-  let rbacService: jest.Mocked<RbacService>;
+  let _configService: jest.Mocked<ConfigService>;
+  let _rbacService: jest.Mocked<RbacService>;
 
-  const mockUser: any = {
+  const mockUser: Partial<User> = {
     id: "user-id-123",
     password: "hashedpassword",
     role: "api-user",
@@ -290,7 +290,7 @@ describe("AuthService", () => {
       usersService.create.mockResolvedValue(mockUser);
       jwtService.sign.mockReturnValue("jwt.token");
 
-      const result = await service.register({
+      const _result = await service.register({
         email: "test@example.com",
         password: "password",
         firstName: "Test",

@@ -483,7 +483,7 @@ export class PriceFileParserProcessor extends WorkerHost {
     return new Promise((resolve, reject) => {
       const records: PriceRecord[] = [];
       let rowCount = 0;
-      let headerMap: Record<string, string> = {};
+      const headerMap: Record<string, string> = {};
 
       // Create the parser
       const parser = Papa.parse(Papa.NODE_STREAM_INPUT, {
@@ -775,14 +775,123 @@ export class PriceFileParserProcessor extends WorkerHost {
     job: Job,
     jobId: string,
   ): Promise<PriceRecord[]> {
-    // XML parsing is not implemented yet
-    // Most hospitals use CSV or JSON, so this is lower priority
-    await this.logJobEvent(
-      jobId,
-      "warn",
-      "XML file format not supported, skipping",
-    );
-    return [];
+    const records: PriceRecord[] = [];
+    const errors: string[] = [];
+    let processedCount = 0;
+
+    try {
+      // Import xml2js dynamically to avoid bundling if not used
+      const { parseStringPromise } = await import("xml2js");
+      
+      // Convert stream to string
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      const xmlString = Buffer.concat(chunks).toString("utf-8");
+
+      await this.logJobEvent(
+        jobId,
+        "info",
+        `Parsing XML file, size: ${xmlString.length} bytes`,
+      );
+
+      // Parse XML
+      const result = await parseStringPromise(xmlString, {
+        explicitArray: false,
+        mergeAttrs: true,
+        normalize: true,
+        normalizeTags: true,
+      });
+
+      // Common XML structures for price transparency files
+      const possibleRootPaths = [
+        result.root?.prices,
+        result.prices,
+        result.chargemaster?.prices,
+        result.chargemaster?.items,
+        result.hospital?.prices,
+        result.priceList?.items,
+        result.priceList?.prices,
+      ];
+
+      let priceItems: any[] = [];
+      for (const path of possibleRootPaths) {
+        if (path) {
+          priceItems = Array.isArray(path) ? path : [path];
+          break;
+        }
+      }
+
+      // If still no items found, try to find any array in the result
+      if (priceItems.length === 0) {
+        const findArrays = (obj: any): any[] => {
+          for (const key in obj) {
+            if (Array.isArray(obj[key]) && obj[key].length > 0) {
+              // Check if this looks like price data
+              const sample = obj[key][0];
+              if (sample && (sample.code || sample.price || sample.charge || sample.description)) {
+                return obj[key];
+              }
+            } else if (typeof obj[key] === "object" && obj[key] !== null) {
+              const found = findArrays(obj[key]);
+              if (found.length > 0) return found;
+            }
+          }
+          return [];
+        };
+        priceItems = findArrays(result);
+      }
+
+      await this.logJobEvent(
+        jobId,
+        "info",
+        `Found ${priceItems.length} price items in XML`,
+      );
+
+      // Process each item
+      for (const item of priceItems) {
+        processedCount++;
+        
+        if (processedCount % 1000 === 0) {
+          await job.updateProgress(Math.min(90, (processedCount / priceItems.length) * 100));
+          await this.logJobEvent(
+            jobId,
+            "info",
+            `Processed ${processedCount}/${priceItems.length} XML items`,
+          );
+        }
+
+        const record = this.extractPriceRecord(item);
+        if (record) {
+          records.push(record);
+        }
+      }
+
+      await this.logJobEvent(
+        jobId,
+        "info",
+        `XML parsing completed: ${records.length} valid records from ${processedCount} items`,
+      );
+
+    } catch (error) {
+      await this.logJobEvent(
+        jobId,
+        "error",
+        `XML parsing error: ${error.message}`,
+      );
+      errors.push(`XML parsing failed: ${error.message}`);
+    }
+
+    if (errors.length > 0) {
+      await this.logJobEvent(
+        jobId,
+        "warn",
+        `XML parsing completed with ${errors.length} errors`,
+      );
+    }
+
+    return records;
   }
 
   private extractPriceRecord(

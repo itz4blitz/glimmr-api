@@ -65,20 +65,39 @@ export function DashboardPage() {
     try {
       const response = await apiClient.get("/dashboard/stats");
       setStats(response.data);
-    } catch (error) {
-      console.error("Failed to fetch dashboard stats:", error);
-      // Set default values if the endpoint doesn't exist yet
-      setStats({
-        hospitals: { total: 0, active: 0, withPrices: 0 },
-        prices: { total: 0, lastUpdated: null },
-        jobs: {
-          totalProcessed: 0,
-          activeJobs: 0,
-          failedJobs: 0,
-          successRate: 0,
-        },
-        files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 },
-      });
+    } catch (error: any) {
+      // Check if it's a 404 or other expected error
+      if (error.response?.status === 404) {
+        // Dashboard stats endpoint not available yet, use defaults
+        setStats({
+          hospitals: { total: 0, active: 0, withPrices: 0 },
+          prices: { total: 0, lastUpdated: null },
+          jobs: {
+            totalProcessed: 0,
+            activeJobs: 0,
+            failedJobs: 0,
+            successRate: 0,
+          },
+          files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 },
+        });
+      } else {
+        // Log unexpected errors but still show the dashboard
+        console.error("Failed to fetch dashboard stats:", error);
+        toast.error("Unable to load dashboard statistics. Some data may be unavailable.");
+        
+        // Still set default values to allow dashboard to render
+        setStats({
+          hospitals: { total: 0, active: 0, withPrices: 0 },
+          prices: { total: 0, lastUpdated: null },
+          jobs: {
+            totalProcessed: 0,
+            activeJobs: 0,
+            failedJobs: 0,
+            successRate: 0,
+          },
+          files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 },
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -119,11 +138,10 @@ export function DashboardPage() {
       setTimeout(() => {
         fetchDashboardStats();
       }, 2000);
-    } catch (error: any) {
-      console.error("Failed to run job:", error);
-      toast.error(
-        `Failed to start job: ${error?.response?.data?.message || error?.message || "Unknown error"}`,
-      );
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError?.response?.data?.message || axiosError?.message || "Unknown error";
+      toast.error(`Failed to start job: ${errorMessage}`);
     } finally {
       setIsRunningJob(null);
     }

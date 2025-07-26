@@ -8,7 +8,7 @@ import { AuthService } from "../auth.service";
 describe("FlexibleAuthGuard", () => {
   let guard: FlexibleAuthGuard;
   let jwtService: jest.Mocked<JwtService>;
-  let configService: jest.Mocked<ConfigService>;
+  let _configService: jest.Mocked<ConfigService>;
   let authService: jest.Mocked<AuthService>;
 
   const mockExecutionContext = (headers: any = {}): ExecutionContext => {

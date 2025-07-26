@@ -233,7 +233,7 @@ describe("Error Codes", () => {
         },
       ];
 
-      meaningfulCodes.forEach(({ code, description }) => {
+      meaningfulCodes.forEach(({ code, description: _description }) => {
         expect(code).toBeDefined();
         expect(typeof code).toBe("string");
         expect(code.length).toBeGreaterThan(0);

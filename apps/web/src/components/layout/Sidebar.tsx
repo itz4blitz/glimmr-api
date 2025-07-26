@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useSidebarStore } from "@/stores/sidebar";
-import { isAdmin, isSuperAdmin } from "@/lib/permissions";
+import { isAdmin } from "@/lib/permissions";
 import { UserRole } from "@/types/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,13 +28,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  adminOnly: boolean;
+  badge?: string;
+}
+
 export function Sidebar() {
   const { user } = useAuthStore();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { isPending } = useNavigation();
   const location = useLocation();
 
-  const navigation = [
+  const navigation: NavigationItem[] = [
     {
       name: "Dashboard",
       href: "/dashboard",
@@ -54,7 +63,6 @@ export function Sidebar() {
       href: "/analytics",
       icon: BarChart3,
       description: "View reports and insights",
-      badge: "New",
       adminOnly: false,
     },
     {
@@ -66,7 +74,7 @@ export function Sidebar() {
     },
   ];
 
-  const adminNavigation = [
+  const adminNavigation: NavigationItem[] = [
     {
       name: "User Management",
       href: "/admin/users",
@@ -86,7 +94,6 @@ export function Sidebar() {
       href: "/admin/analytics",
       icon: BarChart3,
       description: "Queue insights",
-      badge: "New",
       adminOnly: true,
     },
     {
@@ -94,7 +101,6 @@ export function Sidebar() {
       href: "/admin/scheduler",
       icon: Clock,
       description: "Schedule jobs",
-      badge: "New",
       adminOnly: true,
     },
     {
@@ -113,7 +119,7 @@ export function Sidebar() {
     },
   ];
 
-  const settingsNavigation = [
+  const settingsNavigation: NavigationItem[] = [
     {
       name: "Settings",
       href: "/settings",
@@ -137,7 +143,7 @@ export function Sidebar() {
     showForRole,
   }: {
     title: string;
-    items: typeof navigation;
+    items: NavigationItem[];
     showForRole?: (role: string) => boolean;
   }) => {
     if (showForRole && user && !showForRole(user.role)) {
@@ -145,7 +151,7 @@ export function Sidebar() {
     }
 
     const filteredItems = items.filter((item) => {
-      if (item.adminOnly && user && !isSuperAdmin(user.role as UserRole)) {
+      if (item.adminOnly && user && !isAdmin(user.role as UserRole)) {
         return false;
       }
       return true;

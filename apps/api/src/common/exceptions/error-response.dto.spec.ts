@@ -186,7 +186,7 @@ describe("ErrorResponseDto", () => {
         },
       ];
 
-      scenarios.forEach(({ name, data }) => {
+      scenarios.forEach(({ name: _name, data }) => {
         const dto = plainToClass(ErrorResponseDto, data);
 
         expect(dto.statusCode).toBe(data.statusCode);

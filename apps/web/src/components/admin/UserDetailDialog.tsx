@@ -64,25 +64,17 @@ export function UserDetailDialog({
   // Load user data when dialog opens
   useEffect(() => {
     if (open && userId) {
-      console.log("UserDetailDialog: Loading user", userId);
       loadUserById(userId)
-        .then(() => {
-          console.log("UserDetailDialog: User loaded");
-        })
+        .then(() => {})
         .catch((error) => {
-          console.error("UserDetailDialog: Failed to load user", error);
+          console.error("Failed to load user details:", error);
         });
     }
   }, [open, userId, loadUserById]);
 
   // Load activity and files after user is loaded
   useEffect(() => {
-    console.log("UserDetailDialog: selectedUser", selectedUser);
     if (selectedUser?.id) {
-      console.log(
-        "UserDetailDialog: Loading activity and files for",
-        selectedUser.id,
-      );
       loadUserActivity(selectedUser.id);
       loadUserFiles(selectedUser.id);
     }
@@ -105,7 +97,7 @@ export function UserDetailDialog({
     try {
       await activateUser(selectedUser.id);
       toast.success("User activated successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to activate user");
     }
   };
@@ -116,7 +108,7 @@ export function UserDetailDialog({
     try {
       await deactivateUser(selectedUser.id);
       toast.success("User deactivated successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to deactivate user");
     }
   };
@@ -125,7 +117,7 @@ export function UserDetailDialog({
     if (!selectedUser) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedUser.email}? This action cannot be undone.`,
+      `Are you sure you want to delete ${selectedUser.email}? This action cannot be undone.`
     );
 
     if (confirmed) {
@@ -133,7 +125,7 @@ export function UserDetailDialog({
         await deleteUser(selectedUser.id);
         toast.success("User deleted successfully");
         handleClose();
-      } catch (error) {
+      } catch {
         toast.error("Failed to delete user");
       }
     }
@@ -145,7 +137,7 @@ export function UserDetailDialog({
     try {
       await sendPasswordReset(selectedUser.id);
       toast.success("Password reset email sent");
-    } catch (error) {
+    } catch {
       toast.error("Failed to send password reset");
     }
   };
@@ -156,7 +148,7 @@ export function UserDetailDialog({
     try {
       await resendEmailVerification(selectedUser.id);
       toast.success("Verification email sent");
-    } catch (error) {
+    } catch {
       toast.error("Failed to send verification email");
     }
   };

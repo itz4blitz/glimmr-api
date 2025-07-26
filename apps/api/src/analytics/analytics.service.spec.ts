@@ -7,7 +7,7 @@ import { QUEUE_NAMES } from "../jobs/queues/queue.config";
 
 describe("AnalyticsService", () => {
   let service: AnalyticsService;
-  let databaseService: DatabaseService;
+  let _databaseService: DatabaseService;
   let logger: PinoLogger;
 
   const mockDatabaseService = {
@@ -74,7 +74,7 @@ describe("AnalyticsService", () => {
       ];
 
       // Mock multiple database queries
-      const mockSelect = jest.fn().mockReturnThis();
+      const _mockSelect = jest.fn().mockReturnThis();
       const mockFrom = jest.fn().mockReturnThis();
       const mockWhere = jest.fn().mockReturnThis();
       const mockInnerJoin = jest.fn().mockReturnThis();
@@ -319,7 +319,7 @@ describe("AnalyticsService", () => {
 
   describe("getPowerBIInfo", () => {
     it("should fetch PowerBI info successfully", async () => {
-      const mockPowerBIInfo = {
+      const _mockPowerBIInfo = {
         datasetId: "dataset-123",
         lastRefresh: new Date(),
         tables: [
@@ -377,7 +377,7 @@ describe("AnalyticsService", () => {
 
   describe("exportData", () => {
     it("should export data successfully", async () => {
-      const mockExportData = {
+      const _mockExportData = {
         format: "csv",
         dataset: "hospitals",
         fileUrl: "https://example.com/export/hospitals.csv",

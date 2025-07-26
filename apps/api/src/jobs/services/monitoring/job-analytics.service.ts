@@ -191,7 +191,7 @@ export class JobAnalyticsService {
   // Helper methods
   private parseTimeRange(timeRange: string): { start: Date; end: Date } {
     const end = new Date();
-    let start = new Date();
+    const start = new Date();
 
     const match = timeRange.match(/(\d+)([hd])/);
     if (!match) {

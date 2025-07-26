@@ -82,20 +82,13 @@ interface TooltipProps {
 
 export function JobExecutionTimeline({
   logs,
-  queueName,
+  queueName: _queueName, // Prefix with underscore to indicate it's intentionally unused
 }: JobExecutionTimelineProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [chartType, setChartType] = useState<ChartType>("timeline");
 
-  // Debug: Log the incoming props
-  console.log("JobExecutionTimeline props:", {
-    logsCount: logs?.length || 0,
-    queueName,
-    sampleLogs: logs?.slice(0, 2),
-  });
-
-  // Calculate time boundaries
-  const now = new Date();
+  // Memoize the current time to avoid recreating Date objects
+  const now = useMemo(() => new Date(), []); // Only calculate once on mount
   const startTime = useMemo(() => {
     switch (timeRange) {
       case "1h":
@@ -111,7 +104,7 @@ export function JobExecutionTimeline({
       default:
         return subHours(now, 24);
     }
-  }, [timeRange]);
+  }, [timeRange, now]);
 
   // Filter logs by time range
   const filteredLogs = useMemo(() => {
@@ -192,17 +185,9 @@ export function JobExecutionTimeline({
         ),
       }));
 
-    // Debug logging
-    console.log("Timeline Data:", {
-      filteredLogsCount: filteredLogs.length,
-      timeRange,
-      sampleLogs: filteredLogs.slice(0, 3),
-      resultData: result.slice(0, 5),
-      totalInResult: result.reduce((sum, item) => sum + item.total, 0)
-    });
 
     return result;
-  }, [filteredLogs, timeRange]);
+  }, [filteredLogs, timeRange, now]);
 
   // Process data for job distribution
   const distributionData = useMemo(() => {
@@ -404,7 +389,8 @@ export function JobExecutionTimeline({
 
     const durations = filteredLogs
       .filter((l) => l.context?.duration)
-      .map((l) => l.context!.duration!);
+      .map((l) => l.context?.duration ?? 0)
+      .filter(d => d > 0);
 
     const avgDuration =
       durations.length > 0

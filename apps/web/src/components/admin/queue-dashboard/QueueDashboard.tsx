@@ -147,8 +147,7 @@ export function QueueDashboard({
       }));
       
       setQueues(transformedData);
-    } catch (error) {
-      console.error("Failed to fetch queue stats:", error);
+    } catch (_error) {
       toast.error("Failed to fetch queue statistics");
     } finally {
       setLoading(false);
@@ -169,7 +168,7 @@ export function QueueDashboard({
 
   useEffect(() => {
     fetchQueues();
-  }, [selectedTimeRange, dateRange]);
+  }, [selectedTimeRange, dateRange, fetchQueues]);
 
   const handleExport = async () => {
     try {
@@ -190,8 +189,7 @@ export function QueueDashboard({
       link.remove();
       
       toast.success("Export completed successfully");
-    } catch (error) {
-      console.error("Export failed:", error);
+    } catch (_error) {
       toast.error("Failed to export queue statistics");
     }
   };

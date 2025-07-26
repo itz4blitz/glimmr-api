@@ -316,21 +316,61 @@ export class JobsService {
     batchSize?: number;
     priority?: number;
   }) {
-    this.logger.warn({
-      msg: "Hospital import processor not implemented",
+    this.logger.info({
+      msg: "Starting hospital import job",
       importData,
     });
 
-    return {
-      jobId: null,
-      status: "not_implemented",
-      message: "Hospital import functionality is not currently implemented",
-      estimatedDuration: "N/A",
-      priority: importData.priority ?? 5,
-      data: importData,
-      createdAt: new Date().toISOString(),
-      trackingUrl: null,
-    };
+    try {
+      // Queue a PRA scan job which will import hospitals
+      const jobData = {
+        forceRefresh: importData.forceRefresh ?? false,
+        testMode: !!importData.state, // Use test mode if specific state requested
+        selectedStates: importData.state ? [importData.state] : undefined,
+        batchSize: importData.batchSize ?? 50,
+      };
+
+      const job = await this.praUnifiedScanQueue.add("hospital-import", jobData, {
+        priority: importData.priority ?? 5,
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 30000,
+        },
+        removeOnComplete: 10,
+        removeOnFail: 20,
+      });
+
+      // Record the job in database
+      await this.databaseService.db.insert(jobs).values({
+        jobId: job.id,
+        queueName: QUEUE_NAMES.PRA_UNIFIED_SCAN,
+        jobName: "hospital-import",
+        status: "queued",
+        priority: importData.priority ?? 5,
+        data: jobData,
+        attemptsMade: 0,
+        maxAttempts: 3,
+      });
+
+      return {
+        jobId: job.id,
+        status: "queued",
+        message: "Hospital import job has been queued successfully",
+        estimatedDuration: importData.state ? "5-10 minutes" : "30-60 minutes",
+        priority: importData.priority ?? 5,
+        data: jobData,
+        createdAt: new Date().toISOString(),
+        trackingUrl: `/api/v1/jobs/${job.id}`,
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: "Failed to start hospital import job",
+        importData,
+        error: error.message,
+      });
+      throw error;
+    }
   }
 
   async startPriceUpdate(updateData: {
@@ -455,21 +495,69 @@ export class JobsService {
     forceReprocess?: boolean;
     priority?: number;
   }) {
-    this.logger.warn({
-      msg: "Price file download processor not implemented",
+    this.logger.info({
+      msg: "Starting price file download job",
       downloadData,
     });
 
-    return {
-      jobId: null,
-      status: "not_implemented",
-      message: "Price file download functionality is not currently implemented",
-      estimatedDuration: "N/A",
-      priority: downloadData.priority ?? 5,
-      data: downloadData,
-      createdAt: new Date().toISOString(),
-      trackingUrl: null,
-    };
+    try {
+      const jobData: PriceFileDownloadJobData = {
+        hospitalId: downloadData.hospitalId,
+        fileId: downloadData.fileId,
+        fileUrl: downloadData.fileUrl,
+        filename: downloadData.filename,
+        filesuffix: downloadData.filesuffix,
+        size: downloadData.size,
+        retrieved: downloadData.retrieved,
+        forceReprocess: downloadData.forceReprocess ?? false,
+      };
+
+      // Queue the download job
+      const job = await this.praFileDownloadQueue.add("download-price-file", jobData, {
+        priority: downloadData.priority ?? 5,
+        attempts: 5,
+        backoff: {
+          type: "exponential",
+          delay: 60000, // Start with 1 minute delay
+        },
+        removeOnComplete: 10,
+        removeOnFail: 30,
+      });
+
+      // Record the job in database
+      await this.databaseService.db.insert(jobs).values({
+        jobId: job.id,
+        queueName: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
+        jobName: "download-price-file",
+        status: "queued",
+        priority: downloadData.priority ?? 5,
+        data: jobData,
+        attemptsMade: 0,
+        maxAttempts: 5,
+      });
+
+      // Calculate estimated duration based on file size
+      const sizeInMB = parseInt(downloadData.size) / (1024 * 1024);
+      const estimatedMinutes = Math.max(1, Math.ceil(sizeInMB / 10)); // Assume 10MB/min
+
+      return {
+        jobId: job.id,
+        status: "queued",
+        message: "Price file download job has been queued successfully",
+        estimatedDuration: `${estimatedMinutes}-${estimatedMinutes * 2} minutes`,
+        priority: downloadData.priority ?? 5,
+        data: jobData,
+        createdAt: new Date().toISOString(),
+        trackingUrl: `/api/v1/jobs/${job.id}`,
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: "Failed to start price file download job",
+        downloadData,
+        error: error.message,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -484,22 +572,66 @@ export class JobsService {
       priority?: number;
     } = {},
   ) {
-    this.logger.warn({
-      msg: "Analytics refresh processor not implemented",
+    this.logger.info({
+      msg: "Starting analytics refresh job",
       options,
     });
 
-    return {
-      id: null,
-      jobId: null,
-      status: "not_implemented",
-      message: "Analytics refresh functionality is not currently implemented",
-      estimatedDuration: "N/A",
-      priority: options.priority || 3,
-      data: options,
-      createdAt: new Date().toISOString(),
-      trackingUrl: null,
-    };
+    try {
+      const jobData: AnalyticsRefreshJobData = {
+        metricTypes: options.metricTypes || ["summary", "trends", "comparisons"],
+        forceRefresh: options.forceRefresh ?? false,
+        reportingPeriod: options.reportingPeriod || new Date().toISOString().slice(0, 7), // Current month
+        batchSize: options.batchSize ?? 1000,
+        timeRange: {
+          start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(), // Last 90 days
+          end: new Date().toISOString(),
+        },
+      };
+
+      // Queue the analytics refresh job
+      const job = await this.analyticsRefreshQueue.add("refresh-analytics", jobData, {
+        priority: options.priority ?? 3,
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 30000,
+        },
+        removeOnComplete: 5,
+        removeOnFail: 10,
+      });
+
+      // Record the job in database
+      await this.databaseService.db.insert(jobs).values({
+        jobId: job.id,
+        queueName: QUEUE_NAMES.ANALYTICS_REFRESH,
+        jobName: "refresh-analytics",
+        status: "queued",
+        priority: options.priority ?? 3,
+        data: jobData,
+        attemptsMade: 0,
+        maxAttempts: 3,
+      });
+
+      return {
+        id: job.id,
+        jobId: job.id,
+        status: "queued",
+        message: "Analytics refresh job has been queued successfully",
+        estimatedDuration: "10-30 minutes",
+        priority: options.priority || 3,
+        data: jobData,
+        createdAt: new Date().toISOString(),
+        trackingUrl: `/api/v1/jobs/${job.id}`,
+      };
+    } catch (error) {
+      this.logger.error({
+        msg: "Failed to start analytics refresh job",
+        options,
+        error: error.message,
+      });
+      throw error;
+    }
   }
 
   /**

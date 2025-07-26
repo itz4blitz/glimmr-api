@@ -465,6 +465,10 @@ describe('AppController (e2e)', () => {
           expect(res.body).toHaveProperty('statusCode');
           expect(res.body).toHaveProperty('message');
           expect(res.body).toHaveProperty('error');
+        });
+    });
+  });
+
   describe('Root endpoint', () => {
     it('/ (GET)', () => {
       return request(app.getHttpServer())
@@ -686,4 +690,5 @@ describe('AppController without API prefix (e2e)', () => {
         });
     });
   });
+});
 });

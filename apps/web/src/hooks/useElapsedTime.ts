@@ -101,7 +101,7 @@ export function useBatchElapsedTime(
       const now = Date.now();
 
       for (const item of activeItems) {
-        const start = new Date(item.startTime!).getTime();
+        const start = new Date(item.startTime ?? 0).getTime();
         const diff = now - start;
 
         if (diff < 0) {
@@ -149,6 +149,8 @@ export function useBatchElapsedTime(
         intervalRef.current = null;
       }
     };
+    // items is intentionally omitted from dependencies 
+    // we use itemsKey which is a stable representation of the active items
   }, [itemsKey, updateInterval]);
 
   return elapsedTimes;

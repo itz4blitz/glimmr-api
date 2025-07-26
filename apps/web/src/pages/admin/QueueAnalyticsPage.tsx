@@ -164,7 +164,7 @@ export function QueueAnalyticsPage() {
         (stats.queueStats?.[0]?.performance?.avgProcessingTime) || 0;
       
       const throughput = performance?.throughput ||
-        (stats.queueStats?.reduce((sum: number, q: any) => sum + (q.performance?.processingRate || 0), 0)) || 0;
+        (stats.queueStats?.reduce((sum: number, q: { performance?: { processingRate?: number } }) => sum + (q.performance?.processingRate || 0), 0)) || 0;
       
       setData({
         overview: {
@@ -178,7 +178,11 @@ export function QueueAnalyticsPage() {
           throughput,
         },
         trends: trends?.data || [],
-        queuePerformance: (stats.queueStats || []).map((q: any) => ({
+        queuePerformance: (stats.queueStats || []).map((q: {
+          name: string;
+          counts: { completed: number; failed: number; active: number; waiting: number };
+          performance?: { avgProcessingTime?: number; processingRate?: number; utilization?: number };
+        }) => ({
           queue: q.name,
           successRate: (q.counts.completed + q.counts.failed) > 0 
             ? ((q.counts.completed / (q.counts.completed + q.counts.failed)) * 100) 
@@ -210,7 +214,6 @@ export function QueueAnalyticsPage() {
         }
       });
     } catch (error) {
-      console.error("Failed to fetch analytics:", error);
       toast.error("Failed to load analytics data");
     } finally {
       setLoading(false);
@@ -240,7 +243,6 @@ export function QueueAnalyticsPage() {
 
       toast.success(`Analytics exported as ${format.toUpperCase()}`);
     } catch (error) {
-      console.error("Export failed:", error);
       toast.error("Failed to export analytics");
     }
   };

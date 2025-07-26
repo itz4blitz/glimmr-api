@@ -1,24 +1,11 @@
 import {
-  createContext,
-  useContext,
   useState,
   useCallback,
 } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { UnsavedChangesModal } from "@/components/common/UnsavedChangesModal";
-
-interface UnsavedChangesContextType {
-  hasUnsavedChanges: boolean;
-  setHasUnsavedChanges: (hasChanges: boolean) => void;
-  checkUnsavedChanges: (onProceed: () => void, onSave?: () => void) => void;
-  registerSaveFunction: (saveFunction: () => Promise<void>) => void;
-  showUnsavedChangesToast: () => void;
-}
-
-const UnsavedChangesContext = createContext<
-  UnsavedChangesContextType | undefined
->(undefined);
+import { UnsavedChangesContext } from "./UnsavedChangesContext.types";
 
 interface UnsavedChangesProviderProps {
   children: ReactNode;
@@ -46,7 +33,7 @@ export function UnsavedChangesProvider({
   }, []);
 
   const checkUnsavedChanges = useCallback(
-    (onProceed: () => void, _onCancel?: () => void) => {
+    (onProceed: () => void) => {
       if (hasUnsavedChanges) {
         setPendingAction(() => onProceed);
         setIsModalOpen(true);
@@ -81,7 +68,7 @@ export function UnsavedChangesProvider({
           description: "Your changes have been saved and you can now continue.",
           duration: 3000,
         });
-      } catch (error) {
+      } catch {
         toast.error("Failed to save changes", {
           description: "Please try saving again before continuing.",
           duration: 5000,
@@ -117,12 +104,3 @@ export function UnsavedChangesProvider({
   );
 }
 
-export function useUnsavedChangesContext() {
-  const context = useContext(UnsavedChangesContext);
-  if (context === undefined) {
-    throw new Error(
-      "useUnsavedChangesContext must be used within an UnsavedChangesProvider",
-    );
-  }
-  return context;
-}

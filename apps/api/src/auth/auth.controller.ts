@@ -4,7 +4,7 @@ import {
   Body,
   UseGuards,
   Request,
-  Get,
+  // Get,
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
@@ -33,7 +33,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post("login")
   @HttpCode(HttpStatus.OK)
-  async login(@Request() req, @Body() loginDto: LoginDto) {
+  login(@Request() req, @Body() _loginDto: LoginDto) {
     return this.authService.login(req.user, req);
   }
 
@@ -45,7 +45,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: "User registered successfully" })
   @ApiResponse({ status: 400, description: "Username or email already exists" })
   @Post("register")
-  async register(@Body() registerDto: RegisterDto, @Request() req) {
+  register(@Body() registerDto: RegisterDto, @Request() req) {
     return this.authService.register(registerDto, req);
   }
 

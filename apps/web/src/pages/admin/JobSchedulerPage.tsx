@@ -135,7 +135,6 @@ export function JobSchedulerPage() {
       const response = await api.get("/jobs/schedules");
       setScheduledJobs(response.data);
     } catch (error) {
-      console.error("Failed to fetch scheduled jobs:", error);
       toast.error("Failed to load scheduled jobs");
     } finally {
       setLoading(false);
@@ -175,7 +174,6 @@ export function JobSchedulerPage() {
       }));
       setJobHistory(history);
     } catch (error) {
-      console.error("Failed to fetch job history:", error);
     }
   };
 
@@ -198,7 +196,6 @@ export function JobSchedulerPage() {
       toast.success(`Job ${enabled ? "enabled" : "disabled"} successfully`);
       fetchScheduledJobs();
     } catch (error) {
-      console.error("Failed to toggle job:", error);
       toast.error("Failed to update job status");
     }
   };
@@ -211,7 +208,6 @@ export function JobSchedulerPage() {
       toast.success("Job deleted successfully");
       fetchScheduledJobs();
     } catch (error) {
-      console.error("Failed to delete job:", error);
       toast.error("Failed to delete job");
     }
   };
@@ -222,7 +218,6 @@ export function JobSchedulerPage() {
       toast.success("Job triggered successfully");
       fetchJobHistory();
     } catch (error) {
-      console.error("Failed to run job:", error);
       toast.error("Failed to trigger job");
     }
   };
@@ -763,7 +758,6 @@ function CreateJobDialog({
         enabled: true,
       });
     } catch (error) {
-      console.error("Failed to create job:", error);
       toast.error("Failed to create job");
     }
   };
@@ -926,7 +920,6 @@ function EditJobDialog({
       onSuccess();
       setOpen(false);
     } catch (error) {
-      console.error("Failed to update job:", error);
       toast.error("Failed to update job");
     }
   };

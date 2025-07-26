@@ -8,6 +8,7 @@ import {
   Query,
   Res,
 } from "@nestjs/common";
+import { Request, Response } from "express";
 import { IsString, IsOptional, IsObject, IsIn } from "class-validator";
 import {
   ApiTags,
@@ -34,7 +35,7 @@ export class PageViewDto {
   @ApiProperty({ description: "Additional metadata", required: false })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export class SessionActivityDto {
@@ -49,7 +50,7 @@ export class SessionActivityDto {
   @ApiProperty({ description: "Additional metadata", required: false })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 @ApiTags("Activity")
@@ -64,7 +65,7 @@ export class ActivityController {
   @Post("page-view")
   @SkipActivityLog()
   @ApiOperation({ summary: "Track page view" })
-  async trackPageView(@Body() dto: PageViewDto, @Request() req: any) {
+  async trackPageView(@Body() dto: PageViewDto, @Request() req: Request & { user: { id: string } }) {
     await this.activityLoggingService.logPageView(
       req.user.id,
       dto.page,
@@ -81,7 +82,7 @@ export class ActivityController {
   @Post("session")
   @SkipActivityLog()
   @ApiOperation({ summary: "Track session activity" })
-  async trackSession(@Body() dto: SessionActivityDto, @Request() req: any) {
+  async trackSession(@Body() dto: SessionActivityDto, @Request() req: Request & { user: { id: string } }) {
     const actionMap = {
       start: "session_start",
       ping: "session_active",
@@ -102,7 +103,7 @@ export class ActivityController {
   @Get("my-activity")
   @ApiOperation({ summary: "Get current user activity log" })
   async getMyActivity(
-    @Request() req: any,
+    @Request() req: Request & { user: { id: string } },
     @Query("limit") limit?: number,
     @Query("offset") offset?: number,
     @Query("actions") actions?: string,
@@ -122,7 +123,7 @@ export class ActivityController {
   @Get("my-summary")
   @ApiOperation({ summary: "Get activity summary for current user" })
   async getMyActivitySummary(
-    @Request() req: any,
+    @Request() req: Request & { user: { id: string } },
     @Query("days") days?: number,
   ) {
     const summary = await this.activityLoggingService.getUserActivitySummary(
@@ -192,7 +193,7 @@ export class ActivityController {
   @Roles("admin", "super_admin")
   @ApiOperation({ summary: "Export activity logs" })
   async exportActivities(
-    @Res() res: any,
+    @Res() res: Response,
     @Query("format") format?: string,
     @Query("timeRange") timeRange?: string,
   ) {
@@ -216,7 +217,17 @@ export class ActivityController {
     }
   }
 
-  private convertToCSV(activities: any[]): string {
+  private convertToCSV(activities: Array<{
+    timestamp: Date;
+    userId: string | null;
+    user?: { email: string };
+    action: string;
+    resourceType: string | null;
+    resourceId: string | null;
+    success: boolean;
+    ipAddress: string | null;
+    userAgent: string | null;
+  }>): string {
     if (activities.length === 0) return "";
 
     const headers = [

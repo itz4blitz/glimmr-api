@@ -468,19 +468,89 @@ export class StorageService {
     prefix: string,
     limit: number,
   ): Promise<StorageFile[]> {
-    // Local file listing is not implemented for this use case
-    // In production, we use S3/MinIO which has proper listing capabilities
-    this.logger.warn(
-      {
-        prefix,
-        limit,
-      },
-      "Local file listing not implemented - use S3/MinIO for production",
-    );
+    if (this.config.type !== "local") {
+      throw new Error("Local file listing called on non-local storage type");
+    }
 
-    // This method intentionally returns an empty array as local file listing
-    // is not implemented for this storage service. Use S3/MinIO for production.
-    return [];
+    const basePath = this.config.local?.basePath;
+    if (!basePath) {
+      throw new Error("Local storage base path not configured");
+    }
+
+    const fullPath = path.join(basePath, prefix);
+    const files: StorageFile[] = [];
+
+    try {
+      // Check if directory exists
+      if (!fs.existsSync(fullPath)) {
+        this.logger.info({
+          msg: "Directory does not exist for listing",
+          path: fullPath,
+        });
+        return [];
+      }
+
+      // Read directory recursively
+      const readDirRecursive = async (dir: string, currentPrefix: string = ""): Promise<void> => {
+        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+          if (files.length >= limit) {
+            break;
+          }
+
+          const entryPath = path.join(dir, entry.name);
+          const relativePath = path.join(currentPrefix, entry.name);
+
+          if (entry.isDirectory()) {
+            await readDirRecursive(entryPath, relativePath);
+          } else if (entry.isFile()) {
+            const stats = await fs.promises.stat(entryPath);
+            const key = path.join(prefix, relativePath).replace(/\\/g, "/"); // Normalize path separators
+
+            files.push({
+              key,
+              size: stats.size,
+              lastModified: stats.mtime,
+              etag: `"${stats.mtime.getTime()}-${stats.size}"`, // Simple etag based on mtime and size
+              contentType: this.getContentTypeFromExtension(path.extname(entry.name)),
+            });
+          }
+        }
+      };
+
+      await readDirRecursive(fullPath);
+
+      this.logger.info({
+        msg: "Local file listing completed",
+        prefix,
+        foundFiles: files.length,
+        limit,
+      });
+
+      return files.slice(0, limit);
+    } catch (error) {
+      this.logger.error({
+        msg: "Failed to list local files",
+        error: error.message,
+        path: fullPath,
+      });
+      throw error;
+    }
+  }
+
+  private getContentTypeFromExtension(ext: string): string {
+    const contentTypes: Record<string, string> = {
+      ".json": "application/json",
+      ".csv": "text/csv",
+      ".xml": "application/xml",
+      ".txt": "text/plain",
+      ".pdf": "application/pdf",
+      ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ".xls": "application/vnd.ms-excel",
+    };
+
+    return contentTypes[ext.toLowerCase()] || "application/octet-stream";
   }
 
   // S3/Spaces implementations

@@ -15,6 +15,7 @@ import type {
   UserFile,
   ExportOptions,
   ImportResult,
+  UserSession,
 } from "@/types/userManagement";
 
 export class UserManagementService {
@@ -159,7 +160,7 @@ export class UserManagementService {
   }
 
   // Search and Filtering Helpers
-  static buildSearchParams(filters: Record<string, any>): URLSearchParams {
+  static buildSearchParams(filters: Record<string, string | number | boolean | string[] | undefined>): URLSearchParams {
     const params = new URLSearchParams();
 
     Object.entries(filters).forEach(([key, value]) => {
@@ -200,7 +201,7 @@ export class UserManagementService {
   }
 
   // Session Management
-  static async getUserSessions(userId: string): Promise<any[]> {
+  static async getUserSessions(userId: string): Promise<UserSession[]> {
     const response = await apiClient.get(`/users/${userId}/sessions`);
     return response.data;
   }
@@ -218,22 +219,23 @@ export class UserManagementService {
 }
 
 // Error handling wrapper
-export const withErrorHandling = <T extends any[], R>(
+export const withErrorHandling = <T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
 ) => {
   return async (...args: T): Promise<R> => {
     try {
       return await fn(...args);
-    } catch (error: any) {
-      // Log error for debugging
-      console.error("UserManagementService Error:", error);
+    } catch (error) {
 
       // Re-throw with enhanced error information
-      const enhancedError = new Error(
-        error.response?.data?.message ||
-          error.message ||
-          "An unexpected error occurred",
-      );
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "An unexpected error occurred";
+      
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const apiMessage = axiosError.response?.data?.message;
+      
+      const enhancedError = new Error(apiMessage || errorMessage);
       enhancedError.cause = error;
       throw enhancedError;
     }

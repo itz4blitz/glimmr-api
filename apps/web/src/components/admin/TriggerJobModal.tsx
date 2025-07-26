@@ -153,8 +153,7 @@ export function TriggerJobModal({
         params: { limit: 100, isActive: true },
       });
       setHospitals(response.data.hospitals || []);
-    } catch (error) {
-      console.error("Failed to fetch hospitals:", error);
+    } catch (_error) {
       toast.error("Failed to load hospitals");
     } finally {
       setIsLoadingData(false);
@@ -167,8 +166,8 @@ export function TriggerJobModal({
         `/hospitals/${hospitalId}/price-files`,
       );
       setPriceFiles(response.data || []);
-    } catch (error) {
-      console.error("Failed to fetch price files:", error);
+    } catch (_error) {
+      // Silently fail - price files may not be available for all hospitals
     }
   };
 
@@ -333,7 +332,6 @@ export function TriggerJobModal({
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("Failed to trigger job:", error);
       let errorMessage = "Failed to trigger job";
       
       if (error && typeof error === "object" && "response" in error) {

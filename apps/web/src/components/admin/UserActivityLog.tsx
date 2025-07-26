@@ -252,20 +252,15 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
   const fetchActivities = async (page: number = currentPage) => {
     if (!userId) return;
 
-    console.log(
-      `Fetching activities for page ${page} (currentPage state: ${currentPage})`,
-    );
     setIsLoading(true);
     setError(null);
     try {
       const response = await apiClient.get(`/users/${userId}/activity`, {
         params: { page, limit: itemsPerPage },
       });
-      console.log(`Response for page ${page}:`, response.data);
       setActivities(response.data.activities || []);
       setTotalCount(response.data.total || 0);
     } catch (error) {
-      console.error("Failed to fetch user activities:", error);
       setError(
         error instanceof Error ? error.message : "Failed to fetch activities",
       );
@@ -286,7 +281,6 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
       });
       setAllActivities(response.data.activities || []);
     } catch (error) {
-      console.error("Failed to fetch all activities for stats:", error);
       setAllActivities([]);
     }
   };
@@ -656,9 +650,6 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
               size="sm"
               onClick={() => {
                 const newPage = Math.max(1, currentPage - 1);
-                console.log(
-                  `Previous button clicked: currentPage ${currentPage} -> ${newPage}`,
-                );
                 setCurrentPage(newPage);
               }}
               disabled={currentPage === 1}
@@ -686,9 +677,6 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
                     size="sm"
                     className="w-8 h-8 p-0"
                     onClick={() => {
-                      console.log(
-                        `Page button clicked: currentPage ${currentPage} -> ${pageNum}`,
-                      );
                       setCurrentPage(pageNum);
                     }}
                   >

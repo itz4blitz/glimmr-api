@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext";
+import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext.hooks";
 
 // Simple deep equality check to replace lodash isEqual
-function isEqual(a: any, b: any): boolean {
+function isEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a == null || b == null) return false;
   if (typeof a !== typeof b) return false;
@@ -42,7 +42,7 @@ export interface UseFormStateReturn<T> {
 
   // Actions
   setFormData: (data: T | ((prev: T) => T)) => void;
-  setFieldValue: (field: keyof T, value: any) => void;
+  setFieldValue: (field: keyof T, value: T[keyof T]) => void;
   setErrors: (errors: Record<string, string>) => void;
   setFieldError: (field: string, error: string) => void;
   clearErrors: () => void;
@@ -60,7 +60,7 @@ export interface UseFormStateReturn<T> {
   canSave: boolean;
 }
 
-export function useFormState<T extends Record<string, any>>(
+export function useFormState<T extends Record<string, unknown>>(
   options: UseFormStateOptions<T>,
 ): UseFormStateReturn<T> {
   const {
@@ -115,8 +115,8 @@ export function useFormState<T extends Record<string, any>>(
         try {
           await onSave(formData);
           setOriginalData(formData);
-        } catch (error) {
-          console.error("Auto-save failed:", error);
+        } catch (_error) {
+          // Auto-save errors are silently ignored
         }
       }, autoSaveDelay);
 
@@ -129,6 +129,8 @@ export function useFormState<T extends Record<string, any>>(
         clearTimeout(autoSaveTimeout);
       }
     };
+    // autoSaveTimeout is intentionally omitted from dependencies
+    // to avoid issues with the cleanup and timeout management
   }, [formData, isDirty, hasErrors, autoSave, autoSaveDelay, onSave]);
 
   // Update form data when initial data changes
@@ -167,7 +169,7 @@ export function useFormState<T extends Record<string, any>>(
   );
 
   const setFieldValue = useCallback(
-    (field: keyof T, value: any) => {
+    (field: keyof T, value: T[keyof T]) => {
       setFormData((prev) => ({
         ...prev,
         [field]: value,
@@ -257,9 +259,6 @@ export function useFormState<T extends Record<string, any>>(
       // Update original data to reflect saved state
       setOriginalData(formData);
       clearErrors();
-    } catch (error) {
-      console.error("Save failed:", error);
-      throw error;
     } finally {
       setIsSubmitting(false);
     }
@@ -325,10 +324,14 @@ export function useFormSubmission<T>(
       try {
         await onSubmit(data);
         options?.onSuccess?.();
-      } catch (err: any) {
-        const errorMessage = err.message || "An error occurred";
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "An error occurred";
         setError(errorMessage);
-        options?.onError?.(err);
+        if (err instanceof Error) {
+          options?.onError?.(err);
+        } else {
+          options?.onError?.(new Error(errorMessage));
+        }
         throw err;
       } finally {
         setIsSubmitting(false);

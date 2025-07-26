@@ -32,8 +32,8 @@ export function ActivityTracker() {
             },
           },
         })
-        .catch((err) => {
-          console.error("Failed to track page view:", err);
+        .catch((_err) => {
+          // Error handling intentionally omitted to avoid logging noise
         });
     }
   }, [location, isAuthenticated, user]);
@@ -52,8 +52,8 @@ export function ActivityTracker() {
             cookieEnabled: navigator.cookieEnabled,
           },
         })
-        .catch((err) => {
-          console.error("Failed to track session start:", err);
+        .catch((_err) => {
+          // Error handling intentionally omitted to avoid logging noise
         });
 
       // Set up session ping every 5 minutes
@@ -70,8 +70,8 @@ export function ActivityTracker() {
                 currentPage: location.pathname,
               },
             })
-            .catch((err) => {
-              console.error("Failed to send session ping:", err);
+            .catch((_err) => {
+              // Error handling intentionally omitted to avoid logging noise
             });
         }
       }, 300000); // 5 minutes
@@ -96,8 +96,8 @@ export function ActivityTracker() {
               lastPage: location.pathname,
             },
           })
-          .catch((err) => {
-            console.error("Failed to track session end:", err);
+          .catch((_err) => {
+            // Error handling intentionally omitted to avoid logging noise
           });
 
         // Clean up interval
@@ -112,6 +112,10 @@ export function ActivityTracker() {
         window.removeEventListener("scroll", handleActivity);
       };
     }
+    // location.pathname is intentionally omitted from dependencies
+    // because we only want to track session activity based on auth status changes,
+    // not on every route change (page views are tracked separately)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
   // Track page visibility
@@ -126,8 +130,8 @@ export function ActivityTracker() {
               timestamp: new Date().toISOString(),
             },
           })
-          .catch((err) => {
-            console.error("Failed to track visibility change:", err);
+          .catch((_err) => {
+            // Error handling intentionally omitted to avoid logging noise
           });
       }
     };

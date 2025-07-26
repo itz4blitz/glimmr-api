@@ -153,7 +153,7 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
       const response = await apiClient.get("/jobs/templates");
       setTemplates(response.data);
     } catch (error) {
-      console.error("Failed to fetch templates:", error);
+      console.error('Failed to load job templates:', error);
       toast.error("Failed to load job templates");
     }
   };
@@ -163,7 +163,7 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
       const response = await apiClient.get("/jobs/scheduled");
       setScheduledJobs(response.data);
     } catch (error) {
-      console.error("Failed to fetch scheduled jobs:", error);
+      console.error('Failed to load scheduled jobs:', error);
       toast.error("Failed to load scheduled jobs");
     }
   };
@@ -173,7 +173,7 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
       const response = await apiClient.get(`/jobs/scheduled/${scheduledJobId}/history`);
       return response.data;
     } catch (error) {
-      console.error("Failed to fetch job history:", error);
+      console.error('Failed to load job history:', error);
       toast.error("Failed to load job history");
       return [];
     }

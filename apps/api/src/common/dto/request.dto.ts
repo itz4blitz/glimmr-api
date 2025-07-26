@@ -40,7 +40,7 @@ export class ResponseDto {
   @IsOptional()
   headers?: Record<string, string>;
 
-  json?: (data: any) => any;
-  send?: (data: any) => any;
+  json?: (data: unknown) => unknown;
+  send?: (data: unknown) => unknown;
   setHeader?: (key: string, value: string) => void;
 }

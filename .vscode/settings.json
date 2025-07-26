@@ -1,37 +1,97 @@
 {
-  // Enable TypeScript checking for the entire project
+  // TypeScript - Enable project-wide diagnostics
   "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
   
-  // Enable ESLint for the entire project
+  // Force TypeScript to check all files immediately
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.tsserver.watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority"
+  },
+  
+  // ESLint - Enable project-wide linting
   "eslint.lintTask.enable": true,
-  "eslint.lintTask.options": "--cache --ext .js,.jsx,.ts,.tsx .",
+  "eslint.lintTask.options": "--cache --cache-location node_modules/.cache/eslint --ext .js,.jsx,.ts,.tsx .",
   
-  // Run ESLint on save
+  // ESLint validation for all file types
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  
+  // ESLint working directories for monorepo
+  "eslint.workingDirectories": [
+    { "pattern": "./apps/*/" },
+    { "pattern": "./packages/*/" }
+  ],
+  
+  // Force ESLint to use the local version
+  "eslint.nodePath": "./node_modules",
+  "eslint.packageManager": "pnpm",
+  
+  // ESLint settings
+  "eslint.alwaysShowStatus": true,
+  "eslint.useFlatConfig": true,
+  "eslint.cacheLocation": "node_modules/.cache/eslint/",
+  "eslint.options": {
+    "cache": false,
+    "reportUnusedDisableDirectives": "warn"
+  },
+  "eslint.debug": false,
+  
+  // Auto-fix on save (but not auto-format)
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   },
   
   // TypeScript preferences
   "typescript.preferences.includePackageJsonAutoImports": "auto",
   "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.suggest.completeFunctionCalls": true,
+  "typescript.referencesCodeLens.enabled": true,
+  "typescript.referencesCodeLens.showOnAllFunctions": true,
   
-  // Show all problems, not just for open files
+  // Problems panel configuration
+  "problems.autoReveal": true,
   "problems.showCurrentInStatus": true,
+  "problems.decorations.enabled": true,
   
-  // Enable TypeScript's semantic checking
+  // Enable all validations
   "typescript.validate.enable": true,
   "javascript.validate.enable": true,
+  "css.validate": true,
+  "scss.validate": true,
+  "json.validate.enable": true,
   
-  // Format on save
+  // Format on save with Prettier
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   
-  // Exclude node_modules and build folders from file watching
+  // File watching exclusions for performance
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/dist/**": true,
     "**/build/**": true,
-    "**/.turbo/**": true
+    "**/.turbo/**": true,
+    "**/.next/**": true,
+    "**/coverage/**": true
   },
   
   // Search exclusions
@@ -40,6 +100,44 @@
     "**/dist": true,
     "**/build": true,
     "**/.turbo": true,
+    "**/.next": true,
+    "**/coverage": true,
     "pnpm-lock.yaml": true
-  }
+  },
+  
+  // Task configuration
+  "task.autoDetect": "on",
+  "task.quickOpen.history": 10,
+  
+  // Terminal settings for tasks
+  "terminal.integrated.env.osx": {
+    "NODE_ENV": "development"
+  },
+  "terminal.integrated.env.linux": {
+    "NODE_ENV": "development"
+  },
+  "terminal.integrated.env.windows": {
+    "NODE_ENV": "development"
+  },
+  
+  // IMPORTANT: Force ESLint to run on all files in workspace
+  "eslint.run": "onType",
+  "eslint.probe": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  
+  // Enable ESLint auto-fix on save for all files
+  "eslint.format.enable": true,
+  "eslint.lintTask.options": ". --ext .js,.jsx,.ts,.tsx",
+  
+  // IMPORTANT: Enable TypeScript checking for entire workspace
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "typescript.tsserver.useSyntaxServer": "never",
+  
+  // IMPORTANT: Show all problems not just current file
+  "problems.showCurrentInStatus": true,
+  "problems.sortOrder": "severity"
 }

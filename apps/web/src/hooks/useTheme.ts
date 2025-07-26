@@ -1,1 +1,1 @@
-export { useTheme } from "@/components/theme-provider";
+export { useTheme } from "@/components/theme-provider.hooks";

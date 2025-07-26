@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/auth";
-import {
-  UnsavedChangesProvider,
-  useUnsavedChangesContext,
-} from "@/contexts/UnsavedChangesContext";
+import { UnsavedChangesProvider } from "@/contexts/UnsavedChangesContext";
+import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext.hooks";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {

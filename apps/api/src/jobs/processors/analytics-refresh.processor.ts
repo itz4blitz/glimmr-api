@@ -78,7 +78,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       });
 
       const results: MetricResult[] = [];
-      let progressPerMetric = 90 / metrics.length;
+      const progressPerMetric = 90 / metrics.length;
       let currentProgress = 5;
 
       // Process each requested metric

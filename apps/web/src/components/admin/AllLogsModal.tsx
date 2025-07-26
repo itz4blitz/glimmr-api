@@ -122,14 +122,9 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
       });
 
       const logsData = response.data.logs || response.data || [];
-      console.log("All logs fetched:", {
-        logsCount: logsData.length,
-        sampleLogs: logsData.slice(0, 2),
-        responseStructure: Object.keys(response.data)
-      });
       setLogs(logsData);
     } catch (error) {
-      console.error("Failed to fetch logs:", error);
+      console.error('Failed to load job logs:', error);
       toast.error("Failed to load job logs");
     } finally {
       setIsLoading(false);
@@ -430,7 +425,6 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
         setIsResetting(false);
       }
     } catch (error) {
-      console.error("Failed to reset logs:", error);
 
       // Handle rate limiting with retry
       const err = error as { response?: { status?: number; data?: { message?: string } } };
@@ -439,8 +433,7 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
         toast.info(
           `Rate limit reached. Retrying in ${retryDelay / 1000} seconds...`,
         );
-        shouldRetry = true;
-        console.log('Will retry after delay:', shouldRetry);
+        // shouldRetry = true;
 
         setTimeout(() => {
           handleResetLogs(retryCount + 1);

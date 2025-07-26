@@ -17,6 +17,7 @@ import type {
   PreferencesUpdateData,
   UserActivityLog,
   UserFile,
+  UserRole,
 } from "@/types/userManagement";
 
 interface UserManagementState {
@@ -174,9 +175,10 @@ export const useUserManagementStore = create<UserManagementState>()(
               totalPages: response.totalPages,
             },
           }));
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to load users";
           set((state) => ({
-            error: { ...state.error, users: error.message },
+            error: { ...state.error, users: errorMessage },
           }));
           toast.error("Failed to load users");
         }
@@ -194,10 +196,11 @@ export const useUserManagementStore = create<UserManagementState>()(
             selectedUser: user,
             loading: { ...state.loading, userDetail: false },
           }));
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to load user details";
           set((state) => ({
             loading: { ...state.loading, userDetail: false },
-            error: { ...state.error, userDetail: error.message },
+            error: { ...state.error, userDetail: errorMessage },
           }));
           toast.error("Failed to load user details");
         }
@@ -216,7 +219,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("User updated successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to update user");
           throw error;
         }
@@ -225,19 +228,19 @@ export const useUserManagementStore = create<UserManagementState>()(
       updateUserRole: async (id, role) => {
         try {
           const updatedUser = await userManagementApi.updateUserRole(id, {
-            role: role as any,
+            role: role as UserRole,
           });
 
           set((state) => ({
             selectedUser:
               state.selectedUser?.id === id ? updatedUser : state.selectedUser,
             users: state.users.map((user) =>
-              user.id === id ? { ...user, role: role as any } : user,
+              user.id === id ? { ...user, role: role as UserRole } : user,
             ),
           }));
 
           toast.success("User role updated successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to update user role");
           throw error;
         }
@@ -257,7 +260,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("User deleted successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to delete user");
           throw error;
         }
@@ -274,7 +277,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("User activated successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to activate user");
           throw error;
         }
@@ -291,7 +294,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("User deactivated successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to deactivate user");
           throw error;
         }
@@ -311,7 +314,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("Profile updated successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to update profile");
           throw error;
         }
@@ -330,7 +333,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("Preferences updated successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to update preferences");
           throw error;
         }
@@ -363,10 +366,11 @@ export const useUserManagementStore = create<UserManagementState>()(
               `${result.successful.length} users processed successfully`,
             );
           }
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Bulk operation failed";
           set((state) => ({
             loading: { ...state.loading, bulkAction: false },
-            error: { ...state.error, bulkAction: error.message },
+            error: { ...state.error, bulkAction: errorMessage },
           }));
           toast.error("Bulk operation failed");
         }
@@ -388,10 +392,11 @@ export const useUserManagementStore = create<UserManagementState>()(
             userStats: stats,
             loading: { ...state.loading, stats: false },
           }));
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to load user statistics";
           set((state) => ({
             loading: { ...state.loading, stats: false },
-            error: { ...state.error, stats: error.message },
+            error: { ...state.error, stats: errorMessage },
           }));
           toast.error("Failed to load user statistics");
         }
@@ -403,10 +408,8 @@ export const useUserManagementStore = create<UserManagementState>()(
             page,
             limit: 20,
           });
-          console.log("User activity response:", response);
           set({ userActivity: response.activities || [] });
-        } catch (error: any) {
-          console.error("Failed to load user activity:", error);
+        } catch (error) {
           toast.error("Failed to load user activity");
           set({ userActivity: [] });
         }
@@ -416,9 +419,10 @@ export const useUserManagementStore = create<UserManagementState>()(
         try {
           const files = await userManagementApi.getUserFiles(userId);
           set({ userFiles: files || [] });
-        } catch (error: any) {
+        } catch (error) {
           // Don't show error for 404 - files endpoint may not be implemented yet
-          if (error.response?.status !== 404) {
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status !== 404) {
             toast.error("Failed to load user files");
           }
           set({ userFiles: [] });
@@ -487,7 +491,7 @@ export const useUserManagementStore = create<UserManagementState>()(
         try {
           await userManagementApi.sendPasswordReset(userId);
           toast.success("Password reset email sent");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to send password reset");
           throw error;
         }
@@ -497,7 +501,7 @@ export const useUserManagementStore = create<UserManagementState>()(
         try {
           await userManagementApi.resendEmailVerification(userId);
           toast.success("Verification email sent");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to send verification email");
           throw error;
         }
@@ -508,7 +512,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           const result = await userManagementApi.generateApiKey(userId);
           toast.success("API key generated successfully");
           return result.apiKey;
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to generate API key");
           throw error;
         }
@@ -518,7 +522,7 @@ export const useUserManagementStore = create<UserManagementState>()(
         try {
           await userManagementApi.revokeApiKey(userId);
           toast.success("API key revoked successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to revoke API key");
           throw error;
         }
@@ -534,7 +538,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           }));
 
           toast.success("File deleted successfully");
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to delete file");
           throw error;
         }
@@ -553,7 +557,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           link.click();
           document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
-        } catch (error: any) {
+        } catch (error) {
           toast.error("Failed to download file");
           throw error;
         }

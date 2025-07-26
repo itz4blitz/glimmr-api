@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuthStore } from "@/stores/auth";
-import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext";
+import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext.hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +25,7 @@ const profileSchema = z.object({
   bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
   phoneNumber: z
     .string()
-    .regex(/^\+?[\d\s\-\(\)]+$/, "Invalid phone number")
+    .regex(/^\+?[\d\s\-()]+$/, "Invalid phone number")
     .optional()
     .or(z.literal("")),
   company: z.string().max(100).optional(),
@@ -50,11 +50,7 @@ const profileSchema = z.object({
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
-interface ProfileFormProps {
-  // No longer need editing state props
-}
-
-export function ProfileForm({}: ProfileFormProps) {
+export function ProfileForm() {
   const { user, updateUser } = useAuthStore();
   const { setHasUnsavedChanges, registerSaveFunction } =
     useUnsavedChangesContext();
@@ -137,7 +133,7 @@ export function ProfileForm({}: ProfileFormProps) {
     setHasUnsavedChanges(hasFormChanges);
   }, [watchedValues, user, setHasUnsavedChanges]);
 
-  const saveProfile = async () => {
+  const saveProfile = useCallback(async () => {
     const data = form.getValues();
     if (!user) return;
 
@@ -171,7 +167,7 @@ export function ProfileForm({}: ProfileFormProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [form, user, updateUser, setHasUnsavedChanges]);
 
   const onSubmit = async () => {
     await saveProfile();

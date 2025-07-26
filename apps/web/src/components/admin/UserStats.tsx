@@ -121,7 +121,6 @@ export function UserStats() {
         const data = await response.json();
         setStats(data);
       } catch (error) {
-        console.error("Failed to fetch user stats:", error);
         setError(error instanceof Error ? error.message : "An error occurred");
         setStats(null);
       } finally {

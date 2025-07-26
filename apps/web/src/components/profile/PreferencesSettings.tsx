@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuthStore } from "@/stores/auth";
 import { useTheme } from "@/hooks/useTheme";
-import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext";
+import { useUnsavedChangesContext } from "@/contexts/UnsavedChangesContext.hooks";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -96,7 +96,7 @@ export function PreferencesSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const defaultValues = {
+  const defaultValues = useMemo(() => ({
     notificationEmail: user?.preferences?.notificationEmail ?? true,
     notificationPush: user?.preferences?.notificationPush ?? true,
     notificationSms: user?.preferences?.notificationSms ?? false,
@@ -106,7 +106,7 @@ export function PreferencesSettings() {
     timezonePreference: user?.preferences?.timezonePreference ?? "UTC",
     dateFormat: user?.preferences?.dateFormat ?? "MM/DD/YYYY",
     timeFormat: (user?.preferences?.timeFormat as "12h" | "24h") ?? "12h",
-  };
+  }), [user, theme]);
 
   const form = useForm<PreferencesFormData>({
     resolver: zodResolver(preferencesSchema),
@@ -127,9 +127,9 @@ export function PreferencesSettings() {
     });
     setHasChanges(hasFormChanges);
     setHasUnsavedChanges(hasFormChanges);
-  }, [watchedValues, user, setHasUnsavedChanges]);
+  }, [watchedValues, user, setHasUnsavedChanges, defaultValues]);
 
-  const savePreferences = async () => {
+  const savePreferences = useCallback(async () => {
     const data = form.getValues();
     if (!user) return;
 
@@ -155,7 +155,7 @@ export function PreferencesSettings() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [form, user, setTheme, updateUser, setHasUnsavedChanges]);
 
   const onSubmit = async () => {
     await savePreferences();
@@ -168,7 +168,7 @@ export function PreferencesSettings() {
   // Register save function with context
   useEffect(() => {
     registerSaveFunction(savePreferences);
-  }, [registerSaveFunction]);
+  }, [registerSaveFunction, savePreferences]);
 
   return (
     <Form {...form}>

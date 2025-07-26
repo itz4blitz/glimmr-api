@@ -1,9 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { HttpException, HttpStatus } from "@nestjs/common";
-import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
-import { APP_GUARD } from "@nestjs/core";
-import { ExecutionContext } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
+import { HttpException, HttpStatus, ExecutionContext } from "@nestjs/common";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { APP_GUARD, Reflector } from "@nestjs/core";
 import { AnalyticsController } from "./analytics.controller";
 import { AnalyticsService } from "./analytics.service";
 import { CustomThrottlerGuard } from "../common/guards/custom-throttler.guard";
@@ -317,7 +315,7 @@ describe("AnalyticsController", () => {
       mockExecutionContext.getHandler = jest.fn().mockReturnValue(handler);
 
       // Check if the @Throttle decorator is applied with expensive limits
-      const throttleMetadata = reflector.get("throttle:limits", handler);
+      const _throttleMetadata = reflector.get("throttle:limits", handler);
 
       // Since we're using @Throttle({ expensive: { limit: 10, ttl: 900000 } })
       // The metadata should contain the throttle configuration
@@ -559,7 +557,7 @@ describe("AnalyticsController", () => {
       mockAnalyticsService.getPricingTrends.mockResolvedValue([]);
 
       // Test with potentially malicious input
-      const result = await controller.getPricingTrends({
+      const _result = await controller.getPricingTrends({
         service: '<script>alert("xss")</script>',
         state: "DROP TABLE users;",
         period: "../../etc/passwd",

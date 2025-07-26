@@ -24,8 +24,21 @@ export interface UserPreferences {
   timezonePreference?: string;
   dateFormat?: string;
   timeFormat?: "12h" | "24h";
-  privacySettings?: any;
-  dashboardLayout?: any;
+  privacySettings?: {
+    profileVisibility?: "public" | "private" | "friends";
+    showEmail?: boolean;
+    showPhone?: boolean;
+    showLocation?: boolean;
+  };
+  dashboardLayout?: {
+    widgets?: Array<{
+      id: string;
+      type: string;
+      position: { x: number; y: number };
+      size: { width: number; height: number };
+    }>;
+    theme?: string;
+  };
 }
 
 export interface User {

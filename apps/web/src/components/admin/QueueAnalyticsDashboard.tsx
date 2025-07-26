@@ -126,7 +126,8 @@ export function QueueAnalyticsDashboard({
         });
       }
       
-      const hourStat = hourlyStats.get(hour)!;
+      const hourStat = hourlyStats.get(hour);
+      if (!hourStat) continue;
       hourStat.total++;
       
       if (log.status === "completed" || log.level === "success") {
@@ -157,7 +158,8 @@ export function QueueAnalyticsDashboard({
         });
       }
       
-      const typeStat = jobTypeStats.get(jobType)!;
+      const typeStat = jobTypeStats.get(jobType);
+      if (!typeStat) continue;
       typeStat.count++;
       
       if (log.duration) {

@@ -48,7 +48,7 @@ interface UserFileManagerProps {
   userId: string;
 }
 
-const fileTypeIcons: Record<string, any> = {
+const fileTypeIcons: Record<string, typeof Image | typeof FileText | typeof File> = {
   "image/jpeg": Image,
   "image/png": Image,
   "image/gif": Image,

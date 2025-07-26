@@ -19,7 +19,6 @@ export function NotificationBell() {
       const response = await apiClient.get("/notifications/unread-count");
       setUnreadCount(response.data.count);
     } catch (error) {
-      console.error("Failed to fetch unread count:", error);
     }
   };
 

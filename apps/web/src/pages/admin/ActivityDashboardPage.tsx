@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Activity,
@@ -59,7 +59,12 @@ interface ActivityLog {
   action: string;
   resourceType?: string;
   resourceId?: string;
-  metadata?: any;
+  metadata?: {
+    previousValue?: string | number | boolean;
+    newValue?: string | number | boolean;
+    changes?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
   ipAddress?: string;
   userAgent?: string;
   success?: boolean;
@@ -101,9 +106,9 @@ export function ActivityDashboardPage() {
   useEffect(() => {
     loadActivities();
     loadStats();
-  }, [page, actionFilter, resourceFilter, statusFilter, timeFilter]);
+  }, [page, actionFilter, resourceFilter, statusFilter, timeFilter, loadActivities]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -125,20 +130,19 @@ export function ActivityDashboardPage() {
       setActivities(response.data.activities || []);
       setTotal(response.data.total || 0);
       setTotalPages(response.data.totalPages || 0);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to load activities");
-      console.error("Error loading activities:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, searchTerm, actionFilter, resourceFilter, statusFilter, timeFilter]);
 
   const loadStats = async () => {
     try {
       const response = await apiClient.get("/api/v1/activity/stats");
       setStats(response.data);
-    } catch (error) {
-      console.error("Error loading stats:", error);
+    } catch (_error) {
+      // Silently fail for stats loading
     }
   };
 
@@ -172,9 +176,8 @@ export function ActivityDashboardPage() {
       link.remove();
 
       toast.success("Activity logs exported successfully");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to export activity logs");
-      console.error("Export error:", error);
     }
   };
 
@@ -487,7 +490,6 @@ export function ActivityDashboardPage() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => {
-                                  console.log("View details:", activity);
                                 }}
                               >
                                 View details
@@ -495,7 +497,6 @@ export function ActivityDashboardPage() {
                               {activity.userId && (
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    console.log("View user:", activity.userId);
                                   }}
                                 >
                                   View user
@@ -504,7 +505,7 @@ export function ActivityDashboardPage() {
                               {activity.errorMessage && (
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    toast.error(activity.errorMessage!);
+                                    toast.error(activity.errorMessage);
                                   }}
                                 >
                                   View error

@@ -57,7 +57,7 @@ export function LoginForm() {
       toast.success("Login successful! Welcome back.");
       navigate(from, { replace: true });
     } catch (error) {
-      toast.error("Login failed. Please check your credentials.");
+      toast.error(`Login failed. ${error}`);
     }
   };
 

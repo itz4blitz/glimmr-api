@@ -63,7 +63,7 @@ export function RegisterForm() {
       await register({ email, password });
       toast.success("Account created successfully! Welcome to Glimmr.");
       navigate("/dashboard", { replace: true });
-    } catch (error) {
+    } catch {
       toast.error("Registration failed. Please try again.");
     }
   };

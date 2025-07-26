@@ -2,64 +2,23 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Check TypeScript - API",
-      "type": "npm",
-      "script": "check-types",
-      "path": "apps/api/",
-      "group": "build",
-      "problemMatcher": "$tsc",
-      "presentation": {
-        "reveal": "never"
-      }
-    },
-    {
-      "label": "Check TypeScript - Web",
-      "type": "shell",
-      "command": "npx tsc --noEmit",
-      "options": {
-        "cwd": "${workspaceFolder}/apps/web"
-      },
-      "group": "build",
-      "problemMatcher": "$tsc",
-      "presentation": {
-        "reveal": "never"
-      }
-    },
-    {
-      "label": "Check All TypeScript",
-      "dependsOn": ["Check TypeScript - API", "Check TypeScript - Web"],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Watch TypeScript - All",
+      "label": "Lint All",
       "type": "shell",
       "command": "pnpm",
-      "args": ["check-types:watch"],
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "typescript",
-        "source": "ts",
-        "applyTo": "allDocuments",
-        "fileLocation": "relative",
-        "pattern": {
-          "regexp": "^([^\\s].*?)\\((\\d+),(\\d+)\\):\\s+(error|warning|info)\\s+(TS\\d+)\\s*:\\s*(.*)$",
-          "file": 1,
-          "line": 2,
-          "column": 3,
-          "severity": 4,
-          "code": 5,
-          "message": 6
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^\\s*(?:message TS6194:|\\[\\d{1,2}:\\d{1,2}:\\d{1,2}\\s*(?:AM|PM)?\\]).*Compilation starting",
-          "endsPattern": "^\\s*(?:message TS6194:|\\[\\d{1,2}:\\d{1,2}:\\d{1,2}\\s*(?:AM|PM)?\\]).*Compilation complete"
-        }
+      "args": ["lint"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
       }
+    },
+    {
+      "label": "Type Check",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["check-types"],
+      "problemMatcher": ["$tsc"],
+      "group": "test"
     }
   ]
 }

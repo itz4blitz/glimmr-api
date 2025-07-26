@@ -8,7 +8,7 @@ import { AuthService } from "../auth.service";
 describe("BullBoardAuthMiddleware", () => {
   let middleware: BullBoardAuthMiddleware;
   let jwtService: jest.Mocked<JwtService>;
-  let configService: jest.Mocked<ConfigService>;
+  let _configService: jest.Mocked<ConfigService>;
   let authService: jest.Mocked<AuthService>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;

@@ -30,6 +30,7 @@ import { ActivityLoggingInterceptor } from "./activity/activity-logging.intercep
 import { RequestContextMiddleware } from "./common/middleware";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middleware";
+import { ExtendedRequest, SerializedRequest, SerializedResponse, SerializedError } from "./common/types/http";
 
 @Module({
   imports: [
@@ -94,21 +95,21 @@ import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middl
               },
             },
             timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
-            genReqId: (req: any) => {
+            genReqId: (req: ExtendedRequest) => {
               return (
                 req.headers["x-request-id"] ??
                 req.headers["x-correlation-id"] ??
                 `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
               );
             },
-            customProps: (req: any) => ({
+            customProps: (req: ExtendedRequest) => ({
               userAgent: req.headers["user-agent"],
               ip: req.ip ?? req.connection?.remoteAddress,
               method: req.method,
               url: req.url,
             }),
             serializers: {
-              req: (req: any) => ({
+              req: (req: ExtendedRequest): SerializedRequest => ({
                 id: req.id,
                 method: req.method,
                 url: req.url,
@@ -125,14 +126,14 @@ import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middl
                 remoteAddress: req.remoteAddress,
                 remotePort: req.remotePort,
               }),
-              res: (res: any) => ({
+              res: (res: { statusCode: number }): SerializedResponse => ({
                 statusCode: res.statusCode,
                 headers: {
                   "content-type": res.headers?.["content-type"],
                   "content-length": res.headers?.["content-length"],
                 },
               }),
-              err: (err: any) => ({
+              err: (err: Error & { code?: string }): SerializedError => ({
                 type: err.constructor.name,
                 message: err.message,
                 stack: err.stack,

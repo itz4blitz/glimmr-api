@@ -9,13 +9,13 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, "api-key") {
     super(
       { header: "x-api-key", prefix: "" },
       true,
-      async (apiKey: string, done) => {
+      (apiKey: string, done) => {
         return this.validate(apiKey, done);
       },
     );
   }
 
-  async validate(apiKey: string, done: (error: Error, data) => {}) {
+  async validate(apiKey: string, done: (error: Error | null, data: unknown) => void) {
     const user = await this.authService.validateApiKey(apiKey);
     if (!user) {
       done(new UnauthorizedException("Invalid API key"), null);

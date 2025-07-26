@@ -46,7 +46,7 @@ export class AnalyticsController {
   async getDashboardAnalytics() {
     try {
       return await this.analyticsService.getDashboardAnalytics();
-    } catch (error) {
+    } catch (_error) {
       if (
         error.message?.includes("ECONNREFUSED") ||
         error.message?.includes("connect")
@@ -99,7 +99,7 @@ export class AnalyticsController {
   async getPricingTrends(@Query() query: AnalyticsQueryDto) {
     try {
       return await this.analyticsService.getPricingTrends(query);
-    } catch (error) {
+    } catch (_error) {
       if (
         error.message?.includes("ECONNREFUSED") ||
         error.message?.includes("connect")
@@ -140,7 +140,7 @@ export class AnalyticsController {
   async getPowerBIInfo() {
     try {
       return await this.analyticsService.getPowerBIInfo();
-    } catch (error) {
+    } catch (_error) {
       if (
         error.message?.includes("ECONNREFUSED") ||
         error.message?.includes("connect")
@@ -184,7 +184,7 @@ export class AnalyticsController {
   async exportData(@Query() query: ExportQueryDto) {
     try {
       return await this.analyticsService.exportData(query);
-    } catch (error) {
+    } catch (_error) {
       if (
         error.message?.includes("ECONNREFUSED") ||
         error.message?.includes("connect")
@@ -255,7 +255,7 @@ export class AnalyticsController {
       }
 
       await this.analyticsService.streamExportData(query, response);
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof HttpException) {
         throw error;
       }
@@ -326,7 +326,7 @@ export class AnalyticsController {
     description: "Export history retrieved successfully",
   })
   @Roles("admin", "api-user")
-  async getAllExports() {
+  getAllExports() {
     return this.analyticsService.getAllExportProgress();
   }
 
@@ -350,7 +350,7 @@ export class AnalyticsController {
   ) {
     try {
       return await this.analyticsService.getComprehensiveMetrics(query);
-    } catch (error) {
+    } catch (_error) {
       throw new HttpException(
         {
           message: "Failed to retrieve comprehensive metrics",
@@ -381,7 +381,7 @@ export class AnalyticsController {
   ) {
     try {
       return await this.analyticsService.getPriceVarianceInsights(query);
-    } catch (error) {
+    } catch (_error) {
       throw new HttpException(
         {
           message: "Failed to retrieve price variance insights",
@@ -412,7 +412,7 @@ export class AnalyticsController {
   ) {
     try {
       return await this.analyticsService.getMarketPositionInsights(query);
-    } catch (error) {
+    } catch (_error) {
       throw new HttpException(
         {
           message: "Failed to retrieve market position insights",
@@ -441,7 +441,7 @@ export class AnalyticsController {
   async getBenchmarks(@Query() query: { metric?: string; state?: string }) {
     try {
       return await this.analyticsService.getBenchmarks(query);
-    } catch (error) {
+    } catch (_error) {
       throw new HttpException(
         {
           message: "Failed to retrieve benchmarks",
@@ -464,7 +464,7 @@ export class AnalyticsController {
   async getRealTimeMetrics() {
     try {
       return await this.analyticsService.getRealTimeMetrics();
-    } catch (error) {
+    } catch (_error) {
       throw new HttpException(
         {
           message: "Failed to retrieve real-time metrics",

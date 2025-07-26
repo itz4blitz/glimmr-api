@@ -74,7 +74,7 @@ export function CreateUserDialog({
     setIsLoading(true);
     try {
       // Here you would call your API to create the user
-      console.log("Creating user:", data);
+      console.log('Creating user with data:', data);
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -83,6 +83,7 @@ export function CreateUserDialog({
       form.reset();
       onOpenChange(false);
     } catch (error) {
+      console.error('Failed to create user:', error);
       toast.error("Failed to create user. Please try again.");
     } finally {
       setIsLoading(false);

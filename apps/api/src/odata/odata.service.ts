@@ -859,7 +859,7 @@ export class ODataService {
     const requests: Array<{ method: string; url: string }> = [];
     const lines = batchBody.split("\n");
 
-    let currentRequest: any = {};
+    const currentRequest: any = {};
     for (const line of lines) {
       if (line.startsWith("GET ")) {
         const url = line.replace("GET ", "").trim();

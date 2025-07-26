@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ExecutionContext } from "@nestjs/common";
+import { type ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
@@ -8,8 +8,8 @@ import { UsersService } from "../../users/users.service";
 
 describe("JwtAuthGuard", () => {
   let guard: JwtAuthGuard;
-  let jwtService: jest.Mocked<JwtService>;
-  let usersService: jest.Mocked<UsersService>;
+  let _jwtService: jest.Mocked<JwtService>;
+  let _usersService: jest.Mocked<UsersService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

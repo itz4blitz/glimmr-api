@@ -158,7 +158,6 @@ export function UserProfileForm({
     try {
       await updateUserRole(user.id, newRole);
     } catch (error) {
-      console.error("Failed to update role:", error);
     }
   };
 

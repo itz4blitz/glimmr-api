@@ -951,7 +951,7 @@ export class AnalyticsService {
     response.end();
   }
 
-  private createWorksheet(data: any[]): any {
+  private createWorksheet(data: Array<Record<string, unknown>>): XLSX.WorkSheet {
     // Create a simple worksheet from array data
     const headers = Object.keys(data[0]);
     const wsData = [headers, ...data.map((row) => headers.map((h) => row[h]))];
@@ -1204,7 +1204,7 @@ export class AnalyticsService {
     }
   }
 
-  async getMarketPositionInsights(filters: {
+  getMarketPositionInsights(filters: {
     hospitalId?: string;
     state?: string;
   }) {
@@ -1290,7 +1290,7 @@ export class AnalyticsService {
       // Calculate percentiles and rankings
       Object.keys(benchmarks).forEach((metricName) => {
         const stateValues = Object.values(benchmarks[metricName].states).map(
-          (s: any) => s.value,
+          (s: { label: string; value: number }) => s.value,
         );
         if (stateValues.length > 0) {
           stateValues.sort((a, b) => a - b);
@@ -1524,7 +1524,12 @@ export class AnalyticsService {
     };
   }
 
-  private interpretBenchmarks(benchmarks: any): string[] {
+  private interpretBenchmarks(benchmarks: {
+    position: number;
+    percentBelow: number;
+    percentAbove: number;
+    avgDifference: number;
+  }): string[] {
     const interpretations = [];
     const metricCount = Object.keys(benchmarks).length;
 

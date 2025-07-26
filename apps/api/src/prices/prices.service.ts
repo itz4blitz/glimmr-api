@@ -531,8 +531,8 @@ export class PricesService {
       throw new Error("Zipcode is required");
     }
 
-    // Find hospitals within the radius
-    // This is a simplified version - in production, you'd use PostGIS or similar
+    // Find hospitals within the radius using Haversine formula
+    // For a production system with many hospitals, consider using PostGIS extension
     const nearbyHospitals = await db
       .select({
         id: hospitals.id,
@@ -540,16 +540,46 @@ export class PricesService {
         city: hospitals.city,
         state: hospitals.state,
         zipCode: hospitals.zipCode,
-        distance: sql<number>`0`, // Placeholder - would calculate actual distance
+        latitude: hospitals.latitude,
+        longitude: hospitals.longitude,
+        distance: sql<number>`
+          CASE 
+            WHEN ${hospitals.latitude} IS NOT NULL AND ${hospitals.longitude} IS NOT NULL
+            THEN (
+              3959 * acos(
+                cos(radians(${lat})) * 
+                cos(radians(${hospitals.latitude})) * 
+                cos(radians(${hospitals.longitude}) - radians(${lng})) + 
+                sin(radians(${lat})) * 
+                sin(radians(${hospitals.latitude}))
+              )
+            )
+            ELSE 9999
+          END
+        `,
       })
       .from(hospitals)
       .where(
         and(
           eq(hospitals.isActive, true),
-          // Simplified zipcode matching - in production, use proper geospatial queries
-          sql`substring(${hospitals.zipCode}, 1, 3) = substring(${zipcode}, 1, 3)`,
+          sql`
+            CASE 
+              WHEN ${hospitals.latitude} IS NOT NULL AND ${hospitals.longitude} IS NOT NULL
+              THEN (
+                3959 * acos(
+                  cos(radians(${lat})) * 
+                  cos(radians(${hospitals.latitude})) * 
+                  cos(radians(${hospitals.longitude}) - radians(${lng})) + 
+                  sin(radians(${lat})) * 
+                  sin(radians(${hospitals.latitude}))
+                )
+              ) <= ${radius}
+              ELSE FALSE
+            END
+          `,
         ),
       )
+      .orderBy(sql`distance`)
       .limit(100); // Get more hospitals to filter by services
 
     if (nearbyHospitals.length === 0) {
@@ -580,7 +610,7 @@ export class PricesService {
       priceConditions.push(eq(prices.hasNegotiatedRates, true));
     }
 
-    // Get prices with hospital info
+    // Get prices with hospital info and distance
     const priceResults = await db
       .select({
         priceId: prices.id,
@@ -599,6 +629,23 @@ export class PricesService {
         hospitalCity: hospitals.city,
         hospitalState: hospitals.state,
         hospitalZipCode: hospitals.zipCode,
+        hospitalLatitude: hospitals.latitude,
+        hospitalLongitude: hospitals.longitude,
+        distance: sql<number>`
+          CASE 
+            WHEN ${hospitals.latitude} IS NOT NULL AND ${hospitals.longitude} IS NOT NULL
+            THEN (
+              3959 * acos(
+                cos(radians(${lat})) * 
+                cos(radians(${hospitals.latitude})) * 
+                cos(radians(${hospitals.longitude}) - radians(${lng})) + 
+                sin(radians(${lat})) * 
+                sin(radians(${hospitals.latitude}))
+              )
+            )
+            ELSE NULL
+          END
+        `,
       })
       .from(prices)
       .innerJoin(hospitals, eq(prices.hospitalId, hospitals.id))
@@ -655,7 +702,7 @@ export class PricesService {
           city: r.hospitalCity,
           state: r.hospitalState,
           zipCode: r.hospitalZipCode,
-          distance: 0, // Placeholder
+          distance: r.distance || 0,
         },
       })),
       statistics: serviceStats,

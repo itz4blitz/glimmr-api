@@ -88,8 +88,21 @@ export interface UserPreferences {
   timezonePreference: string;
   dateFormat?: string;
   timeFormat?: string;
-  privacySettings?: Record<string, any>;
-  dashboardLayout?: Record<string, any>;
+  privacySettings?: {
+    profileVisibility?: "public" | "private" | "friends";
+    showEmail?: boolean;
+    showPhone?: boolean;
+    showLocation?: boolean;
+  };
+  dashboardLayout?: {
+    widgets?: Array<{
+      id: string;
+      type: string;
+      position: { x: number; y: number };
+      size: { width: number; height: number };
+    }>;
+    theme?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -100,7 +113,12 @@ export interface UserActivityLog {
   action: string;
   resourceType: string;
   resourceId?: string;
-  metadata?: Record<string, any>;
+  metadata?: {
+    previousValue?: string | number | boolean;
+    newValue?: string | number | boolean;
+    changes?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
   timestamp: string;
   ipAddress?: string;
   userAgent?: string;
@@ -118,6 +136,18 @@ export interface UserFile {
   createdAt: string;
   updatedAt: string;
   uploadedAt: string;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  token: string;
+  ipAddress?: string;
+  userAgent?: string;
+  lastActivity: string;
+  createdAt: string;
+  expiresAt: string;
+  isActive: boolean;
 }
 
 export interface UserWithProfile extends User {
@@ -177,8 +207,21 @@ export interface PreferencesUpdateData {
   timezonePreference?: string;
   dateFormat?: string;
   timeFormat?: string;
-  privacySettings?: Record<string, any>;
-  dashboardLayout?: Record<string, any>;
+  privacySettings?: {
+    profileVisibility?: "public" | "private" | "friends";
+    showEmail?: boolean;
+    showPhone?: boolean;
+    showLocation?: boolean;
+  };
+  dashboardLayout?: {
+    widgets?: Array<{
+      id: string;
+      type: string;
+      position: { x: number; y: number };
+      size: { width: number; height: number };
+    }>;
+    theme?: string;
+  };
 }
 
 // Bulk Operations

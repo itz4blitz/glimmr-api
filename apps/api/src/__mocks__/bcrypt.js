@@ -1,3 +1,4 @@
+/* eslint-env jest, node */
 // Mock bcrypt for Jest tests to avoid native module issues
 module.exports = {
   hash: jest.fn().mockImplementation((data, rounds) => 

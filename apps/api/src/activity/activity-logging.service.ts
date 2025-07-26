@@ -10,19 +10,20 @@ import {
   gte,
   count,
   desc,
-  inArray,
+  // inArray,
   or,
   like,
   isNotNull,
   lt,
 } from "drizzle-orm";
+import { ActivityMetadata, AuthenticatedRequest } from "./types";
 
 export interface ActivityLogData {
   userId?: string;
   action: string;
   resourceType?: string;
   resourceId?: string;
-  metadata?: Record<string, any>;
+  metadata?: ActivityMetadata;
   request?: Request;
   success?: boolean;
   errorMessage?: string;
@@ -86,14 +87,14 @@ export class ActivityLoggingService {
       referrer: request.headers["referer"] as string,
       url: request.originalUrl || request.url,
       method: request.method,
-      sessionId: (request as any).session?.id,
+      sessionId: (request as AuthenticatedRequest & { session?: { id?: string } }).session?.id,
     };
   }
 
   /**
    * Sanitize sensitive data from objects
    */
-  private sanitizeData(data: any): any {
+  private sanitizeData(data: unknown): unknown {
     if (!data) return data;
 
     const sensitiveKeys = [
@@ -171,7 +172,7 @@ export class ActivityLoggingService {
   async logAuth(
     event: "login" | "logout" | "login_failed" | "token_refresh",
     userId?: string,
-    metadata?: any,
+    metadata?: ActivityMetadata,
     request?: Request,
   ) {
     await this.logActivity({
@@ -190,7 +191,7 @@ export class ActivityLoggingService {
   async logPageView(
     userId: string,
     page: string,
-    metadata?: any,
+    metadata?: ActivityMetadata,
     request?: Request,
   ) {
     await this.logActivity({
@@ -213,7 +214,7 @@ export class ActivityLoggingService {
     resourceType: string,
     resourceId: string,
     userId?: string,
-    metadata?: any,
+    metadata?: ActivityMetadata,
     request?: Request,
   ) {
     await this.logActivity({
@@ -231,7 +232,7 @@ export class ActivityLoggingService {
    */
   async logSearch(
     searchType: string,
-    query: any,
+    query: Record<string, unknown>,
     resultCount: number,
     userId?: string,
     request?: Request,
@@ -256,7 +257,7 @@ export class ActivityLoggingService {
     fileId: string,
     fileName: string,
     userId?: string,
-    metadata?: any,
+    metadata?: ActivityMetadata,
     request?: Request,
   ) {
     await this.logActivity({
@@ -278,7 +279,7 @@ export class ActivityLoggingService {
   async logAdminAction(
     action: string,
     targetUserId?: string,
-    metadata?: any,
+    metadata?: ActivityMetadata,
     adminUserId?: string,
     request?: Request,
   ) {
@@ -392,7 +393,24 @@ export class ActivityLoggingService {
       success?: boolean;
       timeRange?: string;
     } = {},
-  ): Promise<any[]> {
+  ): Promise<Array<{
+    id: string;
+    userId: string | null;
+    action: string;
+    resourceType: string | null;
+    resourceId: string | null;
+    metadata: unknown;
+    ipAddress: string | null;
+    userAgent: string | null;
+    success: boolean;
+    errorMessage: string | null;
+    timestamp: Date;
+    user?: {
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+    };
+  }>> {
     const {
       limit = 50,
       offset = 0,
@@ -567,7 +585,14 @@ export class ActivityLoggingService {
   /**
    * Get activity statistics
    */
-  async getActivityStats(timeRange: string = "24h"): Promise<any> {
+  async getActivityStats(timeRange: string = "24h"): Promise<{
+    totalActivities: number;
+    successfulActivities: number;
+    failedActivities: number;
+    uniqueUsers: number;
+    topActions: Array<{ action: string; count: number }>;
+    activityByHour: Array<{ hour: number; count: number }>;
+  }> {
     const now = new Date();
     let startTime: Date;
 

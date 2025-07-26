@@ -1,7 +1,6 @@
 import {
   Injectable,
   NestMiddleware,
-  UnauthorizedException,
 } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
 import { JwtService } from "@nestjs/jwt";
@@ -63,7 +62,7 @@ export class BullBoardAuthMiddleware implements NestMiddleware {
       }
 
       next();
-    } catch (error) {
+    } catch (_error) {
       res.status(401).json({
         statusCode: 401,
         message: "Invalid credentials",

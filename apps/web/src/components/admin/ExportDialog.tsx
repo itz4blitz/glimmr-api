@@ -149,8 +149,9 @@ export function ExportDialog({ children }: ExportDialogProps) {
 
       toast.success("Export completed successfully");
       setOpen(false);
-    } catch (error: any) {
-      toast.error("Export failed: " + error.message);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Export failed";
+      toast.error("Export failed: " + errorMessage);
     } finally {
       setIsExporting(false);
     }
@@ -182,7 +183,7 @@ export function ExportDialog({ children }: ExportDialogProps) {
             <Label className="text-base font-semibold">Export Format</Label>
             <Select
               value={format}
-              onValueChange={(value: any) => setFormat(value)}
+              onValueChange={(value) => setFormat(value as "csv" | "excel" | "json")}
             >
               <SelectTrigger>
                 <SelectValue />

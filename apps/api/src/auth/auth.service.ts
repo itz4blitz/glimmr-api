@@ -1,7 +1,7 @@
 import {
   Injectable,
   UnauthorizedException,
-  ForbiddenException,
+  // ForbiddenException,
   Optional,
   Inject,
   forwardRef,
@@ -70,7 +70,7 @@ export class AuthService {
           user.id as string,
         );
       }
-    } catch (error) {
+    } catch (_error) {
       // RBAC system not available yet, fall back to legacy role
       userWithRoles = null;
     }
@@ -88,7 +88,7 @@ export class AuthService {
     // Update last login time if method exists
     try {
       await this.usersService.updateLastLogin(user.id as string);
-    } catch (error) {
+    } catch (_error) {
       // Method might not exist yet
     }
 

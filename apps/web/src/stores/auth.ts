@@ -57,8 +57,9 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
-        } catch (error: any) {
-          const errorMessage = error.response?.data?.message || "Login failed";
+        } catch (error) {
+          const axiosError = error as { response?: { data?: { message?: string } } };
+          const errorMessage = axiosError.response?.data?.message || "Login failed";
           set({
             error: errorMessage,
             isLoading: false,
@@ -93,9 +94,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
-        } catch (error: any) {
+        } catch (error) {
+          const axiosError = error as { response?: { data?: { message?: string } } };
           const errorMessage =
-            error.response?.data?.message || "Registration failed";
+            axiosError.response?.data?.message || "Registration failed";
           set({
             error: errorMessage,
             isLoading: false,

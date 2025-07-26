@@ -67,7 +67,7 @@ export function SecuritySettings() {
     },
   });
 
-  const onPasswordSubmit = async (_data: PasswordFormData) => {
+  const onPasswordSubmit = async () => {
     setIsLoading(true);
     try {
       // Here you would call your API to change the password
@@ -78,7 +78,7 @@ export function SecuritySettings() {
       });
       passwordForm.reset();
       setIsChangingPassword(false);
-    } catch (error) {
+    } catch {
       toast.error("Failed to change password", {
         description: "Please check your current password and try again.",
       });
@@ -104,7 +104,7 @@ export function SecuritySettings() {
             : "Two-factor authentication has been turned off.",
         },
       );
-    } catch (error) {
+    } catch {
       toast.error("Failed to update two-factor authentication", {
         description: "Please try again later.",
       });

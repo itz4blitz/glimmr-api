@@ -35,11 +35,6 @@ export function ProtectedRoute({
   }
 
   // Check if user has required permissions
-  console.log("Permission Check:", {
-    userRole: user.role,
-    requiredRole,
-    hasPermission: hasPermission(user.role, requiredRole),
-  });
 
   if (!hasPermission(user.role, requiredRole)) {
     if (fallback) {
@@ -62,16 +57,3 @@ export function ProtectedRoute({
   return <>{children}</>;
 }
 
-// Higher-order component for protecting routes
-export function withAuth<P extends object>(
-  Component: React.ComponentType<P>,
-  requiredRole?: UserRole,
-) {
-  return function AuthenticatedComponent(props: P) {
-    return (
-      <ProtectedRoute requiredRole={requiredRole}>
-        <Component {...props} />
-      </ProtectedRoute>
-    );
-  };
-}

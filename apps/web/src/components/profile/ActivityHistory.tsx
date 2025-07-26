@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -228,7 +228,7 @@ export function ActivityHistory() {
   }, [activities, searchTerm, actionFilter, dateRange]);
 
   // Fetch activities with pagination
-  const fetchActivities = async (page: number = currentPage) => {
+  const fetchActivities = useCallback(async (page: number = currentPage) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -238,7 +238,6 @@ export function ActivityHistory() {
       setActivities(response.data.activities || []);
       setTotalCount(response.data.pagination?.total || 0);
     } catch (error) {
-      console.error("Failed to fetch activities:", error);
       setError(
         error instanceof Error ? error.message : "Failed to fetch activities",
       );
@@ -247,17 +246,17 @@ export function ActivityHistory() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
 
   // Fetch activities on component mount
   useEffect(() => {
     fetchActivities(1);
-  }, []);
+  }, [fetchActivities]);
 
   // Fetch activities when page changes
   useEffect(() => {
     fetchActivities(currentPage);
-  }, [currentPage]);
+  }, [currentPage, fetchActivities]);
 
   const refreshActivities = async () => {
     await fetchActivities(currentPage);

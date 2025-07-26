@@ -55,7 +55,7 @@ export function QueueConfigModal({
         const response = await apiClient.get(`/jobs/configuration/${queueName}`);
         setConfig(response.data);
       } catch (error) {
-        console.error("Failed to fetch queue configuration:", error);
+        console.error('Failed to fetch queue configuration:', error);
         toast.error("Failed to fetch queue configuration");
       } finally {
         setIsLoading(false);
@@ -87,7 +87,7 @@ export function QueueConfigModal({
       setConfig(response.data);
       toast.success("Queue configuration updated successfully");
     } catch (error) {
-      console.error("Failed to save queue configuration:", error);
+      console.error('Failed to save queue configuration:', error);
       toast.error("Failed to save queue configuration");
     } finally {
       setIsSaving(false);
@@ -103,7 +103,7 @@ export function QueueConfigModal({
       setConfig(response.data);
       toast.info("Configuration reset to current values");
     } catch (error) {
-      console.error("Failed to fetch queue configuration:", error);
+      console.error('Failed to reset queue configuration:', error);
       toast.error("Failed to fetch queue configuration");
     } finally {
       setIsLoading(false);

@@ -36,7 +36,7 @@ export class ErrorResponseDto {
     example: { field: "hospitalId", value: "123" },
     required: false,
   })
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 
   @ApiProperty({
     description: "Unique identifier for tracing this error",
