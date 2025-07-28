@@ -1,9 +1,7 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
+import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
+import { Job, Queue } from "bullmq";
 import { Injectable } from "@nestjs/common";
 import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import { DatabaseService } from "../../database/database.service";
 import { StorageService } from "../../storage/storage.service";
 import { QUEUE_NAMES } from "../queues/queue.config";
@@ -20,6 +18,8 @@ import { Readable } from "stream";
 import * as zlib from "zlib";
 // @ts-ignore - Types not available in container
 import * as tar from "tar-stream";
+import { JsonObject, JsonValue } from "../../types/common.types";
+import { PriceFileParserJobData } from "../../types/job.types";
 // @ts-ignore - Types not available in container
 import * as unzipper from "unzipper";
 
@@ -40,8 +40,13 @@ interface PriceRecord {
   discountedCashPrice?: number;
   minNegotiatedRate?: number;
   maxNegotiatedRate?: number;
-  payerRates?: Record<string, any>;
-  rawData?: any;
+  payerRates?: Record<string, {
+    rate?: number;
+    negotiatedRate?: number;
+    billingClass?: string;
+    methodology?: string;
+  }>;
+  rawData?: JsonObject;
 }
 
 @Injectable()
@@ -68,10 +73,15 @@ export class PriceFileParserProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<PriceFileParseJobData>): Promise<any> {
+  async process(job: Job<PriceFileParseJobData>): Promise<{
+    success: boolean;
+    totalRecords: number;
+    createdRecords: number;
+    duration: number;
+  }> {
     const { hospitalId, fileId, storageKey, filename, fileType } = job.data;
     const startTime = Date.now();
-    let jobRecord: any;
+    let jobRecord: typeof jobsTable.$inferSelect;
 
     this.logger.info({
       msg: "Starting file parsing",
@@ -143,8 +153,10 @@ export class PriceFileParserProcessor extends WorkerHost {
         });
 
         return {
-          skipped: true,
-          reason: "File record not found - this is a stale job",
+          success: false,
+          totalRecords: 0,
+          createdRecords: 0,
+          duration: Date.now() - startTime,
         };
       }
 
@@ -194,8 +206,10 @@ export class PriceFileParserProcessor extends WorkerHost {
             .where(eq(priceTransparencyFiles.id, fileId));
 
           return {
-            skipped: true,
-            reason: "File not found in storage",
+            success: false,
+            totalRecords: 0,
+            createdRecords: 0,
+            duration: Date.now() - startTime,
           };
         }
 
@@ -386,13 +400,13 @@ export class PriceFileParserProcessor extends WorkerHost {
         msg: "File parsing failed",
         jobId: job.id,
         fileId,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
         duration,
       });
 
       if (jobRecord) {
-        await this.updateJobFailure(jobRecord.id, error, duration);
+        await this.updateJobFailure(jobRecord.id, error as Error, duration);
       }
 
       // Update file status
@@ -400,7 +414,7 @@ export class PriceFileParserProcessor extends WorkerHost {
         .update(priceTransparencyFiles)
         .set({
           processingStatus: "failed",
-          errorMessage: error.message,
+          errorMessage: (error as Error).message,
           updatedAt: new Date(),
         })
         .where(eq(priceTransparencyFiles.id, fileId));
@@ -524,7 +538,7 @@ export class PriceFileParserProcessor extends WorkerHost {
 
           return normalized;
         },
-        step: (row: any) => {
+        step: (row: { data: JsonObject }) => {
           rowCount++;
 
           try {
@@ -536,7 +550,7 @@ export class PriceFileParserProcessor extends WorkerHost {
             this.logger.warn({
               msg: "Failed to parse CSV row",
               row: rowCount,
-              error: error.message,
+              error: (error as Error).message,
             });
           }
 
@@ -557,7 +571,7 @@ export class PriceFileParserProcessor extends WorkerHost {
                 job.token ? job.extendLock(job.token, 300000).catch(err => {
                   this.logger.warn({
                     msg: "Failed to extend job lock",
-                    error: err.message,
+                    error: (err as Error).message,
                     rowCount,
                   });
                 }) : Promise.resolve()
@@ -576,7 +590,7 @@ export class PriceFileParserProcessor extends WorkerHost {
 
       parser.on("error", (error: Error) => {
         this.logJobEvent(jobId, "error", "CSV parsing error", {
-          error: error.message,
+          error: (error as Error).message,
           row: rowCount,
         });
         reject(error);
@@ -612,7 +626,7 @@ export class PriceFileParserProcessor extends WorkerHost {
           if (Array.isArray(data)) {
             // Direct array of price records
             for (const item of data) {
-              const record = this.extractPriceRecord(item);
+              const record = this.extractPriceRecord(item as JsonObject);
               if (record) {
                 records.push(record);
               }
@@ -629,7 +643,7 @@ export class PriceFileParserProcessor extends WorkerHost {
             // Common nested formats
             const items = data.prices || data.items || data.charges;
             for (const item of items) {
-              const record = this.extractPriceRecord(item);
+              const record = this.extractPriceRecord(item as JsonObject);
               if (record) {
                 records.push(record);
               }
@@ -643,7 +657,7 @@ export class PriceFileParserProcessor extends WorkerHost {
           resolve(records);
         } catch (error) {
           await this.logJobEvent(jobId, "error", "JSON parsing failed", {
-            error: error.message,
+            error: (error as Error).message,
           });
           reject(error);
         }
@@ -686,7 +700,7 @@ export class PriceFileParserProcessor extends WorkerHost {
             });
 
             for (const row of data) {
-              const record = this.extractPriceRecord(row);
+              const record = this.extractPriceRecord(row as JsonObject);
               if (record && record.code && record.description) {
                 records.push(record);
               }
@@ -701,7 +715,7 @@ export class PriceFileParserProcessor extends WorkerHost {
           resolve(records);
         } catch (error) {
           await this.logJobEvent(jobId, "error", "Excel parsing failed", {
-            error: error.message,
+            error: (error as Error).message,
           });
           reject(error);
         }
@@ -764,7 +778,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       return records;
     } catch (error) {
       await this.logJobEvent(jobId, "error", "ZIP extraction failed", {
-        error: error.message,
+        error: (error as Error).message,
       });
       throw error;
     }
@@ -786,7 +800,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       // Convert stream to string
       const chunks: Buffer[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk);
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       }
       const xmlString = Buffer.concat(chunks).toString("utf-8");
 
@@ -815,7 +829,7 @@ export class PriceFileParserProcessor extends WorkerHost {
         result.priceList?.prices,
       ];
 
-      let priceItems: any[] = [];
+      let priceItems: Array<JsonObject> = [];
       for (const path of possibleRootPaths) {
         if (path) {
           priceItems = Array.isArray(path) ? path : [path];
@@ -825,16 +839,16 @@ export class PriceFileParserProcessor extends WorkerHost {
 
       // If still no items found, try to find any array in the result
       if (priceItems.length === 0) {
-        const findArrays = (obj: any): any[] => {
+        const findArrays = (obj: JsonObject): Array<JsonObject> => {
           for (const key in obj) {
             if (Array.isArray(obj[key]) && obj[key].length > 0) {
               // Check if this looks like price data
-              const sample = obj[key][0];
-              if (sample && (sample.code || sample.price || sample.charge || sample.description)) {
-                return obj[key];
+              const sample = (obj[key] as JsonValue[])[0];
+              if (sample && typeof sample === 'object' && sample !== null && ('code' in sample || 'price' in sample || 'charge' in sample || 'description' in sample)) {
+                return obj[key] as Array<JsonObject>;
               }
             } else if (typeof obj[key] === "object" && obj[key] !== null) {
-              const found = findArrays(obj[key]);
+              const found = findArrays(obj[key] as JsonObject);
               if (found.length > 0) return found;
             }
           }
@@ -878,9 +892,9 @@ export class PriceFileParserProcessor extends WorkerHost {
       await this.logJobEvent(
         jobId,
         "error",
-        `XML parsing error: ${error.message}`,
+        `XML parsing error: ${(error as Error).message}`,
       );
-      errors.push(`XML parsing failed: ${error.message}`);
+      errors.push(`XML parsing failed: ${(error as Error).message}`);
     }
 
     if (errors.length > 0) {
@@ -895,12 +909,12 @@ export class PriceFileParserProcessor extends WorkerHost {
   }
 
   private extractPriceRecord(
-    data: any,
+    data: JsonObject,
     headerMap?: Record<string, string>,
   ): PriceRecord | null {
     try {
       // Map fields using headerMap or direct field names
-      const getField = (fieldNames: string[]): any => {
+      const getField = (fieldNames: string[]): JsonValue => {
         for (const field of fieldNames) {
           if (
             data[field] !== undefined &&
@@ -943,7 +957,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       return {
         code: String(code).trim(),
         description: String(description).trim(),
-        codeType: this.detectCodeType(code),
+        codeType: this.detectCodeType(String(code)),
         grossCharge: this.parseNumber(
           getField(["gross_charge", "standard_charge", "charge", "price"]),
         ),
@@ -962,14 +976,14 @@ export class PriceFileParserProcessor extends WorkerHost {
     } catch (error) {
       this.logger.debug({
         msg: "Failed to extract price record",
-        error: error.message,
+        error: (error as Error).message,
         data,
       });
       return null;
     }
   }
 
-  private extractPriceRecordFromCMS(data: any): PriceRecord | null {
+  private extractPriceRecordFromCMS(data: JsonObject): PriceRecord | null {
     try {
       const code = data.code || data.billing_code;
       const description = data.description;
@@ -978,16 +992,21 @@ export class PriceFileParserProcessor extends WorkerHost {
         return null;
       }
 
-      const payerRates: Record<string, any> = {};
+      const payerRates: Record<string, {
+        rate?: number;
+        negotiatedRate?: number;
+        billingClass?: string;
+        methodology?: string;
+      }> = {};
 
       // Extract payer-specific rates
-      if (data.standard_charges) {
-        for (const charge of data.standard_charges) {
+      if (data.standard_charges && Array.isArray(data.standard_charges)) {
+        for (const charge of data.standard_charges as Array<JsonObject>) {
           if (charge.payer_name && charge.negotiated_rate) {
-            payerRates[charge.payer_name] = {
+            payerRates[String(charge.payer_name)] = {
               rate: this.parseNumber(charge.negotiated_rate),
-              billingClass: charge.billing_class,
-              methodology: charge.methodology,
+              billingClass: charge.billing_class as string,
+              methodology: charge.methodology as string,
             };
           }
         }
@@ -996,7 +1015,7 @@ export class PriceFileParserProcessor extends WorkerHost {
       return {
         code: String(code).trim(),
         description: String(description).trim(),
-        codeType: data.code_type || this.detectCodeType(code),
+        codeType: (data.code_type as string) || this.detectCodeType(String(code)),
         grossCharge: this.parseNumber(data.gross_charge),
         discountedCashPrice: this.parseNumber(data.discounted_cash_price),
         minNegotiatedRate: this.parseNumber(data.min_negotiated_charge),
@@ -1007,14 +1026,24 @@ export class PriceFileParserProcessor extends WorkerHost {
     } catch (error) {
       this.logger.debug({
         msg: "Failed to extract CMS price record",
-        error: error.message,
+        error: (error as Error).message,
       });
       return null;
     }
   }
 
-  private extractPayerRates(data: any): Record<string, any> | undefined {
-    const payerRates: Record<string, any> = {};
+  private extractPayerRates(data: JsonObject): Record<string, {
+    rate?: number;
+    negotiatedRate?: number;
+    billingClass?: string;
+    methodology?: string;
+  }> | undefined {
+    const payerRates: Record<string, {
+      rate?: number;
+      negotiatedRate?: number;
+      billingClass?: string;
+      methodology?: string;
+    }> = {};
 
     // Look for payer-specific columns
     for (const [key, value] of Object.entries(data)) {
@@ -1057,7 +1086,7 @@ export class PriceFileParserProcessor extends WorkerHost {
     return "other";
   }
 
-  private parseNumber(value: any): number | undefined {
+  private parseNumber(value: unknown): number | undefined {
     if (value == null || value === "") {
       return undefined;
     }
@@ -1096,7 +1125,7 @@ export class PriceFileParserProcessor extends WorkerHost {
     jobId: string,
     level: string,
     message: string,
-    data?: any,
+    data?: unknown,
   ): Promise<void> {
     try {
       await this.databaseService.db.insert(jobLogs).values({
@@ -1108,7 +1137,7 @@ export class PriceFileParserProcessor extends WorkerHost {
     } catch (error) {
       this.logger.error({
         msg: "Failed to log job event",
-        error: error.message,
+        error: (error as Error).message,
         jobId,
         level,
         message,
@@ -1118,7 +1147,7 @@ export class PriceFileParserProcessor extends WorkerHost {
 
   private async updateJobSuccess(
     jobId: string,
-    outputData: any,
+    outputData: Record<string, unknown>,
   ): Promise<void> {
     const db = this.databaseService.db;
     await db
@@ -1126,11 +1155,11 @@ export class PriceFileParserProcessor extends WorkerHost {
       .set({
         status: "completed",
         completedAt: new Date(),
-        duration: outputData.duration,
+        duration: outputData.duration as number,
         outputData: JSON.stringify(outputData),
         progressPercentage: 100,
-        recordsProcessed: outputData.totalRecords,
-        recordsCreated: outputData.createdRecords,
+        recordsProcessed: outputData.totalRecords as number,
+        recordsCreated: outputData.createdRecords as number,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
@@ -1151,15 +1180,15 @@ export class PriceFileParserProcessor extends WorkerHost {
         status: "failed",
         completedAt: new Date(),
         duration,
-        errorMessage: error.message,
-        errorStack: error.stack,
+        errorMessage: (error as Error).message,
+        errorStack: (error as Error).stack,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
 
     await this.logJobEvent(jobId, "error", "Job failed", {
-      error: error.message,
-      stack: error.stack,
+      error: (error as Error).message,
+      stack: (error as Error).stack,
       duration,
     });
   }

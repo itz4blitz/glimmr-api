@@ -1,0 +1,200 @@
+name: Documentation Health Check
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**.ts'
+      - '**.tsx'
+      - 'docs/**'
+
+jobs:
+  doc-freshness:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          npm install -g typescript ts-node
+          npm install -g bc
+      
+      - name: Run documentation freshness check
+        id: freshness
+        run: |
+          bash .claude/scripts/doc-freshness-check.sh || true
+          
+          # Extract coverage percentage
+          if [ -f ".claude/reports/doc-health-"*.md ]; then
+            COVERAGE=$(grep "Documentation Coverage:" .claude/reports/doc-health-*.md | grep -oE "[0-9]+\.[0-9]+" | tail -1)
+            echo "COVERAGE=$COVERAGE" >> $GITHUB_OUTPUT
+            
+            # Check if coverage is below threshold
+            if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+              echo "BELOW_THRESHOLD=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+      
+      - name: Upload documentation reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-reports
+          path: .claude/reports/
+          retention-days: 30
+      
+      - name: Comment PR with documentation status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const glob = require('glob');
+            
+            // Find latest reports
+            const reports = glob.sync('.claude/reports/doc-*.md').sort();
+            if (reports.length === 0) return;
+            
+            const latestReport = reports[reports.length - 1];
+            const reportContent = fs.readFileSync(latestReport, 'utf8');
+            
+            // Extract key information
+            const coverage = reportContent.match(/Documentation Coverage: ([\d.]+)%/)?.[1] || 'Unknown';
+            const grade = reportContent.match(/Grade: ([A-F])/)?.[1] || 'Unknown';
+            
+            // Check for critical missing docs
+            const criticalMissing = reportContent.match(/Critical Missing\s*\|\s*(\d+)/)?.[1] || '0';
+            
+            const comment = `## 📚 Documentation Status
+            
+            **Coverage**: ${coverage}% (Grade: ${grade})
+            ${criticalMissing > 0 ? `\n⚠️ **Critical Missing**: ${criticalMissing} files in critical paths lack documentation` : ''}
+            
+            ### Changed Files Documentation Status
+            `;
+            
+            // Add file-specific status
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            let fileStatus = '';
+            for (const file of files) {
+              if (file.filename.endsWith('.ts') || file.filename.endsWith('.tsx')) {
+                // Simple check - in real implementation would check actual doc status
+                const hasDoc = file.patch?.includes('/**') || file.patch?.includes('@');
+                fileStatus += `\n- ${file.filename}: ${hasDoc ? '✅ Documented' : '⚠️ Needs documentation'}`;
+              }
+            }
+            
+            const fullComment = comment + fileStatus + `
+            
+            <details>
+            <summary>View Full Report</summary>
+            
+            \`\`\`
+            ${reportContent.substring(0, 3000)}...
+            \`\`\`
+            
+            </details>
+            
+            ### Actions Required
+            ${coverage < 70 ? '1. ❌ Documentation coverage is below 70% threshold\n' : ''}
+            ${criticalMissing > 0 ? '2. ❌ Add documentation to critical path files\n' : ''}
+            
+            Run \`bash .claude/scripts/doc-freshness-check.sh\` locally for detailed suggestions.
+            `;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: fullComment
+            });
+      
+      - name: Fail if documentation is critically low
+        if: steps.freshness.outputs.BELOW_THRESHOLD == 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "❌ Documentation coverage is below 70% threshold"
+          echo "Please add documentation to your changes"
+          exit 1
+  
+  weekly-report:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc
+      
+      - name: Run weekly documentation report
+        run: bash .claude/scripts/weekly-doc-report.sh
+      
+      - name: Create documentation issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const date = new Date().toISOString().split('T')[0];
+            
+            // Read executive summary
+            const summaryPath = `.claude/reports/weekly-${date.replace(/-/g, '')}/executive-summary.md`;
+            let summary = 'Documentation report generated. Check artifacts for details.';
+            
+            if (fs.existsSync(summaryPath)) {
+              summary = fs.readFileSync(summaryPath, 'utf8');
+            }
+            
+            // Create issue
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📚 Weekly Documentation Report - ${date}`,
+              body: summary + `\n\n---\n\n[View Full Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              labels: ['documentation', 'weekly-report']
+            });
+            
+            console.log(`Created issue #${issue.data.number}`);
+      
+      - name: Commit documentation updates
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # Check if there are changes to commit
+          if [ -n "$(git status --porcelain .claude/reports/)" ]; then
+            git add .claude/reports/
+            git commit -m "docs: weekly documentation report $(date +%Y-%m-%d)
+            
+            - Updated documentation coverage trends
+            - Generated documentation tasks
+            - Identified documentation gaps"
+            
+            git push
+          fi

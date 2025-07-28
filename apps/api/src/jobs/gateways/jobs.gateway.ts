@@ -10,7 +10,8 @@ import {
   WsException,
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
-import { UseGuards } from "@nestjs/common";
+import { BaseJobData, JsonObject, JsonValue } from "../../types/index";
+import { UseGuards as _UseGuards } from "@nestjs/common";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
@@ -18,6 +19,35 @@ import { ConfigService } from "@nestjs/config";
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   roles?: string[];
+}
+
+interface QueueStats {
+  name?: string;
+  active?: number;
+  waiting?: number;
+  completed?: number;
+  failed?: number;
+  delayed?: number;
+  counts?: Record<string, number>;
+  isPaused?: boolean;
+  timestamp?: string;
+}
+
+interface SystemStats {
+  totalJobs: number;
+  activeQueues: number;
+  memoryUsage: {
+    rss: string;
+    heapTotal: string;
+    heapUsed: string;
+  };
+}
+
+interface JobInfo {
+  id: string;
+  name: string;
+  data: BaseJobData;
+  opts: JsonObject;
 }
 
 @WebSocketGateway({
@@ -42,7 +72,7 @@ export class JobsGateway
     private readonly configService: ConfigService,
   ) {}
 
-  afterInit(server: Server) {
+  afterInit(_server: Server) {
     this.logger.info("WebSocket Gateway initialized");
   }
 
@@ -62,7 +92,7 @@ export class JobsGateway
       }
 
       // Store authenticated user info
-      client.userId = payload.sub;
+      client.userId = payload.sub || payload.userId;
       client.roles = payload.roles || [];
 
       // Add to connected clients
@@ -82,7 +112,7 @@ export class JobsGateway
     } catch (error) {
       this.logger.error({
         msg: "Connection error",
-        error: error.message,
+        error: (error as Error).message,
         clientId: client.id,
       });
       client.disconnect();
@@ -179,7 +209,7 @@ export class JobsGateway
   }
 
   // Emit job status update
-  emitJobUpdate(queue: string, jobId: string, update: any) {
+  emitJobUpdate(queue: string, jobId: string, update: JsonObject) {
     // Emit to queue-specific room
     this.server.to(`queue:${queue}`).emit("jobUpdate", {
       queue,
@@ -203,7 +233,7 @@ export class JobsGateway
   }
 
   // Emit queue statistics update
-  emitQueueStats(queue: string, stats: any) {
+  emitQueueStats(queue: string, stats: QueueStats) {
     this.server.to(`queue:${queue}`).emit("queueStats", {
       queue,
       ...stats,
@@ -217,7 +247,7 @@ export class JobsGateway
   }
 
   // Emit system-wide statistics
-  emitSystemStats(stats: any) {
+  emitSystemStats(stats: SystemStats) {
     this.server.to("all-jobs").emit("systemStats", stats);
   }
 
@@ -233,11 +263,11 @@ export class JobsGateway
   }
 
   // Emit job completed
-  emitJobCompleted(queue: string, jobId: string, result: any) {
+  emitJobCompleted(queue: string, jobId: string, result: JsonValue) {
     const update = {
       type: "completed",
       status: "completed",
-      result,
+      result: result,
       timestamp: new Date().toISOString(),
     };
 
@@ -245,11 +275,11 @@ export class JobsGateway
   }
 
   // Emit job failed
-  emitJobFailed(queue: string, jobId: string, error: any) {
-    const update = {
+  emitJobFailed(queue: string, jobId: string, error: Error | string) {
+    const update: JsonObject = {
       type: "failed",
       status: "failed",
-      error: error.message || error,
+      error: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString(),
     };
 
@@ -268,7 +298,7 @@ export class JobsGateway
   }
 
   // Emit new job added
-  emitJobAdded(queue: string, job: any) {
+  emitJobAdded(queue: string, job: JobInfo) {
     const update = {
       type: "added",
       status: "waiting",
@@ -330,7 +360,7 @@ export class JobsGateway
     type: "warning" | "error" | "info";
     queue?: string;
     message: string;
-    details?: any;
+    details?: JsonObject;
   }) {
     const alertData = {
       ...alert,
@@ -356,14 +386,14 @@ export class JobsGateway
     return auth;
   }
 
-  private async verifyToken(token: string): Promise<any | null> {
+  private async verifyToken(token: string): Promise<{ sub?: string; userId?: string; roles?: string[] } | null> {
     try {
       const secret = this.configService.get<string>("JWT_SECRET");
       return await this.jwtService.verifyAsync(token, { secret });
     } catch (error) {
       this.logger.error({
         msg: "Token verification failed",
-        error: error.message,
+        error: (error as Error).message,
       });
       return null;
     }

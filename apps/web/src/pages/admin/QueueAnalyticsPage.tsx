@@ -214,6 +214,7 @@ export function QueueAnalyticsPage() {
         }
       });
     } catch (error) {
+      console.error('Failed to load analytics data:', error);
       toast.error("Failed to load analytics data");
     } finally {
       setLoading(false);
@@ -243,6 +244,7 @@ export function QueueAnalyticsPage() {
 
       toast.success(`Analytics exported as ${format.toUpperCase()}`);
     } catch (error) {
+      console.error('Failed to export analytics:', error);
       toast.error("Failed to export analytics");
     }
   };

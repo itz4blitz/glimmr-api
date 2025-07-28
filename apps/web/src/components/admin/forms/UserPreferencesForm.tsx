@@ -104,21 +104,21 @@ export function UserPreferencesForm({
       dateFormat: user.preferences?.dateFormat ?? "MM/DD/YYYY",
       timeFormat: user.preferences?.timeFormat ?? "12h",
       privacySettings: user.preferences?.privacySettings ?? {
-        profileVisible: true,
-        activityTracking: true,
-        dataExport: true,
+        profileVisibility: "public" as const,
+        showEmail: true,
+        showPhone: true,
+        showLocation: true,
       },
       dashboardLayout: user.preferences?.dashboardLayout ?? {
-        compact: false,
-        showSidebar: true,
-        autoRefresh: false,
+        widgets: [],
+        theme: "default",
       },
     }),
     [user.preferences],
   );
 
   const { formData, isSubmitting, setFieldValue, canSave, save, cancel } =
-    useFormState({
+    useFormState<PreferencesUpdateData>({
       initialData,
       onSave: async (data) => {
         await updateUserPreferences(user.id, data);
@@ -371,15 +371,43 @@ export function UserPreferencesForm({
             <div className="space-y-0.5">
               <Label>Profile Visibility</Label>
               <p className="text-sm text-muted-foreground">
-                Allow other users to view profile information
+                Control who can view the profile
+              </p>
+            </div>
+            <Select
+              value={formData.privacySettings?.profileVisibility ?? "public"}
+              onValueChange={(value) => {
+                const newSettings = {
+                  ...(formData.privacySettings || {}),
+                  profileVisibility: value as "public" | "private" | "friends",
+                };
+                setFieldValue("privacySettings", newSettings);
+              }}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">Public</SelectItem>
+                <SelectItem value="private">Private</SelectItem>
+                <SelectItem value="friends">Friends</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Show Email</Label>
+              <p className="text-sm text-muted-foreground">
+                Display email address on profile
               </p>
             </div>
             <Switch
-              checked={formData.privacySettings?.profileVisible ?? true}
+              checked={formData.privacySettings?.showEmail ?? true}
               onCheckedChange={(checked) => {
                 const newSettings = {
-                  ...formData.privacySettings,
-                  profileVisible: checked,
+                  ...(formData.privacySettings || {}),
+                  showEmail: checked,
                 };
                 setFieldValue("privacySettings", newSettings);
               }}
@@ -388,17 +416,17 @@ export function UserPreferencesForm({
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Activity Tracking</Label>
+              <Label>Show Phone</Label>
               <p className="text-sm text-muted-foreground">
-                Allow tracking of user activity for analytics
+                Display phone number on profile
               </p>
             </div>
             <Switch
-              checked={formData.privacySettings?.activityTracking ?? true}
+              checked={formData.privacySettings?.showPhone ?? true}
               onCheckedChange={(checked) => {
                 const newSettings = {
-                  ...formData.privacySettings,
-                  activityTracking: checked,
+                  ...(formData.privacySettings || {}),
+                  showPhone: checked,
                 };
                 setFieldValue("privacySettings", newSettings);
               }}
@@ -407,17 +435,17 @@ export function UserPreferencesForm({
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Data Export</Label>
+              <Label>Show Location</Label>
               <p className="text-sm text-muted-foreground">
-                Allow user to export their data
+                Display location information on profile
               </p>
             </div>
             <Switch
-              checked={formData.privacySettings?.dataExport ?? true}
+              checked={formData.privacySettings?.showLocation ?? true}
               onCheckedChange={(checked) => {
                 const newSettings = {
-                  ...formData.privacySettings,
-                  dataExport: checked,
+                  ...(formData.privacySettings || {}),
+                  showLocation: checked,
                 };
                 setFieldValue("privacySettings", newSettings);
               }}
@@ -434,65 +462,42 @@ export function UserPreferencesForm({
             Dashboard Layout
           </CardTitle>
           <CardDescription>
-            Customize dashboard appearance and layout
+            Customize dashboard appearance and theme
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Compact Mode</Label>
-              <p className="text-sm text-muted-foreground">
-                Use a more compact layout to show more information
-              </p>
-            </div>
-            <Switch
-              checked={formData.dashboardLayout?.compact ?? false}
-              onCheckedChange={(checked) => {
+          <div className="space-y-2">
+            <Label>Dashboard Theme</Label>
+            <Select
+              value={formData.dashboardLayout?.theme ?? "default"}
+              onValueChange={(value) => {
                 const newLayout = {
-                  ...formData.dashboardLayout,
-                  compact: checked,
+                  ...(formData.dashboardLayout || {}),
+                  theme: value,
                 };
                 setFieldValue("dashboardLayout", newLayout);
               }}
-            />
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default</SelectItem>
+                <SelectItem value="compact">Compact</SelectItem>
+                <SelectItem value="modern">Modern</SelectItem>
+                <SelectItem value="classic">Classic</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Show Sidebar</Label>
-              <p className="text-sm text-muted-foreground">
-                Display the navigation sidebar by default
-              </p>
-            </div>
-            <Switch
-              checked={formData.dashboardLayout?.showSidebar ?? true}
-              onCheckedChange={(checked) => {
-                const newLayout = {
-                  ...formData.dashboardLayout,
-                  showSidebar: checked,
-                };
-                setFieldValue("dashboardLayout", newLayout);
-              }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Auto-refresh Data</Label>
-              <p className="text-sm text-muted-foreground">
-                Automatically refresh dashboard data every few minutes
-              </p>
-            </div>
-            <Switch
-              checked={formData.dashboardLayout?.autoRefresh ?? false}
-              onCheckedChange={(checked) => {
-                const newLayout = {
-                  ...formData.dashboardLayout,
-                  autoRefresh: checked,
-                };
-                setFieldValue("dashboardLayout", newLayout);
-              }}
-            />
+          <div className="space-y-2">
+            <Label>Dashboard Widgets</Label>
+            <p className="text-sm text-muted-foreground">
+              Dashboard widgets can be configured from the dashboard settings
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Currently {formData.dashboardLayout?.widgets?.length || 0} widgets configured
+            </p>
           </div>
         </CardContent>
       </Card>

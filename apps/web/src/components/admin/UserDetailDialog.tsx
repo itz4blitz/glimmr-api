@@ -65,7 +65,9 @@ export function UserDetailDialog({
   useEffect(() => {
     if (open && userId) {
       loadUserById(userId)
-        .then(() => {})
+        .then(() => {
+          // User loaded successfully
+        })
         .catch((error) => {
           console.error("Failed to load user details:", error);
         });

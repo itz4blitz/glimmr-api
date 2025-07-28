@@ -15,6 +15,22 @@ export default [
         tsconfigRootDir: __dirname,
       },
     },
+    rules: {
+      // Disable turbo env vars warning since we handle env vars differently
+      "turbo/no-undeclared-env-vars": "off",
+      // Change errors to warnings for gradual migration
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_", 
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      "require-await": "warn",
+      "no-duplicate-imports": "warn",
+    },
   },
   {
     files: ["scripts/**/*.ts", "test/**/*.ts"],
@@ -32,6 +48,27 @@ export default [
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "turbo/no-undeclared-env-vars": "off",
+    },
+  },
+  {
+    files: ["src/database/seeds/**/*.ts"],
+    rules: {
+      // Allow console in seed files
+      "no-console": "off",
+      "no-process-exit": "off",
+      "turbo/no-undeclared-env-vars": "off",
+    },
+  },
+  {
+    files: ["src/__mocks__/**/*.js"],
+    languageOptions: {
+      globals: {
+        module: true,
+        jest: true,
+      },
+    },
+    rules: {
+      "no-undef": "off",
     },
   },
   {

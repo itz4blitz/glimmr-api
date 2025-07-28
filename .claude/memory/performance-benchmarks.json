@@ -1,0 +1,285 @@
+{
+  "apiPerformance": {
+    "responseTime": {
+      "excellent": "< 100ms",
+      "good": "100-300ms",
+      "acceptable": "300-1000ms",
+      "poor": "> 1000ms",
+      "targets": {
+        "health": "< 50ms",
+        "authentication": "< 200ms",
+        "dataQueries": "< 500ms",
+        "analytics": "< 1000ms",
+        "fileUpload": "< 5000ms"
+      }
+    },
+    "throughput": {
+      "minimum": "100 requests/second",
+      "target": "500 requests/second",
+      "peak": "1000 requests/second",
+      "considerations": [
+        "Rate limiting per user",
+        "Database connection pooling",
+        "Redis connection limits"
+      ]
+    }
+  },
+  "jobProcessing": {
+    "fileDownload": {
+      "small": {
+        "size": "< 10MB",
+        "target": "< 30 seconds",
+        "concurrent": 10
+      },
+      "medium": {
+        "size": "10-100MB",
+        "target": "< 2 minutes",
+        "concurrent": 5
+      },
+      "large": {
+        "size": "100MB-1GB",
+        "target": "< 10 minutes",
+        "concurrent": 2
+      },
+      "xlarge": {
+        "size": "> 1GB",
+        "target": "< 30 minutes",
+        "concurrent": 1
+      }
+    },
+    "fileParsing": {
+      "csvProcessing": {
+        "rowsPerSecond": {
+          "minimum": 10000,
+          "target": 50000,
+          "optimized": 100000
+        },
+        "memoryUsage": {
+          "streaming": "< 100MB constant",
+          "chunked": "< 500MB peak"
+        }
+      },
+      "jsonProcessing": {
+        "mbPerSecond": {
+          "minimum": 10,
+          "target": 50,
+          "optimized": 100
+        }
+      },
+      "batchSizes": {
+        "database": 1000,
+        "validation": 5000,
+        "transformation": 10000
+      }
+    },
+    "priceNormalization": {
+      "recordsPerSecond": {
+        "minimum": 1000,
+        "target": 5000,
+        "optimized": 10000
+      },
+      "deduplication": {
+        "strategy": "Hash-based in-memory cache",
+        "performance": "O(1) lookup"
+      }
+    }
+  },
+  "databasePerformance": {
+    "queries": {
+      "simple": {
+        "example": "SELECT by ID",
+        "target": "< 10ms"
+      },
+      "moderate": {
+        "example": "JOIN with filters",
+        "target": "< 50ms"
+      },
+      "complex": {
+        "example": "Analytics aggregation",
+        "target": "< 500ms"
+      },
+      "reporting": {
+        "example": "Full dataset export",
+        "target": "< 5000ms"
+      }
+    },
+    "indexing": {
+      "strategy": [
+        "Primary keys on all tables",
+        "Foreign key indexes",
+        "Composite indexes for common queries",
+        "GIN indexes for text search",
+        "Partial indexes for filtered queries"
+      ],
+      "monitoring": [
+        "Query explain plans",
+        "Slow query log",
+        "Index usage statistics"
+      ]
+    },
+    "connectionPool": {
+      "min": 5,
+      "max": 20,
+      "idleTimeout": 30000,
+      "connectionTimeout": 5000
+    },
+    "bulkOperations": {
+      "insert": {
+        "batchSize": 1000,
+        "target": "10000 records/second"
+      },
+      "update": {
+        "batchSize": 500,
+        "target": "5000 records/second"
+      },
+      "upsert": {
+        "strategy": "ON CONFLICT DO UPDATE",
+        "batchSize": 500
+      }
+    }
+  },
+  "storagePerformance": {
+    "s3Operations": {
+      "upload": {
+        "small": "< 1 second for files < 5MB",
+        "large": "Multipart for files > 100MB",
+        "concurrent": "5 parallel uploads"
+      },
+      "download": {
+        "streaming": "Start within 100ms",
+        "throughput": "> 100MB/s"
+      },
+      "listing": {
+        "pagination": "1000 objects per request",
+        "caching": "5 minute TTL for listings"
+      }
+    },
+    "caching": {
+      "strategy": "Redis for hot data",
+      "ttl": {
+        "fileMetadata": 3600,
+        "priceData": 86400,
+        "analytics": 3600
+      }
+    }
+  },
+  "frontendPerformance": {
+    "metrics": {
+      "FCP": {
+        "name": "First Contentful Paint",
+        "target": "< 1.8s",
+        "mobile": "< 3s"
+      },
+      "LCP": {
+        "name": "Largest Contentful Paint",
+        "target": "< 2.5s",
+        "mobile": "< 4s"
+      },
+      "FID": {
+        "name": "First Input Delay",
+        "target": "< 100ms"
+      },
+      "CLS": {
+        "name": "Cumulative Layout Shift",
+        "target": "< 0.1"
+      },
+      "TTI": {
+        "name": "Time to Interactive",
+        "target": "< 3.8s"
+      }
+    },
+    "bundleSize": {
+      "javascript": {
+        "initial": "< 200KB gzipped",
+        "lazy": "< 100KB per chunk"
+      },
+      "css": {
+        "critical": "< 20KB",
+        "total": "< 100KB"
+      },
+      "images": {
+        "format": "WebP with fallback",
+        "lazy": "Intersection Observer"
+      }
+    },
+    "apiCalls": {
+      "strategy": [
+        "Debounce search inputs",
+        "Pagination for lists",
+        "Infinite scroll where appropriate",
+        "Optimistic updates",
+        "Request caching"
+      ]
+    }
+  },
+  "scalabilityTargets": {
+    "dataVolume": {
+      "hospitals": 10000,
+      "priceRecords": 1000000000,
+      "dailyUpdates": 1000000,
+      "concurrentUsers": 10000
+    },
+    "infrastructure": {
+      "horizontalScaling": {
+        "api": "Auto-scale 2-10 instances",
+        "workers": "Scale based on queue depth",
+        "database": "Read replicas for analytics"
+      },
+      "caching": {
+        "cdn": "Static assets",
+        "redis": "Session and hot data",
+        "database": "Query result caching"
+      }
+    }
+  },
+  "monitoringThresholds": {
+    "alerts": {
+      "cpu": {
+        "warning": "> 70%",
+        "critical": "> 90%"
+      },
+      "memory": {
+        "warning": "> 80%",
+        "critical": "> 95%"
+      },
+      "diskSpace": {
+        "warning": "> 80%",
+        "critical": "> 90%"
+      },
+      "queueDepth": {
+        "warning": "> 10000",
+        "critical": "> 50000"
+      },
+      "errorRate": {
+        "warning": "> 1%",
+        "critical": "> 5%"
+      }
+    }
+  },
+  "optimizationStrategies": {
+    "database": [
+      "Materialized views for analytics",
+      "Partitioning for large tables",
+      "Archive old data",
+      "Vacuum and analyze regularly"
+    ],
+    "api": [
+      "Response compression",
+      "Field filtering (GraphQL-like)",
+      "Cursor-based pagination",
+      "ETags for caching"
+    ],
+    "jobs": [
+      "Priority queues",
+      "Job deduplication",
+      "Batch processing",
+      "Parallel processing for large files"
+    ],
+    "frontend": [
+      "Code splitting",
+      "Tree shaking",
+      "Service worker caching",
+      "Virtual scrolling for large lists"
+    ]
+  }
+}

@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users } from "./users";
+import { users, type User } from "./users";
 
 // User Profiles - Extended user information
 export const userProfiles = pgTable(
@@ -193,7 +193,7 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles, {
   bio: z.string().max(500).optional(),
   phoneNumber: z
     .string()
-    .regex(/^\+?[\d\s\-\(\)]+$/)
+    .regex(/^\+?[\d\s\-()]+$/)
     .optional(),
   timezone: z.string().max(50).optional(),
   languagePreference: z.string().max(10).optional(),
@@ -240,7 +240,7 @@ export type NewUserFile = z.infer<typeof insertUserFileSchema>;
 
 // Combined user data types for API responses
 export type UserWithProfile = {
-  user: any; // Will be properly typed when we update the users schema
+  user: User;
   profile?: UserProfile;
   preferences?: UserPreferences;
   lastActivity?: UserActivityLog;

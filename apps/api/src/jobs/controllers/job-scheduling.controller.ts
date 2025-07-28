@@ -39,7 +39,7 @@ export class JobSchedulingController {
   @ApiOperation({ summary: "Create a new job schedule" })
   @ApiResponse({ status: 201, description: "Schedule created successfully" })
   @Roles("admin")
-  async createSchedule(
+  createSchedule(
     @Body() dto: CreateJobScheduleDto,
     @CurrentUser() user: { id: string },
   ) {
@@ -51,7 +51,7 @@ export class JobSchedulingController {
   @ApiResponse({ status: 200, description: "Schedule updated successfully" })
   @ApiParam({ name: "id", description: "Schedule ID" })
   @Roles("admin")
-  async updateSchedule(
+  updateSchedule(
     @Param("id") id: string,
     @Body() dto: UpdateJobScheduleDto,
     @CurrentUser() user: { id: string },
@@ -63,11 +63,11 @@ export class JobSchedulingController {
   @ApiOperation({ summary: "Get all job schedules" })
   @ApiResponse({ status: 200, description: "Schedules retrieved successfully" })
   @Roles("admin", "api-user")
-  async getSchedules(
+  getSchedules(
     @Query("isEnabled") isEnabled?: boolean,
     @Query("queueName") queueName?: string,
   ) {
-    return this.jobSchedulingService.getSchedules({ isEnabled, queueName });
+    return this.jobSchedulingService.getSchedules({ enabled: isEnabled, templateId: queueName });
   }
 
   @Get(":id")
@@ -75,7 +75,7 @@ export class JobSchedulingController {
   @ApiResponse({ status: 200, description: "Schedule retrieved successfully" })
   @ApiParam({ name: "id", description: "Schedule ID" })
   @Roles("admin", "api-user")
-  async getSchedule(@Param("id") id: string) {
+  getSchedule(@Param("id") id: string) {
     return this.jobSchedulingService.getSchedule(id);
   }
 
@@ -84,7 +84,7 @@ export class JobSchedulingController {
   @ApiResponse({ status: 200, description: "Schedule deleted successfully" })
   @ApiParam({ name: "id", description: "Schedule ID" })
   @Roles("admin")
-  async deleteSchedule(@Param("id") id: string) {
+  deleteSchedule(@Param("id") id: string) {
     return this.jobSchedulingService.deleteSchedule(id);
   }
 
@@ -93,8 +93,8 @@ export class JobSchedulingController {
   @ApiResponse({ status: 200, description: "Schedule enabled successfully" })
   @ApiParam({ name: "id", description: "Schedule ID" })
   @Roles("admin")
-  async enableSchedule(@Param("id") id: string) {
-    return this.jobSchedulingService.enableSchedule(id);
+  enableSchedule(@Param("id") id: string) {
+    return this.jobSchedulingService.updateSchedule(id, { isEnabled: true });
   }
 
   @Post(":id/disable")
@@ -102,8 +102,8 @@ export class JobSchedulingController {
   @ApiResponse({ status: 200, description: "Schedule disabled successfully" })
   @ApiParam({ name: "id", description: "Schedule ID" })
   @Roles("admin")
-  async disableSchedule(@Param("id") id: string) {
-    return this.jobSchedulingService.disableSchedule(id);
+  disableSchedule(@Param("id") id: string) {
+    return this.jobSchedulingService.updateSchedule(id, { isEnabled: false });
   }
 
   @Post(":id/run")
@@ -111,8 +111,8 @@ export class JobSchedulingController {
   @ApiResponse({ status: 200, description: "Job triggered successfully" })
   @ApiParam({ name: "id", description: "Schedule ID" })
   @Roles("admin")
-  async runScheduledJob(@Param("id") id: string) {
-    return this.jobSchedulingService.runScheduledJobManually(id);
+  runScheduledJob(@Param("id") id: string) {
+    return this.jobSchedulingService.runScheduleNow(id);
   }
 
   @Get(":id/history")
@@ -125,9 +125,36 @@ export class JobSchedulingController {
     @Query("limit") limit?: number,
     @Query("offset") offset?: number,
   ) {
-    return this.jobSchedulingService.getScheduleHistory(id, {
-      limit: limit || 50,
+    // Since we track lastJobId, we can use the job history from the queue
+    const schedule = await this.jobSchedulingService.getSchedule(id);
+    
+    // Get jobs from the queue that match this schedule's template
+    const jobsService = this.jobSchedulingService['jobsService'];
+    const jobs = await jobsService.getJobs(schedule.template.queueName, {
+      status: ['completed', 'failed'],
+      limit: limit || 10,
       offset: offset || 0,
     });
+    
+    // Filter jobs that were created by this schedule
+    const scheduleJobs = jobs.filter(job => 
+      job.data?.scheduleId === id || job.opts?.repeat?.key === `schedule:${id}`
+    );
+    
+    return {
+      scheduleId: id,
+      scheduleName: schedule.name,
+      jobs: scheduleJobs.map(job => ({
+        id: job.id,
+        status: job.finishedOn ? 'completed' : 'failed',
+        startedAt: job.processedOn ? new Date(job.processedOn) : null,
+        completedAt: job.finishedOn ? new Date(job.finishedOn) : null,
+        failedReason: job.failedReason,
+        duration: job.finishedOn && job.processedOn 
+          ? job.finishedOn - job.processedOn 
+          : null,
+      })),
+      total: scheduleJobs.length,
+    };
   }
 }

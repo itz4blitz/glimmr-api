@@ -22,7 +22,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
   protected getClientId(request: Request): string {
     // For authenticated users, use a user-specific identifier
     // For anonymous users, use IP address
-    const user = (request as any).user;
+    const user = (request as Request & { user?: { id?: string } }).user;
     if (user && user.id) {
       return `user:${user.id}`;
     }
@@ -30,7 +30,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     // Get IP address with proxy support
     const headers = request.headers || {};
     const forwarded = headers["x-forwarded-for"] as string;
-    const socket = request.socket || ({} as any);
+    const socket = request.socket || ({} as { remoteAddress?: string });
     const ip = forwarded
       ? forwarded.split(",")[0].trim()
       : socket.remoteAddress;
@@ -49,7 +49,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
       }
 
       // Call the parent implementation
-      const result = await super.canActivate(context);
+      const _result = await super.canActivate(context);
 
       // Add rate limit headers (basic implementation)
       if (response && typeof response.setHeader === "function") {
@@ -57,8 +57,8 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
         response.setHeader("X-RateLimit-Window", "900000");
       }
 
-      return result;
-    } catch (error) {
+      return _result;
+    } catch (_error) {
       // If we can't get request/response objects, fall back to parent implementation
       return await super.canActivate(context);
     }

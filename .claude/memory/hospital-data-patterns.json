@@ -1,0 +1,189 @@
+{
+  "fileFormats": {
+    "csv": {
+      "commonPatterns": [
+        {
+          "name": "CMS_Standard",
+          "description": "CMS-compliant format with standard headers",
+          "headers": ["code", "description", "gross_charge", "cash_price", "min_negotiated_rate", "max_negotiated_rate"],
+          "example": "99213,Office Visit Level 3,500.00,350.00,275.00,450.00"
+        },
+        {
+          "name": "Payer_Specific_Columns",
+          "description": "Each payer has its own column for negotiated rates",
+          "headers": ["cpt_code", "description", "standard_charge", "bcbs_rate", "united_rate", "cigna_rate"],
+          "example": "99213,Office Visit,500.00,325.00,310.00,340.00"
+        },
+        {
+          "name": "Wide_Format_Complex",
+          "description": "Complex format with modifiers and settings",
+          "headers": ["code", "modifier", "setting", "payer", "plan", "rate"],
+          "example": "99213,,Outpatient,Blue Cross,PPO,325.00"
+        }
+      ],
+      "encodingIssues": [
+        "UTF-8 with BOM",
+        "ISO-8859-1 (Latin-1)",
+        "Windows-1252",
+        "Mixed encodings in same file"
+      ],
+      "commonProblems": [
+        "Quoted fields with embedded commas",
+        "Inconsistent quoting",
+        "Line breaks within fields",
+        "Special characters in descriptions",
+        "Multiple header rows",
+        "Footer rows with totals"
+      ]
+    },
+    "json": {
+      "schemas": [
+        {
+          "name": "CMS_2.0",
+          "structure": {
+            "reporting_entity_name": "string",
+            "reporting_entity_type": "string",
+            "standard_charge_information": [
+              {
+                "code_information": {
+                  "code": "string",
+                  "type": "CPT|HCPCS|DRG|NDC"
+                },
+                "standard_charges": {
+                  "gross_charge": "number",
+                  "discounted_cash_price": "number",
+                  "payer_specific_negotiated_charges": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "variations": [
+        "Nested payer structures",
+        "Flat arrays with payer as property",
+        "Separate files per payer",
+        "Compressed/minified JSON"
+      ]
+    },
+    "xml": {
+      "patterns": [
+        "Legacy hospital systems",
+        "HL7 FHIR ChargeItem resources",
+        "Custom hospital schemas"
+      ]
+    }
+  },
+  "dataQualityPatterns": {
+    "placeholderPrices": [
+      { "pattern": "0.01", "meaning": "Price not yet negotiated" },
+      { "pattern": "999999", "meaning": "Maximum placeholder" },
+      { "pattern": "-1", "meaning": "Not applicable" },
+      { "pattern": "0", "meaning": "Service not offered or bundled" }
+    ],
+    "codeFormats": {
+      "cpt": {
+        "pattern": "^\\d{5}$",
+        "examples": ["99213", "99214", "70553"],
+        "modifiers": ["-26", "-TC", "-59"]
+      },
+      "hcpcs": {
+        "pattern": "^[A-Z]\\d{4}$",
+        "examples": ["J1100", "A4649", "E0143"]
+      },
+      "drg": {
+        "pattern": "^\\d{3}$",
+        "examples": ["470", "871", "039"]
+      },
+      "revenue": {
+        "pattern": "^\\d{4}$",
+        "examples": ["0250", "0636", "0450"]
+      }
+    },
+    "payerNameVariations": {
+      "BlueCross": [
+        "BCBS",
+        "Blue Cross Blue Shield",
+        "BlueCross BlueShield",
+        "BC/BS",
+        "BCBS of [State]",
+        "Anthem BCBS"
+      ],
+      "UnitedHealth": [
+        "United",
+        "UHC",
+        "United Healthcare",
+        "UnitedHealthcare",
+        "United Health Care"
+      ],
+      "Medicare": [
+        "Medicare",
+        "CMS",
+        "Medicare FFS",
+        "Traditional Medicare",
+        "Medicare Part A",
+        "Medicare Part B"
+      ]
+    }
+  },
+  "fileSizePatterns": {
+    "small": {
+      "range": "< 10MB",
+      "typical": "Small hospitals, ASCs",
+      "processing": "Load entire file"
+    },
+    "medium": {
+      "range": "10MB - 100MB",
+      "typical": "Community hospitals",
+      "processing": "Stream processing"
+    },
+    "large": {
+      "range": "100MB - 1GB",
+      "typical": "Regional medical centers",
+      "processing": "Chunked streaming"
+    },
+    "xlarge": {
+      "range": "> 1GB",
+      "typical": "Major health systems",
+      "processing": "Distributed processing",
+      "challenges": [
+        "Memory constraints",
+        "Timeout issues",
+        "Progress tracking critical",
+        "May need file splitting"
+      ]
+    }
+  },
+  "updateFrequencyPatterns": [
+    {
+      "pattern": "Annual",
+      "description": "Minimum CMS requirement",
+      "typical": "January updates"
+    },
+    {
+      "pattern": "Quarterly",
+      "description": "Common for larger systems",
+      "months": ["January", "April", "July", "October"]
+    },
+    {
+      "pattern": "Monthly",
+      "description": "Dynamic pricing hospitals"
+    },
+    {
+      "pattern": "OnChange",
+      "description": "Updates when contracts change"
+    }
+  ],
+  "parsingStrategies": {
+    "csv": {
+      "smallFile": "csv-parse with entire file",
+      "largeFile": "Stream with csv-parser",
+      "hugeFile": "Split file and parallel process"
+    },
+    "json": {
+      "smallFile": "JSON.parse",
+      "largeFile": "stream-json",
+      "hugeFile": "JSONStream with workers"
+    }
+  }
+}

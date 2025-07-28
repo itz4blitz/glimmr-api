@@ -350,8 +350,7 @@ describe("HospitalsController", () => {
         },
         HttpStatus.NOT_FOUND,
       );
-      // Simulate the status property that HttpException creates
-      (notFoundError as any).status = HttpStatus.NOT_FOUND;
+      // HttpException already has a status property, no need to set it
 
       mockHospitalsService.getHospitalById.mockRejectedValue(notFoundError);
 

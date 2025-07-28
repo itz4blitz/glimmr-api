@@ -8,7 +8,6 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
-// import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
@@ -30,7 +29,8 @@ import { ActivityLoggingInterceptor } from "./activity/activity-logging.intercep
 import { RequestContextMiddleware } from "./common/middleware";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middleware";
-import { ExtendedRequest, SerializedRequest, SerializedResponse, SerializedError } from "./common/types/http";
+import { SerializedRequest, SerializedResponse, SerializedError } from "./common/types/http";
+import type { Request } from "express";
 
 @Module({
   imports: [
@@ -95,21 +95,21 @@ import { ExtendedRequest, SerializedRequest, SerializedResponse, SerializedError
               },
             },
             timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
-            genReqId: (req: ExtendedRequest) => {
+            genReqId: (req) => {
               return (
                 req.headers["x-request-id"] ??
                 req.headers["x-correlation-id"] ??
                 `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
               );
             },
-            customProps: (req: ExtendedRequest) => ({
+            customProps: (req) => ({
               userAgent: req.headers["user-agent"],
-              ip: req.ip ?? req.connection?.remoteAddress,
+              ip: (req as unknown as Request & { ip?: string }).ip ?? req.socket?.remoteAddress,
               method: req.method,
               url: req.url,
             }),
             serializers: {
-              req: (req: ExtendedRequest): SerializedRequest => ({
+              req: (req): SerializedRequest => ({
                 id: req.id,
                 method: req.method,
                 url: req.url,
@@ -123,17 +123,17 @@ import { ExtendedRequest, SerializedRequest, SerializedResponse, SerializedError
                     ? "[REDACTED]"
                     : undefined,
                 },
-                remoteAddress: req.remoteAddress,
-                remotePort: req.remotePort,
+                remoteAddress: (req as unknown as Request & { ip?: string }).ip ?? req.socket?.remoteAddress,
+                remotePort: req.socket?.remotePort,
               }),
-              res: (res: { statusCode: number }): SerializedResponse => ({
+              res: (res): SerializedResponse => ({
                 statusCode: res.statusCode,
                 headers: {
                   "content-type": res.headers?.["content-type"],
                   "content-length": res.headers?.["content-length"],
                 },
               }),
-              err: (err: Error & { code?: string }): SerializedError => ({
+              err: (err): SerializedError => ({
                 type: err.constructor.name,
                 message: err.message,
                 stack: err.stack,

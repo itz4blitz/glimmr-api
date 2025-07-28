@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
-import { Queue, Job, QueueEvents } from "bullmq";
+import { Queue, QueueEvents } from "bullmq";
 import { NotificationsService } from "../../notifications/notifications.service";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { QUEUE_NAMES } from "../queues/queue.config";
@@ -77,10 +77,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
               );
             }
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to create job success notification",
-            error: error.message,
+            error: (_error as Error).message,
             jobId,
             queueName: name,
           });
@@ -93,10 +93,7 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
           const job = await queue.getJob(jobId);
           if (job) {
             // Emit WebSocket event
-            this.jobsGateway.emitJobFailed(name, jobId, {
-              message: failedReason,
-              attemptsMade: job.attemptsMade,
-            });
+            this.jobsGateway.emitJobFailed(name, jobId, failedReason || 'Unknown error');
 
             // Create notification if user is specified
             if (job.data.userId) {
@@ -116,10 +113,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
               );
             }
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to create job failure notification",
-            error: error.message,
+            error: (_error as Error).message,
             jobId,
             queueName: name,
           });
@@ -144,10 +141,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
               },
             );
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to create job warning notification",
-            error: error.message,
+            error: (_error as Error).message,
             jobId,
             queueName: name,
           });
@@ -166,10 +163,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
               opts: job.opts,
             });
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to emit job added event",
-            error: error.message,
+            error: (_error as Error).message,
             jobId,
             queueName: name,
           });
@@ -183,10 +180,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
           if (job) {
             this.jobsGateway.emitJobStarted(name, jobId);
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to emit job active event",
-            error: error.message,
+            error: (_error as Error).message,
             jobId,
             queueName: name,
           });
@@ -199,10 +196,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
           if (typeof data === "number") {
             this.jobsGateway.emitJobProgress(name, jobId, data);
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to emit job progress event",
-            error: error.message,
+            error: (_error as Error).message,
             jobId,
             queueName: name,
           });
@@ -248,10 +245,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
           isPaused,
           timestamp: new Date().toISOString(),
         });
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to emit queue stats",
-          error: error.message,
+          error: (_error as Error).message,
           queueName: name,
         });
       }

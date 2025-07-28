@@ -23,7 +23,7 @@ import { ApiKeyAuthGuard } from "../auth/guards/api-key-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ODataQueryDto } from "../common/dto/query.dto";
-import { RequestDto, ResponseDto } from "../common/dto/request.dto";
+import { Request, Response } from "express";
 import { ODataErrorDto } from "./dto/odata-error.dto";
 
 @ApiTags("OData")
@@ -45,7 +45,7 @@ export class ODataController {
     type: ODataErrorDto,
   })
   @Roles("admin", "api-user")
-  async getServiceDocument(@Req() req: RequestDto, @Res() res: ResponseDto) {
+  async getServiceDocument(@Req() req: Request, @Res() res: Response) {
     try {
       const serviceDoc = await this.odataService.getServiceDocument(req);
       res.setHeader("Content-Type", "application/json;odata.metadata=minimal");
@@ -55,7 +55,7 @@ export class ODataController {
       throw new HttpException(
         this.odataService.formatODataError(
           "Service document error",
-          error.message,
+          (error as Error).message,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -74,7 +74,7 @@ export class ODataController {
     type: ODataErrorDto,
   })
   @Roles("admin", "api-user")
-  async getMetadata(@Res() res: ResponseDto) {
+  async getMetadata(@Res() res: Response) {
     try {
       const metadata = await this.odataService.getMetadata();
       res.setHeader("Content-Type", "application/xml");
@@ -82,7 +82,7 @@ export class ODataController {
       return res.send(metadata);
     } catch (error) {
       throw new HttpException(
-        this.odataService.formatODataError("Metadata error", error.message),
+        this.odataService.formatODataError("Metadata error", (error as Error).message),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -128,21 +128,21 @@ export class ODataController {
     description: "Number of records to skip",
   })
   @ApiQuery({ name: "$count", required: false, description: "Include count" })
-  async getHospitals(@Res() res: ResponseDto, @Query() query: ODataQueryDto) {
+  async getHospitals(@Res() res: Response, @Query() _query: ODataQueryDto) {
     try {
-      const data = await this.odataService.getHospitals(query);
+      const data = await this.odataService.getHospitals(_query);
       res.setHeader("Content-Type", "application/json;odata.metadata=minimal");
       res.setHeader("OData-Version", "4.0");
       return res.json(data);
     } catch (error) {
       const statusCode =
-        error.name === "ValidationError"
+        (error as { name?: string }).name === "ValidationError"
           ? HttpStatus.BAD_REQUEST
           : HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(
         this.odataService.formatODataError(
           "Hospitals query error",
-          error.message,
+          (error as Error).message,
         ),
         statusCode,
       );
@@ -189,19 +189,19 @@ export class ODataController {
     description: "Number of records to skip",
   })
   @ApiQuery({ name: "$count", required: false, description: "Include count" })
-  async getPrices(@Res() res: ResponseDto, @Query() query: ODataQueryDto) {
+  async getPrices(@Res() res: Response, @Query() _query: ODataQueryDto) {
     try {
-      const data = await this.odataService.getPrices(query);
+      const data = await this.odataService.getPrices(_query);
       res.setHeader("Content-Type", "application/json;odata.metadata=minimal");
       res.setHeader("OData-Version", "4.0");
       return res.json(data);
     } catch (error) {
       const statusCode =
-        error.name === "ValidationError"
+        (error as { name?: string }).name === "ValidationError"
           ? HttpStatus.BAD_REQUEST
           : HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(
-        this.odataService.formatODataError("Prices query error", error.message),
+        this.odataService.formatODataError("Prices query error", (error as Error).message),
         statusCode,
       );
     }
@@ -247,21 +247,21 @@ export class ODataController {
     description: "Number of records to skip",
   })
   @ApiQuery({ name: "$count", required: false, description: "Include count" })
-  async getAnalytics(@Res() res: ResponseDto, @Query() query: ODataQueryDto) {
+  async getAnalytics(@Res() res: Response, @Query() _query: ODataQueryDto) {
     try {
-      const data = await this.odataService.getAnalytics(query);
+      const data = await this.odataService.getAnalytics(_query);
       res.setHeader("Content-Type", "application/json;odata.metadata=minimal");
       res.setHeader("OData-Version", "4.0");
       return res.json(data);
     } catch (error) {
       const statusCode =
-        error.name === "ValidationError"
+        (error as { name?: string }).name === "ValidationError"
           ? HttpStatus.BAD_REQUEST
           : HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(
         this.odataService.formatODataError(
           "Analytics query error",
-          error.message,
+          (error as Error).message,
         ),
         statusCode,
       );
@@ -286,8 +286,8 @@ export class ODataController {
   })
   @Roles("admin", "api-user")
   async processBatch(
-    @Req() req: RequestDto,
-    @Res() res: ResponseDto,
+    @Req() req: Request,
+    @Res() res: Response,
     @Body() body: string,
   ) {
     try {
@@ -297,13 +297,13 @@ export class ODataController {
       return res.send(batchResult);
     } catch (error) {
       const statusCode =
-        error.name === "ValidationError"
+        (error as { name?: string }).name === "ValidationError"
           ? HttpStatus.BAD_REQUEST
           : HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(
         this.odataService.formatODataError(
           "Batch processing error",
-          error.message,
+          (error as Error).message,
         ),
         statusCode,
       );

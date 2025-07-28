@@ -124,11 +124,11 @@ export class JobCleanupService {
       try {
         const queueResults = await this.cleanupQueue(queue, queueName, policy);
         results.push(...queueResults);
-      } catch (error) {
+      } catch (_error) {
         this.logger.error(
           {
             queueName,
-            error: error.message,
+            error: (_error as Error).message,
           },
           "Failed to cleanup queue",
         );
@@ -137,7 +137,7 @@ export class JobCleanupService {
           queueName,
           jobType: "completed",
           deletedCount: 0,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -183,12 +183,12 @@ export class JobCleanupService {
           },
           "Cleaned completed jobs",
         );
-      } catch (error) {
+      } catch (_error) {
         results.push({
           queueName,
           jobType: "completed",
           deletedCount: 0,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -216,12 +216,12 @@ export class JobCleanupService {
           },
           "Cleaned failed jobs",
         );
-      } catch (error) {
+      } catch (_error) {
         results.push({
           queueName,
           jobType: "failed",
           deletedCount: 0,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -249,12 +249,12 @@ export class JobCleanupService {
           },
           "Cleaned stalled jobs",
         );
-      } catch (error) {
+      } catch (_error) {
         results.push({
           queueName,
           jobType: "active",
           deletedCount: 0,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -331,9 +331,39 @@ export class JobCleanupService {
     );
   }
 
-  async getCleanupStats(): Promise<Record<string, any>> {
+  async getCleanupStats(): Promise<{
+    queues: Record<string, {
+      counts?: {
+        waiting: number;
+        active: number;
+        completed: number;
+        failed: number;
+        delayed: number;
+        total: number;
+      };
+      policy?: CleanupPolicy | null;
+      paused?: boolean;
+      lastCleanup?: null;
+      error?: string;
+    }>;
+    timestamp: string;
+    defaultPolicies: Record<string, CleanupPolicy>;
+  }> {
     const queueMap = this.getQueueMap();
-    const stats: Record<string, any> = {};
+    const stats: Record<string, {
+      counts?: {
+        waiting: number;
+        active: number;
+        completed: number;
+        failed: number;
+        delayed: number;
+        total: number;
+      };
+      policy?: CleanupPolicy | null;
+      paused?: boolean;
+      lastCleanup?: null;
+      error?: string;
+    }> = {};
 
     for (const [queueName, queue] of Object.entries(queueMap)) {
       try {
@@ -367,9 +397,9 @@ export class JobCleanupService {
           paused: await queue.isPaused(),
           lastCleanup: null, // Could be enhanced to track last cleanup time
         };
-      } catch (error) {
+      } catch (_error) {
         stats[queueName] = {
-          error: error.message,
+          error: (_error as Error).message,
         };
       }
     }
@@ -383,7 +413,13 @@ export class JobCleanupService {
 
   private summarizeCleanupResults(
     results: CleanupResult[],
-  ): Record<string, any> {
+  ): {
+    totalQueuesProcessed: number;
+    totalJobsDeleted: number;
+    errorCount: number;
+    byJobType: Record<string, number>;
+    byQueue: Record<string, number>;
+  } {
     const summary = {
       totalQueuesProcessed: new Set(results.map((r) => r.queueName)).size,
       totalJobsDeleted: results.reduce((sum, r) => sum + r.deletedCount, 0),

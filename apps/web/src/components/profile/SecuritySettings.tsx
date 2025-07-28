@@ -120,14 +120,22 @@ export function SecuritySettings() {
     }));
   };
 
-  // TODO: Fetch real session data from API
+  // Mock session data - in a real app, this would come from an API
   const activeSessions: Array<{
     id: string;
     device: string;
     location: string;
     lastActive: string;
     current: boolean;
-  }> = [];
+  }> = [
+    {
+      id: "current-session",
+      device: navigator.userAgent.includes("Mobile") ? "Mobile Device" : "Desktop Browser",
+      location: "Current Location",
+      lastActive: new Date().toISOString(),
+      current: true,
+    }
+  ];
 
   return (
     <div className="space-y-6">

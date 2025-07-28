@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  extends: ['../../packages/eslint-config/nestjs.js'],
+  extends: ['../../packages/eslint-config/backend.js'],
   parserOptions: {
     project: 'tsconfig.json',
     tsconfigRootDir: __dirname,
@@ -29,7 +29,7 @@ module.exports = {
     },
   ],
   rules: {
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-unused-vars': [
       'warn',
       {

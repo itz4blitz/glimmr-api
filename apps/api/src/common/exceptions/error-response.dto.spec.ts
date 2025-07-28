@@ -237,7 +237,21 @@ describe("ErrorResponseDto", () => {
 
       expect(dto.details).toEqual(complexDetails);
       expect(dto.details.validationErrors).toHaveLength(2);
-      expect(dto.details.metadata.nested.deep).toBe("value");
+      
+      // Type-safe access to nested properties
+      const detailsWithMetadata = dto.details as {
+        validationErrors: Array<{ field: string; message: string }>;
+        requestId: string;
+        userId: string;
+        metadata: {
+          source: string;
+          version: string;
+          nested: {
+            deep: string;
+          };
+        };
+      };
+      expect(detailsWithMetadata.metadata.nested.deep).toBe("value");
     });
 
     it("should handle null and undefined values appropriately", () => {

@@ -3,13 +3,41 @@ import { ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { CustomThrottlerGuard } from "./custom-throttler.guard";
+import { Request } from "express";
+
+// Types for mock objects
+type MockRequest = Partial<Request> & {
+  ip: string;
+  method: string;
+  path: string;
+  route: { path: string } | null;
+  headers: Record<string, string | string[] | undefined>;
+  socket: any;
+  user: { id?: string; name?: string } | null | undefined;
+  url?: string;
+};
+
+type MockResponse = {
+  setHeader: jest.Mock;
+};
+
+type MockExecutionContext = {
+  switchToHttp: jest.Mock;
+  getHandler: jest.Mock;
+  getClass: jest.Mock;
+  getArgs: jest.Mock;
+  getArgByIndex: jest.Mock;
+  switchToRpc: jest.Mock;
+  switchToWs: jest.Mock;
+  getType: jest.Mock;
+};
 
 describe("CustomThrottlerGuard", () => {
   let guard: CustomThrottlerGuard;
   let reflector: Reflector;
-  let mockExecutionContext: ExecutionContext;
-  let mockRequest: any;
-  let mockResponse: any;
+  let mockExecutionContext: MockExecutionContext;
+  let mockRequest: MockRequest;
+  let mockResponse: MockResponse;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -40,7 +68,7 @@ describe("CustomThrottlerGuard", () => {
       path: "/test",
       route: { path: "/test" },
       headers: {},
-      socket: { remoteAddress: "127.0.0.1" },
+      socket: { remoteAddress: "127.0.0.1" } as any,
       user: null,
     };
 
@@ -57,7 +85,12 @@ describe("CustomThrottlerGuard", () => {
       }),
       getHandler: jest.fn(),
       getClass: jest.fn(),
-    } as any;
+      getArgs: jest.fn(),
+      getArgByIndex: jest.fn(),
+      switchToRpc: jest.fn(),
+      switchToWs: jest.fn(),
+      getType: jest.fn(),
+    };
   });
 
   afterEach(() => {
@@ -80,7 +113,7 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext, suffix, name);
+      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
 
       expect(key).toBe("throttle:default:GET:/test:ip:127.0.0.1:test-suffix");
     });
@@ -90,7 +123,7 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "expensive";
 
-      const key = guard["generateKey"](mockExecutionContext, suffix, name);
+      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
 
       expect(key).toBe("throttle:expensive:GET:/test:user:user123:test-suffix");
     });
@@ -101,7 +134,7 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext, suffix, name);
+      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
 
       expect(key).toBe(
         "throttle:default:GET:/fallback:ip:127.0.0.1:test-suffix",
@@ -113,7 +146,7 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext, suffix, name);
+      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
 
       expect(key).toBe("throttle:default:POST:/test:ip:127.0.0.1:test-suffix");
     });
@@ -121,57 +154,57 @@ describe("CustomThrottlerGuard", () => {
 
   describe("getClientId method", () => {
     it("should return IP-based identifier for anonymous users", () => {
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:127.0.0.1");
     });
 
     it("should return user-based identifier for authenticated users", () => {
       mockRequest.user = { id: "user123" };
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("user:user123");
     });
 
     it("should handle X-Forwarded-For header", () => {
       mockRequest.headers["x-forwarded-for"] = "192.168.1.1, 10.0.0.1";
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:192.168.1.1");
     });
 
     it("should handle X-Forwarded-For header with single IP", () => {
       mockRequest.headers["x-forwarded-for"] = "203.0.113.195";
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:203.0.113.195");
     });
 
     it("should trim spaces from forwarded IP", () => {
       mockRequest.headers["x-forwarded-for"] = "  192.168.1.1  ";
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:192.168.1.1");
     });
 
     it("should fallback to socket.remoteAddress when no forwarded header", () => {
       delete mockRequest.headers["x-forwarded-for"];
-      mockRequest.socket.remoteAddress = "10.0.0.1";
+      (mockRequest.socket as any).remoteAddress = "10.0.0.1";
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:10.0.0.1");
     });
 
     it("should handle undefined user object", () => {
       mockRequest.user = undefined;
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:127.0.0.1");
     });
 
     it("should handle user object without id", () => {
       mockRequest.user = { name: "John Doe" };
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:127.0.0.1");
     });
   });
@@ -200,7 +233,7 @@ describe("CustomThrottlerGuard", () => {
         mockRequest.path = path;
         mockRequest.url = path;
 
-        const result = await guard.canActivate(mockExecutionContext);
+        const result = await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
 
         expect(result).toBe(true);
         // Verify parent canActivate was NOT called for health endpoints
@@ -218,7 +251,7 @@ describe("CustomThrottlerGuard", () => {
       mockRequest.path = "/api/v1/hospitals";
       mockRequest.url = "/api/v1/hospitals";
 
-      const result = await guard.canActivate(mockExecutionContext);
+      const result = await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
 
       expect(result).toBe(true);
       expect(ThrottlerGuard.prototype.canActivate).toHaveBeenCalledWith(
@@ -227,7 +260,7 @@ describe("CustomThrottlerGuard", () => {
     });
 
     it("should add rate limit headers to response", async () => {
-      await guard.canActivate(mockExecutionContext);
+      await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
 
       expect(mockResponse.setHeader).toHaveBeenCalledWith(
         "X-RateLimit-Limit",
@@ -244,7 +277,7 @@ describe("CustomThrottlerGuard", () => {
         .spyOn(ThrottlerGuard.prototype, "canActivate")
         .mockResolvedValue(false);
 
-      const result = await guard.canActivate(mockExecutionContext);
+      const result = await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
 
       expect(result).toBe(false);
       expect(mockResponse.setHeader).toHaveBeenCalled();
@@ -256,7 +289,7 @@ describe("CustomThrottlerGuard", () => {
         .spyOn(ThrottlerGuard.prototype, "canActivate")
         .mockRejectedValue(error);
 
-      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+      await expect(guard.canActivate(mockExecutionContext as unknown as ExecutionContext)).rejects.toThrow(
         "Rate limit exceeded",
       );
     });
@@ -274,12 +307,19 @@ describe("CustomThrottlerGuard", () => {
 
   describe("Edge Cases", () => {
     it("should handle malformed execution context", async () => {
-      const malformedContext = {
+      const malformedContext: MockExecutionContext = {
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: jest.fn().mockReturnValue(null),
           getResponse: jest.fn().mockReturnValue(mockResponse),
         }),
-      } as any;
+        getHandler: jest.fn(),
+        getClass: jest.fn(),
+        getArgs: jest.fn(),
+        getArgByIndex: jest.fn(),
+        switchToRpc: jest.fn(),
+        switchToWs: jest.fn(),
+        getType: jest.fn(),
+      };
 
       // Should not throw, but may have undefined behavior
       // The parent guard should handle this gracefully
@@ -287,7 +327,7 @@ describe("CustomThrottlerGuard", () => {
         .spyOn(ThrottlerGuard.prototype, "canActivate")
         .mockResolvedValue(true);
 
-      await expect(guard.canActivate(malformedContext)).resolves.toBe(true);
+      await expect(guard.canActivate(malformedContext as unknown as ExecutionContext)).resolves.toBe(true);
     });
 
     it("should handle request without headers object", () => {
@@ -296,7 +336,7 @@ describe("CustomThrottlerGuard", () => {
         headers: undefined,
       };
 
-      const clientId = guard["getClientId"](requestWithoutHeaders);
+      const clientId = guard["getClientId"](requestWithoutHeaders as unknown as Request);
       expect(clientId).toBe("ip:127.0.0.1");
     });
 
@@ -306,7 +346,7 @@ describe("CustomThrottlerGuard", () => {
         socket: undefined,
       };
 
-      const clientId = guard["getClientId"](requestWithoutSocket);
+      const clientId = guard["getClientId"](requestWithoutSocket as unknown as Request);
       expect(clientId).toBe("ip:undefined");
     });
   });
@@ -317,7 +357,7 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext, suffix, name);
+      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
 
       expect(key).toBe(
         "throttle:default:GET:/api/v1/test-endpoint/:id:ip:127.0.0.1:suffix",
@@ -328,7 +368,7 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext, suffix, name);
+      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
 
       expect(key).toBe("throttle:default:GET:/test:ip:127.0.0.1:");
     });
@@ -337,7 +377,7 @@ describe("CustomThrottlerGuard", () => {
       const longUserId = "a".repeat(1000);
       mockRequest.user = { id: longUserId };
 
-      const clientId = guard["getClientId"](mockRequest);
+      const clientId = guard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe(`user:${longUserId}`);
     });
   });

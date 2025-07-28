@@ -244,8 +244,10 @@ describe("DatabaseService", () => {
       const result = await service.healthCheck();
 
       expect(result.status).toBe("healthy");
-      expect(result.details.duration).toBeGreaterThanOrEqual(0);
-      expect(result.details.timestamp).toBeDefined();
+      expect(result.details).toBeDefined();
+      const details = result.details as { duration: number; timestamp: Date };
+      expect(details.duration).toBeGreaterThanOrEqual(0);
+      expect(details.timestamp).toBeDefined();
 
       expect(mockLogger.debug).toHaveBeenCalledWith({
         msg: "Database health check successful",
@@ -271,7 +273,9 @@ describe("DatabaseService", () => {
       const result = await service.healthCheck();
 
       expect(result.status).toBe("unhealthy");
-      expect(result.details.error).toBe("Health check query failed");
+      expect(result.details).toBeDefined();
+      const details = result.details as { error: string };
+      expect(details.error).toBe("Health check query failed");
 
       expect(mockLogger.error).toHaveBeenCalledWith({
         msg: "Database health check failed",
@@ -284,7 +288,9 @@ describe("DatabaseService", () => {
       const result = await service.healthCheck();
 
       expect(result.status).toBe("unhealthy");
-      expect(result.details.error).toContain("not initialized");
+      expect(result.details).toBeDefined();
+      const details = result.details as { error: string };
+      expect(details.error).toContain("not initialized");
     });
   });
 

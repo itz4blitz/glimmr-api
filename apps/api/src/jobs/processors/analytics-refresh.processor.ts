@@ -11,7 +11,7 @@ import {
   jobs as jobsTable,
   jobLogs,
 } from "../../database/schema";
-import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { eq, and, sql, gte as _gte, lte, SQL, AnyColumn } from "drizzle-orm";
 
 export interface AnalyticsRefreshJobData {
   hospitalId?: string;
@@ -39,10 +39,10 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<AnalyticsRefreshJobData>): Promise<any> {
+  async process(job: Job<AnalyticsRefreshJobData>): Promise<MetricResult[]> {
     const { hospitalId, state, metrics, period } = job.data;
     const startTime = Date.now();
-    let jobRecord: any;
+    let jobRecord: { id: string } | undefined;
 
     this.logger.info({
       msg: "Starting analytics refresh",
@@ -150,16 +150,16 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
             records: recordCount,
             duration: metricDuration,
           });
-        } catch (error) {
+        } catch (_error) {
           await this.logJobEvent(
             jobRecord.id,
             "error",
             `Failed to calculate ${metric}`,
             {
-              error: error.message,
+              error: (_error as Error).message,
             },
           );
-          throw error;
+          throw _error;
         }
 
         currentProgress += progressPerMetric;
@@ -195,28 +195,23 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         duration,
       });
 
-      return {
-        success: true,
-        results,
-        totalRecords,
-        duration,
-      };
-    } catch (error) {
+      return results;
+    } catch (_error) {
       const duration = Date.now() - startTime;
       
       this.logger.error({
         msg: "Analytics refresh failed",
         jobId: job.id,
-        error: error.message,
-        stack: error.stack,
+        error: (_error as Error).message,
+        stack: (_error as Error).stack,
         duration,
       });
 
       if (jobRecord) {
-        await this.updateJobFailure(jobRecord.id, error, duration);
+        await this.updateJobFailure(jobRecord.id, _error, duration);
       }
 
-      throw error;
+      throw _error;
     }
   }
 
@@ -318,7 +313,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     }
 
     // Build select fields based on scope
-    const selectFields: Record<string, any> = {
+    const selectFields: Record<string, SQL | SQL<number> | SQL<string> | AnyColumn> = {
       category: prices.category,
       serviceCount: sql<number>`count(distinct code)`,
       avgPrice: sql<number>`avg(gross_charge)`,
@@ -339,7 +334,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     }
 
     const query = db
-      .select(selectFields)
+      .select(selectFields as Record<string, SQL<unknown>>)
       .from(prices)
       .innerJoin(hospitals, eq(prices.hospitalId, hospitals.id))
       .where(and(...conditions));
@@ -425,7 +420,9 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         const payerRates = JSON.parse(price.payerRates || "{}");
 
         for (const [payerName, rateInfo] of Object.entries(payerRates)) {
-          const rate = (rateInfo as any).rate || rateInfo;
+          const rate = typeof rateInfo === 'object' && rateInfo !== null && 'rate' in rateInfo 
+            ? (rateInfo as { rate: number }).rate 
+            : rateInfo;
           if (typeof rate === "number" && rate > 0 && price.grossCharge) {
             if (!payerMetrics.has(payerName)) {
               payerMetrics.set(payerName, { total: 0, sum: 0, discounts: [] });
@@ -443,7 +440,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
             metrics.discounts.push(discount);
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Skip invalid JSON
       }
     }
@@ -788,7 +785,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     jobId: string,
     level: string,
     message: string,
-    data?: any,
+    data?: Record<string, unknown>,
   ): Promise<void> {
     try {
       await this.databaseService.db.insert(jobLogs).values({
@@ -797,10 +794,10 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         message,
         data: data ? JSON.stringify(data) : null,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to log job event",
-        error: error.message,
+        error: (_error as Error).message,
         jobId,
         level,
         message,
@@ -810,7 +807,10 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
 
   private async updateJobSuccess(
     jobId: string,
-    outputData: any,
+    outputData: {
+      duration?: number;
+      [key: string]: unknown;
+    },
   ): Promise<void> {
     const db = this.databaseService.db;
     await db
@@ -821,8 +821,8 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         duration: outputData.duration,
         outputData: JSON.stringify(outputData),
         progressPercentage: 100,
-        recordsProcessed: outputData.totalRecords,
-        recordsCreated: outputData.totalRecords,
+        recordsProcessed: outputData.totalRecords as number,
+        recordsCreated: outputData.totalRecords as number,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
@@ -843,15 +843,15 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         status: "failed",
         completedAt: new Date(),
         duration,
-        errorMessage: error.message,
-        errorStack: error.stack,
+        errorMessage: (error as Error).message,
+        errorStack: (error as Error).stack,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
 
     await this.logJobEvent(jobId, "error", "Job failed", {
-      error: error.message,
-      stack: error.stack,
+      error: (error as Error).message,
+      stack: (error as Error).stack,
       duration,
     });
   }

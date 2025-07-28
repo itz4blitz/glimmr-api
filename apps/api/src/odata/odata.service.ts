@@ -3,7 +3,6 @@ import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import {
   eq,
   and,
-  like,
   desc,
   asc,
   count,
@@ -15,9 +14,15 @@ import {
   ilike,
   not,
   sql,
+  SQL,
+  Column,
+  SQLWrapper,
+  AnyColumn,
 } from "drizzle-orm";
 import { DatabaseService } from "../database/database.service";
-import { hospitals, prices, analytics } from "../database/schema";
+import { hospitals, prices, analytics, schema } from "../database/schema";
+import * as Express from "express";
+import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 interface QueryOptions {
   $select?: string;
@@ -49,14 +54,14 @@ interface ParsedQueryOptions {
 
 interface EntityConfig {
   table: any;
-  defaultOrderBy: any;
+  defaultOrderBy: SQL | AnyColumn;
   filterMappings: Record<
     string,
-    { field: any; type: "eq" | "like" | "gt" | "lt" | "ge" | "le" }
+    { field: AnyColumn; type: "eq" | "like" | "gt" | "lt" | "ge" | "le" }
   >;
-  orderMappings: Record<string, { field: any }>;
-  selectMappings: Record<string, any>;
-  searchFields?: any[];
+  orderMappings: Record<string, { field: AnyColumn }>;
+  selectMappings: Record<string, AnyColumn | SQL | SQLWrapper>;
+  searchFields?: AnyColumn[];
 }
 
 /**
@@ -83,7 +88,7 @@ export class ODataService {
     @InjectPinoLogger(ODataService.name)
     private readonly logger: PinoLogger,
   ) {}
-  async getServiceDocument(req: any) {
+  getServiceDocument(req: Express.Request) {
     // Force HTTPS for production
     const protocol = req.get("x-forwarded-proto") ?? req.protocol;
     const baseUrl = `${protocol}://${req.get("host")}/odata`;
@@ -111,7 +116,7 @@ export class ODataService {
     };
   }
 
-  async getMetadata() {
+  getMetadata() {
     // OData metadata XML document - PowerBI compliant
     return `<?xml version="1.0" encoding="UTF-8"?>
 <edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
@@ -255,7 +260,7 @@ export class ODataService {
       const searchConditions = this.buildSearchConditions(searchTerm, config);
       conditions.push(...searchConditions);
 
-      const whereClause = and(...conditions);
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
       const orderByClause = this.buildOrderByClause(
         options.$orderby || options.orderby,
         config,
@@ -268,10 +273,10 @@ export class ODataService {
       }
 
       const data = await db
-        .select(selectClause)
+        .select(selectClause as any)
         .from(hospitals)
         .where(whereClause)
-        .orderBy(orderByClause)
+        .orderBy(orderByClause as any)
         .limit(limit)
         .offset(offset);
 
@@ -288,14 +293,14 @@ export class ODataService {
         totalCount,
         { limit, offset, baseUrl: "https://api.glimmr.health/odata/hospitals" },
       );
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to fetch hospitals for OData",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getHospitals",
         options,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -372,7 +377,7 @@ export class ODataService {
       const searchConditions = this.buildSearchConditions(searchTerm, config);
       conditions.push(...searchConditions);
 
-      const whereClause = and(...conditions);
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
       const orderByClause = this.buildOrderByClause(
         options.$orderby || options.orderby,
         config,
@@ -390,11 +395,11 @@ export class ODataService {
       }
 
       const data = await db
-        .select(selectClause)
+        .select(selectClause as any)
         .from(prices)
         .leftJoin(hospitals, eq(prices.hospitalId, hospitals.id))
         .where(whereClause)
-        .orderBy(orderByClause)
+        .orderBy(orderByClause as any)
         .limit(limit)
         .offset(offset);
 
@@ -411,14 +416,14 @@ export class ODataService {
         totalCount,
         { limit, offset, baseUrl: "https://api.glimmr.health/odata/prices" },
       );
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to fetch prices for OData",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getPrices",
         options,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -475,7 +480,7 @@ export class ODataService {
         searchFields: [analytics.metricName, analytics.serviceName],
       };
 
-      const conditions: any[] = [];
+      const conditions: SQL[] = [];
 
       // Add filter conditions
       const filterConditions = this.buildFilterConditions(
@@ -502,10 +507,10 @@ export class ODataService {
       }
 
       const data = await db
-        .select(selectClause)
+        .select(selectClause as any)
         .from(analytics)
         .where(whereClause)
-        .orderBy(orderByClause)
+        .orderBy(orderByClause as any)
         .limit(limit)
         .offset(offset);
 
@@ -522,14 +527,14 @@ export class ODataService {
         totalCount,
         { limit, offset, baseUrl: "https://api.glimmr.health/odata/analytics" },
       );
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to fetch analytics for OData",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getAnalytics",
         options,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -564,19 +569,19 @@ export class ODataService {
     };
   }
 
-  private buildFilterConditions(filter: string, config: EntityConfig): any[] {
-    const conditions: any[] = [];
+  private buildFilterConditions(filter: string, config: EntityConfig): SQL[] {
+    const conditions: SQL[] = [];
 
     if (!filter) return conditions;
 
     try {
       // Handle 'and' and 'or' operators by splitting first
       const orClauses = filter.split(" or ");
-      const orConditions: any[] = [];
+      const orConditions: SQL[] = [];
 
       for (const orClause of orClauses) {
         const andClauses = orClause.split(" and ");
-        const andConditions: any[] = [];
+        const andConditions: SQL[] = [];
 
         for (const andClause of andClauses) {
           const clauseConditions = this.parseFilterClause(
@@ -600,18 +605,18 @@ export class ODataService {
       }
 
       return conditions;
-    } catch (error) {
+    } catch (_error) {
       this.logger.warn({
         msg: "Failed to parse filter conditions",
         filter,
-        error: error.message,
+        error: (_error as Error).message,
       });
       return [];
     }
   }
 
-  private parseFilterClause(clause: string, config: EntityConfig): any[] {
-    const conditions: any[] = [];
+  private parseFilterClause(clause: string, config: EntityConfig): SQL[] {
+    const conditions: SQL[] = [];
 
     for (const [filterKey, mapping] of Object.entries(config.filterMappings)) {
       // Handle different operators
@@ -624,7 +629,7 @@ export class ODataService {
         {
           op: "ne",
           regex: new RegExp(`${filterKey}\\s+ne\\s+'([^']+)'`),
-          fn: (field: any, value: any) => not(eq(field, value)),
+          fn: (field: AnyColumn, value: unknown) => not(eq(field, value)),
         },
         {
           op: "gt",
@@ -694,7 +699,7 @@ export class ODataService {
   private buildSearchConditions(
     searchTerm: string | undefined,
     config: EntityConfig,
-  ): any[] {
+  ): SQL[] {
     if (
       !searchTerm ||
       !config.searchFields ||
@@ -713,12 +718,12 @@ export class ODataService {
   private buildSelectClause(
     selectFields: string[] | undefined,
     config: EntityConfig,
-  ): any {
+  ): Record<string, any> {
     if (!selectFields || selectFields.length === 0) {
       return config.selectMappings;
     }
 
-    const selectClause: any = {};
+    const selectClause: Record<string, any> = {};
     for (const field of selectFields) {
       if (config.selectMappings[field]) {
         selectClause[field] = config.selectMappings[field];
@@ -748,9 +753,9 @@ export class ODataService {
   }
 
   private async executeCountQuery(
-    db: any,
+    db: PostgresJsDatabase<typeof schema>,
     table: any,
-    whereClause: any,
+    whereClause: SQL | undefined,
   ): Promise<number> {
     const [countResult] = await db
       .select({ count: count() })
@@ -761,11 +766,11 @@ export class ODataService {
 
   private formatODataResponse(
     context: string,
-    data: any[],
+    data: unknown[],
     totalCount?: number,
     options?: { limit: number; offset: number; baseUrl?: string },
   ) {
-    const response: any = {
+    const response: Record<string, unknown> = {
       "@odata.context": context,
       value: data,
     };
@@ -806,7 +811,7 @@ export class ODataService {
     };
   }
 
-  async processBatch(batchBody: string, req: any): Promise<string> {
+  async processBatch(batchBody: string, _req: Express.Request): Promise<string> {
     this.logger.info({
       msg: "Processing OData batch request",
       operation: "processBatch",
@@ -820,7 +825,7 @@ export class ODataService {
       let responseId = 1;
       for (const request of requests) {
         try {
-          let result: any;
+          let result: unknown;
           const query = this.parseUrlQuery(request.url);
 
           if (request.url.includes("/hospitals")) {
@@ -834,21 +839,21 @@ export class ODataService {
           }
 
           responses.push(this.formatBatchResponse(responseId++, 200, result));
-        } catch (error) {
+        } catch (_error) {
           responses.push(
-            this.formatBatchErrorResponse(responseId++, 500, error.message),
+            this.formatBatchErrorResponse(responseId++, 500, (_error as Error).message),
           );
         }
       }
 
       return this.createBatchResponse(responses);
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to process batch request",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "processBatch",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -859,7 +864,7 @@ export class ODataService {
     const requests: Array<{ method: string; url: string }> = [];
     const lines = batchBody.split("\n");
 
-    const currentRequest: any = {};
+    const _currentRequest: Record<string, unknown> = {};
     for (const line of lines) {
       if (line.startsWith("GET ")) {
         const url = line.replace("GET ", "").trim();
@@ -885,7 +890,7 @@ export class ODataService {
     };
   }
 
-  private formatBatchResponse(id: number, status: number, data: any): string {
+  private formatBatchResponse(id: number, status: number, data: unknown): string {
     return `--batchresponse
 Content-Type: application/http
 Content-Transfer-Encoding: binary

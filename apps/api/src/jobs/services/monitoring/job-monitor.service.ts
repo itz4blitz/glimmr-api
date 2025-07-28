@@ -26,7 +26,7 @@ export class JobMonitorService implements OnModuleInit {
     private readonly parserQueue: Queue,
   ) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     this.logger.info("Job monitor service initialized");
   }
 
@@ -72,10 +72,10 @@ export class JobMonitorService implements OnModuleInit {
       await this.checkOrphanedFiles();
       await this.retryFailedDownloads();
 
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Error in stale job monitor",
-        error: error.message,
+        error: (_error as Error).message,
       });
     }
   }
@@ -143,11 +143,11 @@ export class JobMonitorService implements OnModuleInit {
             fileId: file.id,
             filename: file.filename,
           });
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to re-queue orphaned file",
             fileId: file.id,
-            error: error.message,
+            error: (_error as Error).message,
           });
         }
       }
@@ -221,11 +221,11 @@ export class JobMonitorService implements OnModuleInit {
               fileId: file.id,
               previousError: file.errorMessage,
             });
-          } catch (error) {
+          } catch (_error) {
             this.logger.error({
               msg: "Failed to retry file",
               fileId: file.id,
-              error: error.message,
+              error: (_error as Error).message,
             });
           }
         }
@@ -260,7 +260,11 @@ export class JobMonitorService implements OnModuleInit {
   /**
    * Mark a job as stale/failed
    */
-  private async markJobAsStale(job: any): Promise<void> {
+  private async markJobAsStale(job: {
+    id: string;
+    jobName: string;
+    startedAt: Date | null;
+  }): Promise<void> {
     const db = this.databaseService.db;
 
     await db
@@ -286,7 +290,28 @@ export class JobMonitorService implements OnModuleInit {
    */
   async getJobHealthMetrics(): Promise<{
     healthy: boolean;
-    metrics: Record<string, any>;
+    metrics: {
+      jobs: Record<string, number>;
+      files: Record<string, number>;
+      queues: {
+        download: {
+          active: number;
+          completed: number;
+          failed: number;
+          delayed: number;
+          waiting: number;
+          paused: number;
+        };
+        parser: {
+          active: number;
+          completed: number;
+          failed: number;
+          delayed: number;
+          waiting: number;
+          paused: number;
+        };
+      };
+    };
   }> {
     const db = this.databaseService.db;
 
@@ -320,8 +345,22 @@ export class JobMonitorService implements OnModuleInit {
         fileStats.map((s) => [s.status, s.count]),
       ),
       queues: {
-        download: downloadQueueHealth,
-        parser: parserQueueHealth,
+        download: {
+          active: downloadQueueHealth.active || 0,
+          completed: downloadQueueHealth.completed || 0,
+          failed: downloadQueueHealth.failed || 0,
+          delayed: downloadQueueHealth.delayed || 0,
+          waiting: downloadQueueHealth.waiting || 0,
+          paused: downloadQueueHealth.paused || 0,
+        },
+        parser: {
+          active: parserQueueHealth.active || 0,
+          completed: parserQueueHealth.completed || 0,
+          failed: parserQueueHealth.failed || 0,
+          delayed: parserQueueHealth.delayed || 0,
+          waiting: parserQueueHealth.waiting || 0,
+          paused: parserQueueHealth.paused || 0,
+        },
       },
     };
 

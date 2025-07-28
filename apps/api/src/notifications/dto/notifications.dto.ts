@@ -10,6 +10,7 @@ import {
 } from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { JsonObject } from "../../types/common.types";
 
 export enum NotificationType {
   JOB_SUCCESS = "job_success",
@@ -56,7 +57,7 @@ export class CreateNotificationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
-  data?: any;
+  data?: JsonObject;
 
   @ApiPropertyOptional()
   @IsOptional()

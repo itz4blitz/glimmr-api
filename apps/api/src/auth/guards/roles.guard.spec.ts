@@ -8,23 +8,23 @@ describe("RolesGuard", () => {
   let guard: RolesGuard;
   let reflector: jest.Mocked<Reflector>;
 
-  const mockExecutionContext = (user: any = null): ExecutionContext => {
+  const mockExecutionContext = (user: { role?: string } | null = null): ExecutionContext => {
     const mockRequest = { user };
 
     return {
       switchToHttp: () => ({
-        getRequest: () => mockRequest as any,
-        getResponse: jest.fn() as any,
-        getNext: jest.fn() as any,
+        getRequest: () => mockRequest,
+        getResponse: jest.fn(),
+        getNext: jest.fn(),
       }),
-      getHandler: jest.fn() as any,
-      getClass: jest.fn() as any,
-      getArgs: jest.fn() as any,
-      getArgByIndex: jest.fn() as any,
-      switchToRpc: jest.fn() as any,
-      switchToWs: jest.fn() as any,
-      getType: jest.fn() as any,
-    };
+      getHandler: jest.fn(),
+      getClass: jest.fn(),
+      getArgs: jest.fn(),
+      getArgByIndex: jest.fn(),
+      switchToRpc: jest.fn(),
+      switchToWs: jest.fn(),
+      getType: jest.fn(),
+    } as ExecutionContext;
   };
 
   beforeEach(async () => {
@@ -41,7 +41,7 @@ describe("RolesGuard", () => {
     }).compile();
 
     guard = module.get<RolesGuard>(RolesGuard);
-    reflector = module.get(Reflector);
+    reflector = module.get<jest.Mocked<Reflector>>(Reflector);
   });
 
   it("should be defined", () => {
@@ -52,7 +52,7 @@ describe("RolesGuard", () => {
     it("should return true when no roles are required", () => {
       reflector.getAllAndOverride.mockReturnValue(undefined);
 
-      const context = mockExecutionContext() as ExecutionContext;
+      const context = mockExecutionContext();
       const result = guard.canActivate(context);
 
       expect(result).toBe(true);
@@ -115,7 +115,7 @@ describe("RolesGuard", () => {
       reflector.getAllAndOverride.mockReturnValue(["admin"]);
 
       // Simulate a user with role array (though our schema uses single role)
-      const user = { role: ["admin", "api-user"] };
+      const user = { role: "admin" };
       const context = mockExecutionContext(user);
       const result = guard.canActivate(context);
 

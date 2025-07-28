@@ -6,6 +6,7 @@ import { JobExportService } from "./job-export.service";
 import { DatabaseService } from "../../../database/database.service";
 import { StorageService } from "../../../storage/storage.service";
 import { JobExportDto, JobAdvancedFilterDto } from "../../dto/job-operations.dto";
+import { JsonObject } from "../../../types/common.types";
 
 // Mock ExcelJS
 jest.mock("exceljs", () => {
@@ -294,7 +295,7 @@ describe("JobExportService", () => {
       const result = await service.exportJobs(exportDto);
 
       if (Array.isArray(result.data)) {
-        const jobWithLogs = result.data.find(job => job.id === "job-1");
+        const jobWithLogs = result.data.find(job => (job as { id: string }).id === "job-1") as { id: string; logs: Array<{ level: string; message: string; data: any; createdAt: Date }> };
         expect(jobWithLogs).toHaveProperty("logs");
         expect(jobWithLogs.logs).toHaveLength(2);
         expect(jobWithLogs.logs[0]).toMatchObject({
@@ -730,7 +731,7 @@ describe("JobExportService", () => {
       });
 
       if (Array.isArray(result.data)) {
-        const job = result.data[0];
+        const job = result.data[0] as { inputData: JsonObject; tags: string[] };
         expect(job.inputData).toEqual({ hospitalId: 123 });
         expect(job.tags).toEqual(["scheduled", "hospital-123"]);
       }

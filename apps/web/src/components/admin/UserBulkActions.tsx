@@ -106,6 +106,7 @@ export function UserBulkActions({
       await bulkAction(bulkActionData);
       onClear();
     } catch (error) {
+      console.error('Failed to perform bulk action:', error);
     } finally {
       setSelectedAction("");
       setShowConfirmDialog(false);

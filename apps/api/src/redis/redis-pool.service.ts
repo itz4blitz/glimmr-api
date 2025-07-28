@@ -169,11 +169,11 @@ export class RedisPoolService implements OnModuleDestroy {
               });
             }
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Health check failed",
             connection: name,
-            error: error.message,
+            error: (_error as Error).message,
           });
         }
       }
@@ -206,11 +206,11 @@ export class RedisPoolService implements OnModuleDestroy {
           msg: "Redis connection closed",
           connection: name,
         });
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Error closing Redis connection",
           connection: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }

@@ -133,7 +133,7 @@ describe("JobAnalyticsService", () => {
       const timeRanges = ["1h", "6h", "12h", "24h", "7d", "30d"];
       
       for (const timeRange of timeRanges) {
-        await service.getSuccessTrends({ timeRange: timeRange as any });
+        await service.getSuccessTrends({ timeRange: timeRange as '1h' | '6h' | '12h' | '24h' | '7d' | '30d' });
       }
 
       expect(databaseService.db.select).toHaveBeenCalledTimes(timeRanges.length);
@@ -689,7 +689,7 @@ describe("JobAnalyticsService", () => {
 
   describe("Edge cases and error handling", () => {
     it("should handle invalid time range format", async () => {
-      const result = await service.getSuccessTrends({ timeRange: "invalid" as any });
+      const result = await service.getSuccessTrends({ timeRange: "invalid" as '1h' | '6h' | '12h' | '24h' | '7d' | '30d' });
       
       // Should default to 24h
       expect(result.timeRange).toBe("invalid");

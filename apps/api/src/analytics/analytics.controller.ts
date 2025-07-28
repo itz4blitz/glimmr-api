@@ -16,7 +16,7 @@ import {
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
-import { Response } from "express";
+import type { Response } from "express";
 import { AnalyticsService } from "./analytics.service";
 import { FlexibleAuthGuard } from "../auth/guards/flexible-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
@@ -46,11 +46,11 @@ export class AnalyticsController {
   async getDashboardAnalytics() {
     try {
       return await this.analyticsService.getDashboardAnalytics();
-    } catch (_error) {
-      if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
-      ) {
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("connect")
+      )) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -96,14 +96,14 @@ export class AnalyticsController {
     description: "Time period (30d, 90d, 1y)",
   })
   @Roles("admin", "api-user")
-  async getPricingTrends(@Query() query: AnalyticsQueryDto) {
+  async getPricingTrends(@Query() _query: AnalyticsQueryDto) {
     try {
-      return await this.analyticsService.getPricingTrends(query);
-    } catch (_error) {
-      if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
-      ) {
+      return await this.analyticsService.getPricingTrends(_query);
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("connect")
+      )) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -140,11 +140,11 @@ export class AnalyticsController {
   async getPowerBIInfo() {
     try {
       return await this.analyticsService.getPowerBIInfo();
-    } catch (_error) {
-      if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
-      ) {
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("connect")
+      )) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -181,14 +181,14 @@ export class AnalyticsController {
     description: "Service unavailable - database connection failed",
   })
   @Roles("admin", "api-user")
-  async exportData(@Query() query: ExportQueryDto) {
+  async exportData(@Query() _query: ExportQueryDto) {
     try {
-      return await this.analyticsService.exportData(query);
-    } catch (_error) {
-      if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
-      ) {
+      return await this.analyticsService.exportData(_query);
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("connect")
+      )) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -198,14 +198,14 @@ export class AnalyticsController {
           HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
-      if (
-        error.message?.includes("Invalid format") ||
-        error.message?.includes("Invalid dataset") ||
-        error.message?.includes("exceeds maximum")
-      ) {
+      if (error instanceof Error && (
+        (error as Error).message.includes("Invalid format") ||
+        (error as Error).message.includes("Invalid dataset") ||
+        (error as Error).message.includes("exceeds maximum")
+      )) {
         throw new HttpException(
           {
-            message: error.message,
+            message: (error as Error).message,
             statusCode: HttpStatus.BAD_REQUEST,
             error: "Bad Request",
           },
@@ -236,12 +236,12 @@ export class AnalyticsController {
   @ApiResponse({ status: 500, description: "Internal server error" })
   @Roles("admin", "api-user")
   async downloadExportData(
-    @Query() query: ExportQueryDto,
+    @Query() _query: ExportQueryDto,
     @Res() response: Response,
   ) {
     try {
       // Only allow streaming for small exports (under 10MB/10k records)
-      const limit = query.limit || 1000;
+      const limit = _query.limit || 1000;
       if (limit > 10000) {
         throw new HttpException(
           {
@@ -254,15 +254,15 @@ export class AnalyticsController {
         );
       }
 
-      await this.analyticsService.streamExportData(query, response);
-    } catch (_error) {
+      await this.analyticsService.streamExportData(_query, response);
+    } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
-      if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
-      ) {
+      if (error instanceof Error && (
+        (error as Error).message.includes("ECONNREFUSED") ||
+        (error as Error).message.includes("connect")
+      )) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -272,13 +272,13 @@ export class AnalyticsController {
           HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
-      if (
-        error.message?.includes("Invalid format") ||
-        error.message?.includes("Invalid dataset")
-      ) {
+      if (error instanceof Error && (
+        (error as Error).message.includes("Invalid format") ||
+        (error as Error).message.includes("Invalid dataset")
+      )) {
         throw new HttpException(
           {
-            message: error.message,
+            message: (error as Error).message,
             statusCode: HttpStatus.BAD_REQUEST,
             error: "Bad Request",
           },
@@ -346,11 +346,11 @@ export class AnalyticsController {
   @ApiQuery({ name: "state", required: false, description: "Filter by state" })
   @Roles("admin", "api-user")
   async getComprehensiveMetrics(
-    @Query() query: { period?: string; state?: string },
+    @Query() _query: { period?: string; state?: string },
   ) {
     try {
-      return await this.analyticsService.getComprehensiveMetrics(query);
-    } catch (_error) {
+      return await this.analyticsService.getComprehensiveMetrics(_query);
+    } catch (error) {
       throw new HttpException(
         {
           message: "Failed to retrieve comprehensive metrics",
@@ -377,11 +377,11 @@ export class AnalyticsController {
   @ApiQuery({ name: "state", required: false, description: "Filter by state" })
   @Roles("admin", "api-user")
   async getPriceVarianceInsights(
-    @Query() query: { service?: string; state?: string },
+    @Query() _query: { service?: string; state?: string },
   ) {
     try {
-      return await this.analyticsService.getPriceVarianceInsights(query);
-    } catch (_error) {
+      return await this.analyticsService.getPriceVarianceInsights(_query);
+    } catch (error) {
       throw new HttpException(
         {
           message: "Failed to retrieve price variance insights",
@@ -408,11 +408,11 @@ export class AnalyticsController {
   @ApiQuery({ name: "state", required: false, description: "Filter by state" })
   @Roles("admin", "api-user")
   async getMarketPositionInsights(
-    @Query() query: { hospitalId?: string; state?: string },
+    @Query() _query: { hospitalId?: string; state?: string },
   ) {
     try {
-      return await this.analyticsService.getMarketPositionInsights(query);
-    } catch (_error) {
+      return await this.analyticsService.getMarketPositionInsights(_query);
+    } catch (error) {
       throw new HttpException(
         {
           message: "Failed to retrieve market position insights",
@@ -438,10 +438,10 @@ export class AnalyticsController {
   })
   @ApiQuery({ name: "state", required: false, description: "Filter by state" })
   @Roles("admin", "api-user")
-  async getBenchmarks(@Query() query: { metric?: string; state?: string }) {
+  async getBenchmarks(@Query() _query: { metric?: string; state?: string }) {
     try {
-      return await this.analyticsService.getBenchmarks(query);
-    } catch (_error) {
+      return await this.analyticsService.getBenchmarks(_query);
+    } catch (error) {
       throw new HttpException(
         {
           message: "Failed to retrieve benchmarks",
@@ -464,7 +464,7 @@ export class AnalyticsController {
   async getRealTimeMetrics() {
     try {
       return await this.analyticsService.getRealTimeMetrics();
-    } catch (_error) {
+    } catch (error) {
       throw new HttpException(
         {
           message: "Failed to retrieve real-time metrics",

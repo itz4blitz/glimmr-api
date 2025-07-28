@@ -77,6 +77,7 @@ export function UserList({
         }
       }
     } catch (error) {
+      console.error('Failed to perform user action:', error);
     }
   };
 

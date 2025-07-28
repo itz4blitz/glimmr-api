@@ -127,12 +127,12 @@ export function QueueAnalyticsDashboard({
       }
       
       const hourStat = hourlyStats.get(hour);
-      if (!hourStat) continue;
+      if (!hourStat) return;
       hourStat.total++;
       
-      if (log.status === "completed" || log.level === "success") {
+      if (hourStat && (log.status === "completed" || log.level === "success")) {
         hourStat.successful++;
-      } else if (log.status === "failed" || log.level === "error") {
+      } else if (hourStat && (log.status === "failed" || log.level === "error")) {
         hourStat.failed++;
         
         // Track failure reasons
@@ -140,7 +140,7 @@ export function QueueAnalyticsDashboard({
         failureReasons.set(reason, (failureReasons.get(reason) || 0) + 1);
       }
       
-      if (log.duration) {
+      if (log.duration && hourStat) {
         hourStat.avgDuration.push(log.duration);
       }
       
@@ -159,17 +159,17 @@ export function QueueAnalyticsDashboard({
       }
       
       const typeStat = jobTypeStats.get(jobType);
-      if (!typeStat) continue;
+      if (!typeStat) return;
       typeStat.count++;
       
-      if (log.duration) {
+      if (log.duration && typeStat) {
         typeStat.totalDuration += log.duration;
         typeStat.minDuration = Math.min(typeStat.minDuration, log.duration);
         typeStat.maxDuration = Math.max(typeStat.maxDuration, log.duration);
       }
       
-      if (log.status === "completed") typeStat.successful++;
-      if (log.status === "failed") typeStat.failed++;
+      if (log.status === "completed" && typeStat) typeStat.successful++;
+      if (log.status === "failed" && typeStat) typeStat.failed++;
     });
     
     // Calculate success rate trends
@@ -577,7 +577,10 @@ export function QueueAnalyticsDashboard({
                     />
                     <Radar
                       name="Volume"
-                      dataKey={(d: { volume: number }) => (d.volume / Math.max(...performanceMetrics.map(m => m.volume))) * 100}
+                      dataKey={(d: { volume: number }) => {
+                        const maxVolume = Math.max(...performanceMetrics.map(m => m.volume));
+                        return maxVolume > 0 ? (d.volume / maxVolume) * 100 : 0;
+                      }}
                       stroke="#3b82f6"
                       fill="#3b82f6"
                       fillOpacity={0.4}

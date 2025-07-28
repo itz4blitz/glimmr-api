@@ -46,9 +46,9 @@ export class HospitalMonitorService {
         "daily-refresh",
         {
           testMode: false,
-          states: [], // Empty array means all states
+          selectedStates: [], // Empty array means all states
           forceRefresh: false,
-        },
+        } as PRAUnifiedScanJobData,
         {
           priority: 10,
           attempts: 3,
@@ -62,10 +62,10 @@ export class HospitalMonitorService {
       this.logger.info({
         msg: "Daily hospital refresh job queued successfully",
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to queue daily hospital refresh",
-        error: error.message,
+        error: (_error as Error).message,
       });
     }
   }
@@ -122,12 +122,12 @@ export class HospitalMonitorService {
               await new Promise((resolve) => setTimeout(resolve, 1000));
             }
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.warn({
             msg: "Failed to process hospital files",
             hospitalId: hospital.id,
             hospitalName: hospital.name,
-            error: error.message,
+            error: (_error as Error).message,
           });
         }
       }
@@ -137,10 +137,10 @@ export class HospitalMonitorService {
         hospitalsChecked: hospitalsWithFiles.length,
         jobsQueued: queuedJobs,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Price file monitoring failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
     }
   }
@@ -175,10 +175,10 @@ export class HospitalMonitorService {
       this.logger.info({
         msg: "Weekly full refresh job queued successfully",
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to queue weekly full refresh",
-        error: error.message,
+        error: (_error as Error).message,
       });
     }
   }
@@ -218,13 +218,13 @@ export class HospitalMonitorService {
         msg: "Manual hospital import job queued successfully",
         state,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to queue manual hospital import",
         state,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -258,7 +258,14 @@ export class HospitalMonitorService {
       }
 
       const files = JSON.parse(hospital[0].priceTransparencyFiles || "[]");
-      const file = files.find((f: any) => f.fileid === fileId);
+      const file = files.find((f: {
+        fileid: string;
+        url: string;
+        filename: string;
+        filesuffix: string;
+        size: string;
+        retrieved: string;
+      }) => f.fileid === fileId);
 
       if (!file) {
         throw new Error(`File not found: ${fileId}`);
@@ -271,14 +278,14 @@ export class HospitalMonitorService {
         hospitalId,
         fileId,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to queue manual price file download",
         hospitalId,
         fileId,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -328,8 +335,18 @@ export class HospitalMonitorService {
   }
 
   private async queueFileDownload(
-    hospital: any,
-    file: any,
+    hospital: {
+      id: string;
+      name: string;
+    },
+    file: {
+      fileid: string;
+      url: string;
+      filename: string;
+      filesuffix: string;
+      size: string;
+      retrieved: string;
+    },
     forceReprocess = false,
   ): Promise<void> {
     const jobData: PriceFileDownloadJobData = {
@@ -371,7 +388,22 @@ export class HospitalMonitorService {
   /**
    * Get monitoring statistics
    */
-  async getMonitoringStats(): Promise<any> {
+  async getMonitoringStats(): Promise<{
+    totalHospitals: number;
+    hospitalsWithFiles: number;
+    totalFiles: number;
+    fileStats: {
+      pending: number;
+      processing: number;
+      completed: number;
+      failed: number;
+    };
+    recentActivity: {
+      lastHour: number;
+      last24Hours: number;
+      last7Days: number;
+    };
+  }> {
     const db = this.databaseService.db;
 
     const [
@@ -419,12 +451,17 @@ export class HospitalMonitorService {
       totalHospitals: totalHospitals.length,
       hospitalsWithFiles: hospitalsWithFiles.length,
       totalFiles: totalFiles.length,
-      processedFiles: processedFiles.length,
-      recentlyProcessed: recentlyProcessed.length,
-      processingRate:
-        totalFiles.length > 0
-          ? (processedFiles.length / totalFiles.length) * 100
-          : 0,
+      fileStats: {
+        pending: 0, // TODO: Implement pending file count
+        processing: 0, // TODO: Implement processing file count
+        completed: processedFiles.length,
+        failed: 0, // TODO: Implement failed file count
+      },
+      recentActivity: {
+        lastHour: 0, // TODO: Implement last hour activity
+        last24Hours: recentlyProcessed.length,
+        last7Days: 0, // TODO: Implement last 7 days activity
+      },
     };
   }
 }

@@ -80,36 +80,36 @@ export class HealthService {
 
   private async checkDatabaseHealth() {
     try {
-      const result = await this.databaseService.healthCheck();
-      return result;
-    } catch (error) {
+      const _result = await this.databaseService.healthCheck();
+      return _result;
+    } catch (_error) {
       this.logger.error({
         msg: "Database health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       return {
         status: "unhealthy",
-        error: error.message,
+        error: (_error as Error).message,
       };
     }
   }
 
   private async checkRedisHealth() {
     try {
-      const result = await this.redisHealthIndicator.isHealthy();
+      const _result = await this.redisHealthIndicator.isHealthy();
       return {
-        status: result.status === "connected" ? "healthy" : "unhealthy",
-        details: result,
+        status: _result.status === "connected" ? "healthy" : "unhealthy",
+        details: _result,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Redis health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
 
       return {
         status: "unhealthy",
-        error: error.message,
+        error: (_error as Error).message,
       };
     }
   }
@@ -142,14 +142,14 @@ export class HealthService {
           .filter((q) => q.status !== "healthy")
           .map((q) => `${q.name}: ${q.issues.join(", ")}`),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Queue health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       return {
         status: "unhealthy",
-        error: error.message,
+        error: (_error as Error).message,
       };
     }
   }

@@ -281,6 +281,7 @@ export function UserActivityLog({ userId }: UserActivityLogProps) {
       });
       setAllActivities(response.data.activities || []);
     } catch (error) {
+      console.error('Failed to fetch all activities for stats:', error);
       setAllActivities([]);
     }
   };

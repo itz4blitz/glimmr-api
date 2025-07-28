@@ -3,6 +3,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-local";
 import { AuthService } from "../auth.service";
 import { Request } from "express";
+import { User } from "../../database/schema/users";
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
@@ -17,11 +18,15 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     request: Request,
     email: string,
     password: string,
-  ): Promise<{ id: string; email: string; role: string }> {
+  ): Promise<Pick<User, 'id' | 'email' | 'role'>> {
     const user = await this.authService.validateUser(email, password, request);
-    if (!user) {
+    if (!user || !user.id || !user.email || !user.role) {
       throw new UnauthorizedException("Invalid credentials");
     }
-    return user;
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
   }
 }

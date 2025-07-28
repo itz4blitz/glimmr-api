@@ -59,8 +59,8 @@ export class UpdatePreferencesDto implements PreferencesUpdateData {
   timezonePreference?: string;
   dateFormat?: string;
   timeFormat?: string;
-  privacySettings?: any;
-  dashboardLayout?: any;
+  privacySettings?: Record<string, unknown>;
+  dashboardLayout?: Record<string, unknown>;
 }
 
 @ApiTags("User Profile")
@@ -76,7 +76,7 @@ export class ProfileController {
   @Get()
   @ApiOperation({ summary: "Get current user profile" })
   @ApiResponse({ status: 200, description: "Profile retrieved successfully" })
-  async getCurrentUserProfile(@Request() req: any) {
+  async getCurrentUserProfile(@Request() req: Express.Request & { user: { id: string } }) {
     const userId = req.user.id;
     const profileData = await this.profileService.getUserProfile(userId);
 
@@ -95,7 +95,7 @@ export class ProfileController {
   @ApiOperation({ summary: "Update current user profile" })
   @ApiResponse({ status: 200, description: "Profile updated successfully" })
   async updateCurrentUserProfile(
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
     @Body() profileData: UpdateProfileDto,
   ) {
     const userId = req.user.id;
@@ -124,7 +124,7 @@ export class ProfileController {
     status: 200,
     description: "Preferences retrieved successfully",
   })
-  async getCurrentUserPreferences(@Request() req: any) {
+  async getCurrentUserPreferences(@Request() req: Express.Request & { user: { id: string } }) {
     const userId = req.user.id;
     const { preferences } = await this.profileService.getUserProfile(userId);
 
@@ -135,7 +135,7 @@ export class ProfileController {
   @ApiOperation({ summary: "Update current user preferences" })
   @ApiResponse({ status: 200, description: "Preferences updated successfully" })
   async updateCurrentUserPreferences(
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
     @Body() preferencesData: UpdatePreferencesDto,
   ) {
     const userId = req.user.id;
@@ -165,7 +165,7 @@ export class ProfileController {
   @ApiOperation({ summary: "Upload user avatar" })
   @ApiResponse({ status: 201, description: "Avatar uploaded successfully" })
   @ApiResponse({ status: 400, description: "Invalid file or file too large" })
-  async uploadAvatar(@Request() req: any, @UploadedFile() file: any) {
+  async uploadAvatar(@Request() req: Express.Request & { user: { id: string } }, @UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException("No file provided");
     }
@@ -201,7 +201,7 @@ export class ProfileController {
   @Delete("avatar")
   @ApiOperation({ summary: "Remove user avatar" })
   @ApiResponse({ status: 200, description: "Avatar removed successfully" })
-  async removeAvatar(@Request() req: any) {
+  async removeAvatar(@Request() req: Express.Request & { user: { id: string } }) {
     const userId = req.user.id;
 
     // Get current avatar
@@ -229,7 +229,7 @@ export class ProfileController {
   @Get("files")
   @ApiOperation({ summary: "Get user files" })
   @ApiResponse({ status: 200, description: "Files retrieved successfully" })
-  async getUserFiles(@Request() req: any) {
+  async getUserFiles(@Request() req: Express.Request & { user: { id: string } }) {
     const userId = req.user.id;
     const files = await this.profileService.getUserFiles(userId);
 
@@ -245,7 +245,7 @@ export class ProfileController {
   @ApiOperation({ summary: "Upload user document" })
   @ApiResponse({ status: 201, description: "File uploaded successfully" })
   @ApiResponse({ status: 400, description: "Invalid file or file too large" })
-  async uploadFile(@Request() req: any, @UploadedFile() file: any) {
+  async uploadFile(@Request() req: Express.Request & { user: { id: string } }, @UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException("No file provided");
     }
@@ -283,7 +283,7 @@ export class ProfileController {
   @ApiResponse({ status: 200, description: "File deleted successfully" })
   @ApiResponse({ status: 404, description: "File not found" })
   async deleteFile(
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
     @Param("fileId", ParseUUIDPipe) fileId: string,
   ) {
     const userId = req.user.id;
@@ -319,7 +319,7 @@ export class ProfileController {
     description: "Items per page (default: 10, max: 100)",
   })
   async getCurrentUserActivity(
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
     @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {

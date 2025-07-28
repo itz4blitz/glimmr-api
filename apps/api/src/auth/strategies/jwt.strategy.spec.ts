@@ -185,7 +185,7 @@ describe("JwtStrategy", () => {
 
     it("should handle undefined payload sub field", async () => {
       const payload = {
-        sub: undefined as any,
+        sub: undefined!,
         email: "testuser@example.com",
         role: "api-user",
       };

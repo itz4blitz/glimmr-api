@@ -15,7 +15,15 @@ describe("HealthController", () => {
   const mockResponse = {
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
-  };
+    send: jest.fn().mockReturnThis(),
+    setHeader: jest.fn().mockReturnThis(),
+    getHeader: jest.fn(),
+    getHeaders: jest.fn().mockReturnValue({}),
+    headersSent: false,
+    end: jest.fn(),
+    write: jest.fn(),
+    redirect: jest.fn(),
+  } as Partial<Response>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -70,7 +78,7 @@ describe("HealthController", () => {
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
 
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(mockResponse.json).toHaveBeenCalledWith(mockHealthResult);
@@ -108,7 +116,7 @@ describe("HealthController", () => {
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
 
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -148,7 +156,7 @@ describe("HealthController", () => {
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
 
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -187,7 +195,7 @@ describe("HealthController", () => {
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
 
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -199,7 +207,7 @@ describe("HealthController", () => {
       const serviceError = new Error("Health service failed");
       mockHealthService.getHealth.mockRejectedValue(serviceError);
 
-      await expect(controller.getHealth(mockResponse as any)).rejects.toThrow(
+      await expect(controller.getHealth(mockResponse as unknown as Response)).rejects.toThrow(
         serviceError,
       );
 
@@ -237,7 +245,7 @@ describe("HealthController", () => {
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
 
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -279,7 +287,7 @@ describe("HealthController", () => {
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
 
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(mockResponse.json).toHaveBeenCalledWith(mockHealthResult);
@@ -329,7 +337,7 @@ describe("HealthController", () => {
       };
 
       mockHealthService.getHealth.mockResolvedValue(mockHealthResult);
-      await controller.getHealth(mockResponse as any);
+      await controller.getHealth(mockResponse as unknown as Response);
       expect(mockHealthService.getHealth).toHaveBeenCalled();
     });
   });

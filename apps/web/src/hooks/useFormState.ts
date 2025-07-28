@@ -15,7 +15,7 @@ function isEqual(a: unknown, b: unknown): boolean {
 
     for (const key of keysA) {
       if (!keysB.includes(key)) return false;
-      if (!isEqual(a[key], b[key])) return false;
+      if (!isEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false;
     }
 
     return true;
@@ -60,7 +60,7 @@ export interface UseFormStateReturn<T> {
   canSave: boolean;
 }
 
-export function useFormState<T extends Record<string, unknown>>(
+export function useFormState<T>(
   options: UseFormStateOptions<T>,
 ): UseFormStateReturn<T> {
   const {
@@ -115,8 +115,9 @@ export function useFormState<T extends Record<string, unknown>>(
         try {
           await onSave(formData);
           setOriginalData(formData);
-        } catch (_error) {
-          // Auto-save errors are silently ignored
+        } catch (error) {
+          // Auto-save errors are logged but not shown to user
+          console.error('Auto-save failed:', error);
         }
       }, autoSaveDelay);
 
@@ -131,7 +132,7 @@ export function useFormState<T extends Record<string, unknown>>(
     };
     // autoSaveTimeout is intentionally omitted from dependencies
     // to avoid issues with the cleanup and timeout management
-  }, [formData, isDirty, hasErrors, autoSave, autoSaveDelay, onSave]);
+  }, [formData, isDirty, hasErrors, autoSave, autoSaveDelay, onSave, autoSaveTimeout]);
 
   // Update form data when initial data changes
   useEffect(() => {
@@ -144,13 +145,13 @@ export function useFormState<T extends Record<string, unknown>>(
   const setFormData = useCallback(
     (data: T | ((prev: T) => T)) => {
       setFormDataState((prev) => {
-        const newData = typeof data === "function" ? data(prev) : data;
+        const newData = typeof data === "function" ? (data as (prev: T) => T)(prev) : data;
 
         // Validate on change if enabled
         if (validateOnChange) {
           // Clear errors for changed fields
-          const changedFields = Object.keys(newData).filter(
-            (key) => !isEqual(newData[key], prev[key]),
+          const changedFields = Object.keys(newData as Record<string, unknown>).filter(
+            (key) => !isEqual((newData as Record<string, unknown>)[key], (prev as Record<string, unknown>)[key]),
           );
 
           setErrors((prevErrors) => {
@@ -202,13 +203,14 @@ export function useFormState<T extends Record<string, unknown>>(
 
     // Add custom validation logic here
     // For now, just check for required fields
-    Object.entries(formData).forEach(([key, value]) => {
+    Object.entries(formData as Record<string, unknown>).forEach(([key, value]) => {
       if (value === "" || value === null || value === undefined) {
         // Only add error if field was originally required
+        const originalValue = (originalData as Record<string, unknown>)[key];
         if (
-          originalData[key] !== "" &&
-          originalData[key] !== null &&
-          originalData[key] !== undefined
+          originalValue !== "" &&
+          originalValue !== null &&
+          originalValue !== undefined
         ) {
           newErrors[key] = `${key} is required`;
         }

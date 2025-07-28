@@ -82,7 +82,7 @@ export class HospitalsService {
         .limit(limit)
         .offset(offset);
 
-      const result = {
+      const _result = {
         data,
         total: totalResult.count,
         limit,
@@ -92,24 +92,24 @@ export class HospitalsService {
       const duration = Date.now() - startTime;
       this.logger.info({
         msg: "Hospitals fetched successfully",
-        count: result.data.length,
-        total: result.total,
+        count: _result.data.length,
+        total: _result.total,
         duration,
         operation: "getHospitals",
         filters,
       });
 
-      return result;
-    } catch (error) {
+      return _result;
+    } catch (_error) {
       const duration = Date.now() - startTime;
       this.logger.error({
         msg: "Failed to fetch hospitals",
-        error: error.message,
+        error: (_error as Error).message,
         duration,
         operation: "getHospitals",
         filters,
       });
-      throw new DatabaseOperationException("fetch hospitals", error.message);
+      throw new DatabaseOperationException("fetch hospitals", (_error as Error).message);
     }
   }
 
@@ -147,7 +147,7 @@ export class HospitalsService {
 
       const services = servicesResult.map((s) => s.category).filter(Boolean);
 
-      const result = {
+      const _result = {
         ...hospital,
         services,
       };
@@ -155,23 +155,23 @@ export class HospitalsService {
       this.logger.info({
         msg: "Hospital fetched successfully",
         hospitalId: id,
-        hospitalName: result.name,
+        hospitalName: _result.name,
         operation: "getHospitalById",
       });
 
-      return result;
-    } catch (error) {
-      if (error instanceof HospitalNotFoundException) {
-        throw error;
+      return _result;
+    } catch (_error) {
+      if (_error instanceof HospitalNotFoundException) {
+        throw _error;
       }
 
       this.logger.error({
         msg: "Failed to fetch hospital",
         hospitalId: id,
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getHospitalById",
       });
-      throw new DatabaseOperationException("fetch hospital", error.message);
+      throw new DatabaseOperationException("fetch hospital", (_error as Error).message);
     }
   }
 
@@ -217,7 +217,7 @@ export class HospitalsService {
         .where(whereClause)
         .orderBy(asc(prices.serviceName));
 
-      const result = {
+      const _result = {
         hospitalId: id,
         data,
         total: totalResult.count,
@@ -226,19 +226,19 @@ export class HospitalsService {
       this.logger.info({
         msg: "Hospital prices fetched successfully",
         hospitalId: id,
-        priceCount: result.data.length,
+        priceCount: _result.data.length,
         operation: "getHospitalPrices",
       });
 
-      return result;
-    } catch (error) {
+      return _result;
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to fetch hospital prices",
         hospitalId: id,
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getHospitalPrices",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -310,7 +310,7 @@ export class HospitalsService {
       } else {
         // Perform batch upsert using INSERT ... ON CONFLICT
         try {
-          const result = await db
+          const _result = await db
             .insert(hospitals)
             .values(hospitalDataBatch)
             .onConflictDoUpdate({
@@ -346,16 +346,16 @@ export class HospitalsService {
 
           this.logger.info({
             msg: "Batch upsert completed",
-            processed: result.length,
+            processed: _result.length,
             totalReceived: praHospitals.length,
             validForProcessing: hospitalDataBatch.length,
             operation: "syncHospitalsFromPRA",
           });
-        } catch (error) {
+        } catch (_error) {
           errors += hospitalDataBatch.length;
           this.logger.error({
             msg: "Batch upsert failed",
-            error: error.message,
+            error: (_error as Error).message,
             batchSize: hospitalDataBatch.length,
             operation: "syncHospitalsFromPRA",
           });
@@ -363,27 +363,27 @@ export class HospitalsService {
       }
 
       const duration = Date.now() - startTime;
-      const result = { imported, updated, errors };
+      const _result = { imported, updated, errors };
 
       this.logger.info({
         msg: "Hospital sync completed",
-        result,
+        result: _result,
         duration,
         state,
         operation: "syncHospitalsFromPRA",
       });
 
-      return result;
-    } catch (error) {
+      return _result;
+    } catch (_error) {
       const duration = Date.now() - startTime;
       this.logger.error({
         msg: "Hospital sync failed",
-        error: error.message,
+        error: (_error as Error).message,
         duration,
         state,
         operation: "syncHospitalsFromPRA",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -425,14 +425,14 @@ export class HospitalsService {
       });
 
       return files;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to fetch hospital price files",
         hospitalId,
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getHospitalPriceFiles",
       });
-      throw error;
+      throw _error;
     }
   }
 

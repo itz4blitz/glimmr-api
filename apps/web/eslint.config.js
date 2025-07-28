@@ -21,8 +21,8 @@ export default tseslint.config([
       'react-refresh': reactRefresh,
     },
     rules: {
-      // Downgrade TypeScript any warnings to actual warnings
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // Disallow any types
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { 
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_'

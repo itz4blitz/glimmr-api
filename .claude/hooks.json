@@ -1,0 +1,289 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "**/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -E '(as unknown as|as any|: any|<any>)' \"$FILE_PATH\" && echo '❌ FORBIDDEN: TypeScript anti-patterns detected! Never use \"as unknown as\", \"as any\", \": any\", or \"<any>\". Fix the underlying type issue instead.' && exit 1 || echo '✅ No TypeScript anti-patterns found'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd apps/api && pnpm prettier --write \"$FILE_PATH\" && pnpm eslint --fix \"$FILE_PATH\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/web/src/**/*.tsx",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd apps/web && npm run prettier --write \"$FILE_PATH\" && npm run lint -- --fix \"$FILE_PATH\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/web/src/**/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd apps/web && npm run prettier --write \"$FILE_PATH\" && npm run lint -- --fix \"$FILE_PATH\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/**/*.spec.ts",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "Test file detected - ensure it follows the testing patterns defined in CLAUDE.md"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/scripts/dead-code-check.sh",
+            "continueOnError": true
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "pathMatcher": "**/schema/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd apps/api && pnpm db:generate && echo '⚠️  Database schema changed - remember to run migrations with: pnpm db:migrate'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.service.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd apps/api && pnpm test $(echo $FILE_PATH | sed 's/.ts$/.spec.ts/') --passWithNoTests || echo '⚠️  No test found - consider adding tests for this service'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.controller.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '📝 Controller modified - ensure Swagger decorators are added for new endpoints'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/jobs/**/*.processor.ts",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "Job processor modified - ensure queue configuration is updated in jobs.module.ts and consider retry/backoff settings"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "pathMatcher": "apps/web/src/components/ui/**",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🎨 UI component modified - checking usage...' && grep -r \"$(basename $FILE_PATH .tsx)\" apps/web/src --exclude-dir=node_modules || echo 'No usages found'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.module.ts",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "Module file changed - verify imports/exports are correctly configured"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "**/*.dto.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '✅ DTO modified - ensure validation decorators are properly applied'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/web/src/stores/**/*.ts",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "Zustand store modified - ensure proper TypeScript types are maintained"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "**/package.json",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '📦 Package.json modified - run pnpm install to update dependencies'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/auth/**/*.ts",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "⚠️  Authentication code modified - ensure security best practices are followed"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "pathMatcher": "**/.env*",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "🔐 Environment file modified - ensure no secrets are committed to git"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/database/seeds/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🌱 Seed file modified - run pnpm db:seed to apply changes'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/web/src/pages/**/*.tsx",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "Page component modified - ensure proper route configuration and authentication guards"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "docker-compose*.yml",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🐳 Docker configuration changed - restart containers with: docker-compose -f $FILE_PATH down && docker-compose -f $FILE_PATH up -d'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🔍 Checking for unused exports...' && cd apps/api && npx ts-unused-exports tsconfig.json --excludePathsFromReport=node_modules --silent | grep $FILE_PATH || echo '✅ No unused exports found'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.gateway.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🔌 Validating WebSocket events...' && grep -E \"emit\\(|@SubscribeMessage\\(\" $FILE_PATH | grep -vE \"^[[:space:]]*(emit\\(|@SubscribeMessage\\()['\\\"]?(job:|queue:|user:|notification:|analytics:|hospital:|price:)[a-z]+[a-zA-Z]*['\\\"]\" && echo '❌ WebSocket events must follow naming convention: {domain}:{action} (e.g., job:started, queue:stats)' || echo '✅ WebSocket event naming conventions followed'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/jobs/processors/*.processor.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/scripts/smart-pr-docs.sh main",
+            "continueOnError": true
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/database/schema/*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/scripts/smart-pr-docs.sh main",
+            "continueOnError": true
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "pathMatcher": "apps/api/src/**/*.controller.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '📚 Checking Swagger documentation...' && grep -E \"@(Get|Post|Put|Delete|Patch)\\(\" $FILE_PATH | while read -r line; do if ! grep -B5 \"$line\" $FILE_PATH | grep -qE \"@Api(Operation|Response|Body|Query|Param)\"; then echo \"⚠️  Missing Swagger decorator for: $line\"; fi; done || echo '✅ All endpoints have Swagger documentation'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*test.*|.*spec.*",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "💡 Running tests? Use 'pnpm test' in apps/api or 'npm test' in apps/web"
+          }
+        ]
+      },
+      {
+        "matcher": ".*migration.*|.*migrate.*",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "💡 Working with migrations? Use 'pnpm db:generate' then 'pnpm db:migrate' in apps/api"
+          }
+        ]
+      },
+      {
+        "matcher": ".*job.*|.*queue.*|.*bull.*",
+        "hooks": [
+          {
+            "type": "notify",
+            "message": "💡 Working with jobs? Monitor at http://localhost:3000/api/v1/admin/queues"
+          }
+        ]
+      }
+    ]
+  }
+}

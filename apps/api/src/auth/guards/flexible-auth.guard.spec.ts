@@ -8,29 +8,28 @@ import { AuthService } from "../auth.service";
 describe("FlexibleAuthGuard", () => {
   let guard: FlexibleAuthGuard;
   let jwtService: jest.Mocked<JwtService>;
-  let _configService: jest.Mocked<ConfigService>;
   let authService: jest.Mocked<AuthService>;
 
-  const mockExecutionContext = (headers: any = {}): ExecutionContext => {
+  const mockExecutionContext = (headers: Record<string, string> = {}): ExecutionContext => {
     const mockRequest = {
       headers,
-      user: undefined, // Will be set by guard
+      user: undefined as { id: string; username: string; role: string } | undefined,
     };
 
     return {
       switchToHttp: () => ({
-        getRequest: () => mockRequest as any,
-        getResponse: jest.fn() as any,
-        getNext: jest.fn() as any,
+        getRequest: () => mockRequest,
+        getResponse: jest.fn(),
+        getNext: jest.fn(),
       }),
-      getHandler: jest.fn() as any,
-      getClass: jest.fn() as any,
-      getArgs: jest.fn() as any,
-      getArgByIndex: jest.fn() as any,
-      switchToRpc: jest.fn() as any,
-      switchToWs: jest.fn() as any,
-      getType: jest.fn() as any,
-    };
+      getHandler: jest.fn(),
+      getClass: jest.fn(),
+      getArgs: jest.fn(),
+      getArgByIndex: jest.fn(),
+      switchToRpc: jest.fn(),
+      switchToWs: jest.fn(),
+      getType: jest.fn(),
+    } as ExecutionContext;
   };
 
   beforeEach(async () => {
@@ -60,7 +59,6 @@ describe("FlexibleAuthGuard", () => {
 
     guard = module.get<FlexibleAuthGuard>(FlexibleAuthGuard);
     jwtService = module.get(JwtService);
-    configService = module.get(ConfigService);
     authService = module.get(AuthService);
   });
 
@@ -107,7 +105,7 @@ describe("FlexibleAuthGuard", () => {
       jwtService.verify.mockImplementation(() => {
         throw new Error("JWT verification failed");
       });
-      authService.validateApiKey.mockResolvedValue(mockUser as any);
+      authService.validateApiKey.mockResolvedValue(mockUser);
 
       const headers = {
         authorization: "Bearer invalid.jwt.token",
@@ -130,7 +128,7 @@ describe("FlexibleAuthGuard", () => {
         role: "api-user",
       };
 
-      authService.validateApiKey.mockResolvedValue(mockUser as any);
+      authService.validateApiKey.mockResolvedValue(mockUser);
 
       const headers = {
         "x-api-key": "gapi_valid456",

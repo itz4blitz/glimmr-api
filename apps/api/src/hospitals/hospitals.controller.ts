@@ -66,13 +66,13 @@ export class HospitalsController {
     required: false,
     description: "Number of results to skip",
   })
-  async getHospitals(@Query() query: HospitalFilterQueryDto) {
+  async getHospitals(@Query() _query: HospitalFilterQueryDto) {
     try {
-      return await this.hospitalsService.getHospitals(query);
+      return await this.hospitalsService.getHospitals(_query);
     } catch (error) {
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -125,8 +125,8 @@ export class HospitalsController {
   @ApiParam({ name: "id", description: "Hospital ID" })
   async getHospitalById(@Param("id") id: string) {
     try {
-      const result = await this.hospitalsService.getHospitalById(id);
-      if (!result) {
+      const _result = await this.hospitalsService.getHospitalById(id);
+      if (!_result) {
         throw new HttpException(
           {
             message: "Hospital not found",
@@ -136,14 +136,14 @@ export class HospitalsController {
           HttpStatus.NOT_FOUND,
         );
       }
-      return result;
+      return _result;
     } catch (error) {
-      if (error.status === HttpStatus.NOT_FOUND) {
+      if ((error as { status?: number }).status === HttpStatus.NOT_FOUND) {
         throw error;
       }
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -193,8 +193,8 @@ export class HospitalsController {
       return await this.hospitalsService.getHospitalPriceFiles(id);
     } catch (error) {
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {

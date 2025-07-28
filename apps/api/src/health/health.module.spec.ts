@@ -1,4 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { Response } from "express";
 import { HealthModule } from "./health.module";
 import { HealthController } from "./health.controller";
 import { HealthService } from "./health.service";
@@ -41,7 +42,7 @@ describe("HealthModule", () => {
       const mockResponse = {
         json: jest.fn(),
         status: jest.fn().mockReturnThis(),
-      } as any;
+      } as unknown as Response;
 
       await controller.getHealth(mockResponse);
       const serviceResult = await service.getHealth();

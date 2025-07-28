@@ -3,6 +3,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import { LocalStrategy } from "./local.strategy";
 import { AuthService } from "../auth.service";
 import { User } from "../../database/schema/users";
+import { Request } from "express";
 
 describe("LocalStrategy", () => {
   let strategy: LocalStrategy;
@@ -27,7 +28,12 @@ describe("LocalStrategy", () => {
   const mockRequest = {
     headers: {},
     ip: "127.0.0.1",
-  } as any;
+    method: "POST",
+    url: "/auth/login",
+    body: {},
+    query: {},
+    params: {},
+  } as Partial<Request> as Request;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -43,7 +49,7 @@ describe("LocalStrategy", () => {
     }).compile();
 
     strategy = module.get<LocalStrategy>(LocalStrategy);
-    authService = module.get(AuthService);
+    authService = module.get<jest.Mocked<AuthService>>(AuthService);
   });
 
   it("should be defined", () => {
@@ -253,7 +259,7 @@ describe("LocalStrategy", () => {
     });
 
     it("should handle undefined or null return from AuthService", async () => {
-      authService.validateUser.mockResolvedValue(undefined as any);
+      authService.validateUser.mockResolvedValue(null);
 
       await expect(
         strategy.validate(mockRequest, "testuser@example.com", "password"),

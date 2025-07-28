@@ -13,9 +13,6 @@ import {
   UserProfile,
   UserPreferences,
   UserFile,
-  NewUserProfile,
-  NewUserPreferences,
-  NewUserFile,
 } from "../database/schema";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import * as path from "path";
@@ -48,8 +45,8 @@ export interface PreferencesUpdateData {
   timezonePreference?: string;
   dateFormat?: string;
   timeFormat?: string;
-  privacySettings?: any;
-  dashboardLayout?: any;
+  privacySettings?: Record<string, unknown>;
+  dashboardLayout?: Record<string, unknown>;
 }
 
 export interface FileUploadData {
@@ -89,10 +86,10 @@ export class ProfileService {
       await fs.mkdir(path.join(this.uploadDir, "documents"), {
         recursive: true,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to create upload directories",
-        error: error.message,
+        error: _error instanceof Error ? (_error as Error).message : String(_error),
       });
     }
   }
@@ -318,7 +315,7 @@ export class ProfileService {
       });
 
       return savedFile as UserFile;
-    } catch (error) {
+    } catch (_error) {
       // Clean up file if database save failed
       try {
         await fs.unlink(filePath);
@@ -326,14 +323,14 @@ export class ProfileService {
         this.logger.error({
           msg: "Failed to clean up file after database error",
           filePath,
-          error: unlinkError.message,
+          error: unlinkError instanceof Error ? unlinkError.message : String(unlinkError),
         });
       }
 
       this.logger.error({
         msg: "File upload failed",
         userId,
-        error: error.message,
+        error: _error instanceof Error ? (_error as Error).message : String(_error),
       });
 
       throw new BadRequestException("File upload failed");
@@ -372,11 +369,11 @@ export class ProfileService {
     const fullPath = path.join(this.uploadDir, file.filePath);
     try {
       await fs.unlink(fullPath);
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to delete physical file",
         filePath: fullPath,
-        error: error.message,
+        error: _error instanceof Error ? (_error as Error).message : String(_error),
       });
     }
 
@@ -421,12 +418,12 @@ export class ProfileService {
     const fullPath = path.join(this.uploadDir, file.filePath);
     try {
       return await fs.readFile(fullPath);
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to read file",
         fileId: file.id,
         filePath: fullPath,
-        error: error.message,
+        error: _error instanceof Error ? (_error as Error).message : String(_error),
       });
       throw new NotFoundException("File not found on disk");
     }

@@ -43,7 +43,9 @@ export const insertUserSchema = createInsertSchema(users, {
   lastName: z.string().min(1).max(50).optional(),
 });
 
-export const selectUserSchema = createSelectSchema(users);
+export const selectUserSchema = createSelectSchema(users, {
+  id: z.string().uuid(),
+});
 
 export type User = z.infer<typeof selectUserSchema>;
 export type NewUser = z.infer<typeof insertUserSchema>;

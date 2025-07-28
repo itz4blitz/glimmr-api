@@ -27,7 +27,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
     const controller = context.getClass();
@@ -79,7 +79,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
           // Log the activity
           this.activityLoggingService
             .logActivity({
-              userId: user?.id,
+              userId: user?.id?.toString(),
               action: action,
               resourceType: resourceType || this.extractResourceType(path),
               resourceId: this.extractResourceId(path, request.params),
@@ -121,7 +121,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
           // Log failed requests
           this.activityLoggingService
             .logActivity({
-              userId: user?.id,
+              userId: user?.id?.toString(),
               action: `${action}_failed`,
               resourceType: resourceType || this.extractResourceType(path),
               resourceId: this.extractResourceId(path, request.params),
@@ -130,7 +130,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
                 method,
                 duration,
                 statusCode: error.status || 500,
-                errorMessage: error.message,
+                errorMessage: (error as Error).message,
                 errorCode: error.code,
                 query: this.sanitizeQuery(request.query),
                 params: this.sanitizeParams(request.params),
@@ -140,7 +140,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
               },
               request,
               success: false,
-              errorMessage: error.message,
+              errorMessage: (error as Error).message,
             })
             .catch((err) => {
               console.error("Failed to log activity error:", err);
@@ -259,30 +259,46 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     return skipPaths.some((skip) => path.includes(skip));
   }
 
-  private sanitizeQuery(query: Record<string, unknown>): SanitizedValue {
+  private sanitizeQuery(query: any): SanitizedValue {
     if (!query) return {};
 
-    const sanitized = { ...query };
+    const sanitized: SanitizedValue = {};
     const sensitiveParams = ["password", "token", "apiKey", "secret"];
 
-    for (const key of Object.keys(sanitized)) {
+    for (const [key, value] of Object.entries(query)) {
       if (sensitiveParams.some((param) => key.toLowerCase().includes(param))) {
         sanitized[key] = "[REDACTED]";
+      } else if (value === null || value === undefined) {
+        sanitized[key] = null;
+      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        sanitized[key] = value;
+      } else if (Array.isArray(value)) {
+        sanitized[key] = value.map(v => typeof v === 'string' ? v : String(v));
+      } else if (typeof value === 'object') {
+        sanitized[key] = this.sanitizeQuery(value);
+      } else {
+        sanitized[key] = String(value);
       }
     }
 
     return sanitized;
   }
 
-  private sanitizeParams(params: Record<string, unknown>): SanitizedValue {
+  private sanitizeParams(params: any): SanitizedValue {
     if (!params) return {};
 
-    const sanitized = { ...params };
+    const sanitized: SanitizedValue = {};
     const sensitiveParams = ["password", "token", "apiKey", "secret"];
 
-    for (const key of Object.keys(sanitized)) {
+    for (const [key, value] of Object.entries(params)) {
       if (sensitiveParams.some((param) => key.toLowerCase().includes(param))) {
         sanitized[key] = "[REDACTED]";
+      } else if (value === null || value === undefined) {
+        sanitized[key] = null;
+      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        sanitized[key] = value;
+      } else {
+        sanitized[key] = String(value);
       }
     }
 
@@ -308,7 +324,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     return pathParts[0] || "api";
   }
 
-  private extractResourceId(path: string, params: Record<string, unknown>): string | undefined {
+  private extractResourceId(path: string, params: Record<string, string>): string | undefined {
     // Common ID parameter names
     const idParams = [
       "id",
@@ -321,8 +337,9 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     ];
 
     for (const param of idParams) {
-      if (params?.[param]) {
-        return params[param];
+      const value = params?.[param];
+      if (value) {
+        return String(value);
       }
     }
 

@@ -1,0 +1,81 @@
+{
+  "forbidden_patterns": [
+    {
+      "pattern": "as unknown as",
+      "reason": "Double assertion bypasses type safety and is a code smell",
+      "alternative": "Fix the underlying type issue or create proper mock types",
+      "examples": {
+        "bad": "const value = someArray as unknown as string;",
+        "good": "const value = someArray[0]; // or someArray.join(',');"
+      }
+    },
+    {
+      "pattern": "as any",
+      "reason": "Defeats TypeScript's purpose and hides type errors",
+      "alternative": "Use proper types, generics, or interfaces",
+      "examples": {
+        "bad": "mockService.method.mockResolvedValue(data as any);",
+        "good": "mockService.method.mockResolvedValue(data);"
+      }
+    },
+    {
+      "pattern": ": any",
+      "reason": "Allows any type, removing type safety",
+      "alternative": "Define specific types or use unknown if type is truly unknown",
+      "examples": {
+        "bad": "let data: any;",
+        "good": "let data: UserData; // or unknown if type varies"
+      }
+    },
+    {
+      "pattern": "<any>",
+      "reason": "Old-style type assertion that bypasses type checking",
+      "alternative": "Use proper types or modern type assertions if absolutely necessary",
+      "examples": {
+        "bad": "const user = <any>mockData;",
+        "good": "const user = mockData as User;"
+      }
+    }
+  ],
+  "test_specific_patterns": {
+    "mock_types": {
+      "description": "When creating mocks for tests, define proper interfaces",
+      "bad_example": "const mockRequest = { headers: {} } as any;",
+      "good_example": "const mockRequest: Partial<Request> = { headers: {} };"
+    },
+    "execution_context": {
+      "description": "Use proper ExecutionContext type instead of any",
+      "bad_example": "return { switchToHttp: () => ({}) } as any;",
+      "good_example": "return { switchToHttp: () => ({}) } as ExecutionContext;"
+    }
+  },
+  "guidelines": [
+    "Always try to fix the root cause of type mismatches",
+    "Use Partial<T> for incomplete objects in tests",
+    "Use jest.Mocked<T> for mocked services",
+    "Define interfaces for complex test data structures",
+    "Prefer type guards over type assertions",
+    "Use generics instead of any for flexible types"
+  ],
+  "automation_forbidden": {
+    "description": "NEVER create scripts to automate changes across multiple files",
+    "reasons": [
+      "Scripts can't understand context and make incorrect replacements",
+      "Bulk operations bypass TypeScript's type checking",
+      "Often creates syntax errors or breaks functionality",
+      "Each change needs to be context-aware and validated"
+    ],
+    "forbidden_approaches": [
+      "Shell scripts with find/sed/awk for bulk replacements",
+      "Node.js scripts that read and write multiple files",
+      "Any form of automated text replacement across files",
+      "Regular expression replacements without understanding context"
+    ],
+    "correct_approach": [
+      "Use Read tool to understand each file",
+      "Use Edit/MultiEdit tools for precise, context-aware changes",
+      "Work on one file at a time",
+      "Validate each change maintains functionality"
+    ]
+  }
+}

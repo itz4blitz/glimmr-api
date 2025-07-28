@@ -4,6 +4,8 @@ import { Queue, Job } from "bullmq";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { QUEUE_NAMES } from "../../queues/queue.config";
 import { DatabaseService } from "../../../database/database.service";
+import { JsonObject, JsonValue, FilterParams } from "../../../types/common.types";
+import { BaseJobData, JobState } from "../../../types/job.types";
 import {
   jobs,
   jobLogs,
@@ -58,7 +60,23 @@ export class JobsService {
   async getJobs(filters: { status?: string; type?: string; limit?: number }) {
     const limit = filters.limit || 50;
     const allQueues = this.getAllQueues();
-    const jobs: any[] = [];
+    const jobs: Array<{
+      id: string;
+      name: string;
+      queueName: string;
+      status: string;
+      progress: number | object;
+      data: BaseJobData;
+      opts: JsonObject;
+      createdAt: string;
+      processedOn: string | null;
+      finishedOn: string | null;
+      duration: number | null;
+      returnvalue: JsonValue;
+      failedReason: string;
+      attemptsMade: number;
+      delay: number;
+    }> = [];
 
     for (const { name, queue } of allQueues) {
       if (filters.type && filters.type !== name) continue;
@@ -71,11 +89,11 @@ export class JobsService {
         );
         const formattedJobs = await this.formatJobs(queueJobs, name);
         jobs.push(...formattedJobs);
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get jobs from queue",
           queueName: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -143,7 +161,23 @@ export class JobsService {
     return queueJobs;
   }
 
-  private async formatJobs(jobs: Job[], queueName: string): Promise<any[]> {
+  private async formatJobs(jobs: Job[], queueName: string): Promise<Array<{
+    id: string;
+    name: string;
+    queueName: string;
+    status: string;
+    progress: number | object;
+    data: BaseJobData;
+    opts: JsonObject;
+    createdAt: string;
+    processedOn: string | null;
+    finishedOn: string | null;
+    duration: number | null;
+    returnvalue: JsonValue;
+    failedReason: string;
+    attemptsMade: number;
+    delay: number;
+  }>> {
     const formattedJobs = [];
 
     for (const job of jobs) {
@@ -255,11 +289,11 @@ export class JobsService {
         activeJobs += queueStat.active;
         completedJobs += queueStat.completed;
         failedJobs += queueStat.failed;
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get queue stats",
           queueName: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
 
         queueStats.push({
@@ -273,7 +307,7 @@ export class JobsService {
           processingRate: 0,
           avgProcessingTime: 0,
           lastProcessed: null,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -343,14 +377,14 @@ export class JobsService {
 
       // Record the job in database
       await this.databaseService.db.insert(jobs).values({
-        jobId: job.id,
-        queueName: QUEUE_NAMES.PRA_UNIFIED_SCAN,
+        jobType: "data_import",
         jobName: "hospital-import",
-        status: "queued",
+        queue: QUEUE_NAMES.PRA_UNIFIED_SCAN,
+        status: "pending",
         priority: importData.priority ?? 5,
-        data: jobData,
-        attemptsMade: 0,
-        maxAttempts: 3,
+        inputData: JSON.stringify(jobData),
+        description: `Import hospitals from states: ${importData.state || "all"}`,
+        createdBy: "system",
       });
 
       return {
@@ -363,13 +397,13 @@ export class JobsService {
         createdAt: new Date().toISOString(),
         trackingUrl: `/api/v1/jobs/${job.id}`,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to start hospital import job",
         importData,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -412,13 +446,13 @@ export class JobsService {
         createdAt: new Date().toISOString(),
         trackingUrl: `/jobs/${job.id}`,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to start price update job",
         updateData,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -440,7 +474,7 @@ export class JobsService {
             progress: job.progress,
             data: job.data,
             opts: job.opts,
-            logs: logs.map((log: any) => {
+            logs: logs.map((log: string | { timestamp: string; level: string; message: string }) => {
               if (typeof log === "string") {
                 return {
                   timestamp: new Date().toISOString(),
@@ -468,12 +502,12 @@ export class JobsService {
             stacktrace: job.stacktrace,
           };
         }
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get job from queue",
           queueName: name,
           jobId: id,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -526,14 +560,14 @@ export class JobsService {
 
       // Record the job in database
       await this.databaseService.db.insert(jobs).values({
-        jobId: job.id,
-        queueName: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
+        jobType: "data_import",
         jobName: "download-price-file",
-        status: "queued",
+        queue: QUEUE_NAMES.PRA_FILE_DOWNLOAD,
+        status: "pending",
         priority: downloadData.priority ?? 5,
-        data: jobData,
-        attemptsMade: 0,
-        maxAttempts: 5,
+        inputData: JSON.stringify(jobData),
+        description: `Download price file from ${downloadData.fileUrl}`,
+        createdBy: "system",
       });
 
       // Calculate estimated duration based on file size
@@ -550,13 +584,13 @@ export class JobsService {
         createdAt: new Date().toISOString(),
         trackingUrl: `/api/v1/jobs/${job.id}`,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to start price file download job",
         downloadData,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -603,14 +637,14 @@ export class JobsService {
 
       // Record the job in database
       await this.databaseService.db.insert(jobs).values({
-        jobId: job.id,
-        queueName: QUEUE_NAMES.ANALYTICS_REFRESH,
+        jobType: "analytics_calculation",
         jobName: "refresh-analytics",
-        status: "queued",
+        queue: QUEUE_NAMES.ANALYTICS_REFRESH,
+        status: "pending",
         priority: options.priority ?? 3,
-        data: jobData,
-        attemptsMade: 0,
-        maxAttempts: 3,
+        inputData: JSON.stringify(jobData),
+        description: "Refresh analytics data",
+        createdBy: "system",
       });
 
       return {
@@ -624,13 +658,13 @@ export class JobsService {
         createdAt: new Date().toISOString(),
         trackingUrl: `/api/v1/jobs/${job.id}`,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to start analytics refresh job",
         options,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -646,7 +680,12 @@ export class JobsService {
     return this.triggerAnalyticsRefresh(refreshData);
   }
 
-  async startDataExport(data: any) {
+  async startDataExport(data: {
+    format?: string;
+    filters?: FilterParams;
+    fields?: string[];
+    email?: string;
+  }) {
     const job = await this.exportDataQueue.add("export-data", data, {
       attempts: 3,
       backoff: {
@@ -755,11 +794,11 @@ export class JobsService {
               : null,
           },
         });
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get detailed stats for queue",
           queueName: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
 
         detailedStats.push({
@@ -774,7 +813,7 @@ export class JobsService {
           status: { paused: false, healthy: false },
           performance: { processingRate: 0, avgProcessingTime: 0 },
           latestJobs: { active: null, completed: null, failed: null },
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -898,13 +937,13 @@ export class JobsService {
         },
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get queue performance metrics",
         queueName,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -945,11 +984,11 @@ export class JobsService {
             failedCount: failed.length,
           },
         });
-      } catch (error) {
+      } catch (_error) {
         healthChecks.push({
           name,
           status: "error",
-          issues: [`Connection error: ${error.message}`],
+          issues: [`Connection error: ${(_error as Error).message}`],
           metrics: null,
         });
       }
@@ -1082,18 +1121,18 @@ export class JobsService {
                 : 0,
           },
         });
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get queue trends",
           queueName: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
 
         trends.push({
           queueName: name,
           data: [],
           summary: { totalCompleted: 0, totalFailed: 0, avgSuccessRate: 0 },
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -1146,13 +1185,13 @@ export class JobsService {
         queueName,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get current jobs",
         queueName,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -1309,7 +1348,16 @@ export class JobsService {
     return config;
   }
 
-  async updateQueueConfig(queueName: string, updates: any) {
+  async updateQueueConfig(queueName: string, updates: {
+    concurrency?: number;
+    maxJobsPerWorker?: number;
+    defaultJobOptions?: JsonObject;
+    maxConcurrency?: number;
+    retryAttempts?: number;
+    retryDelay?: number;
+    stalledInterval?: number;
+    maxStalledCount?: number;
+  }) {
     const { concurrency, maxJobsPerWorker, defaultJobOptions, ...dbUpdates } =
       updates;
 
@@ -1319,7 +1367,7 @@ export class JobsService {
       .set({
         ...dbUpdates,
         maxConcurrency: concurrency || dbUpdates.maxConcurrency,
-        defaultJobOptions: defaultJobOptions || dbUpdates.defaultJobOptions,
+        defaultJobOptions: defaultJobOptions || undefined,
         lastConfigUpdate: new Date(),
         updatedAt: new Date(),
       })
@@ -1417,7 +1465,7 @@ export class JobsService {
           foundQueueName = name;
           break;
         }
-      } catch (error) {
+      } catch (_error) {
         // Job not found in this queue, continue
       }
     }
@@ -1650,7 +1698,7 @@ export class JobsService {
             "active",
             "waiting",
             "delayed",
-          ] as any[];
+          ] as ("completed" | "failed" | "active" | "waiting" | "delayed")[];
           const jobs = await queue.getJobs(statuses, 0, 100);
 
           for (const job of jobs) {
@@ -1735,11 +1783,11 @@ export class JobsService {
 
             allLogs.push(logEntry);
           }
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to get logs from queue",
             queue: name,
-            error: error.message,
+            error: (_error as Error).message,
           });
         }
       }
@@ -1769,10 +1817,10 @@ export class JobsService {
         offset,
         hasMore: offset + limit < sortedLogs.length,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get all logs",
-        error: error.message,
+        error: (_error as Error).message,
       });
 
       // Return empty logs instead of throwing
@@ -1813,7 +1861,7 @@ export class JobsService {
       "active",
       "waiting",
       "delayed",
-    ] as any[];
+    ] as ("completed" | "failed" | "active" | "waiting" | "delayed")[];
     const allJobs = await queue.getJobs(statuses, offset, offset + limit - 1);
 
     // Create a map of job IDs to database job records
@@ -1882,7 +1930,7 @@ export class JobsService {
           logs.push({
             id: dbLog.id,
             jobId: job.id,
-            level: dbLog.level as any,
+            level: dbLog.level as "info" | "error" | "warning" | "success",
             message: dbLog.message,
             context: dbLog.data ? JSON.parse(dbLog.data) : {},
             createdAt: dbLog.createdAt.toISOString(),
@@ -1945,7 +1993,13 @@ export class JobsService {
           isPaused,
           counts,
           workerCount: workers.length,
-          health: this.calculateQueueHealth(counts),
+          health: this.calculateQueueHealth({
+            active: counts.active || 0,
+            waiting: counts.waiting || 0,
+            completed: counts.completed || 0,
+            failed: counts.failed || 0,
+            stalled: counts.stalled || 0,
+          }),
         };
       }),
     );
@@ -1981,10 +2035,16 @@ export class JobsService {
   }
 
   private calculateQueueHealth(
-    counts: any,
+    counts: {
+      active: number;
+      waiting: number;
+      completed: number;
+      failed: number;
+      stalled?: number;
+    },
   ): "healthy" | "warning" | "critical" {
     const failureRate = counts.failed / (counts.completed + counts.failed || 1);
-    const stalledRate = counts.stalled / (counts.active + counts.stalled || 1);
+    const stalledRate = (counts.stalled || 0) / (counts.active + (counts.stalled || 0) || 1);
 
     if (failureRate > 0.3 || stalledRate > 0.5) return "critical";
     if (failureRate > 0.1 || stalledRate > 0.2 || counts.waiting > 1000)
@@ -1993,7 +2053,7 @@ export class JobsService {
   }
 
   private calculateSystemHealth(
-    queueStatuses: any[],
+    queueStatuses: Array<{ health: "healthy" | "warning" | "critical" }>,
   ): "healthy" | "warning" | "critical" {
     const criticalCount = queueStatuses.filter(
       (q) => q.health === "critical",
@@ -2087,7 +2147,15 @@ export class JobsService {
       .orderBy(desc(jobSchedules.createdAt));
   }
 
-  async createJobSchedule(scheduleData: any) {
+  async createJobSchedule(scheduleData: {
+    name: string;
+    description?: string;
+    templateId: string;
+    cronExpression: string;
+    timezone?: string;
+    isEnabled?: boolean;
+    config?: JsonObject;
+  }) {
     const db = this.databaseService.db;
 
     const [schedule] = await db
@@ -2098,7 +2166,14 @@ export class JobsService {
     return schedule;
   }
 
-  async updateJobSchedule(scheduleId: string, updates: any) {
+  async updateJobSchedule(scheduleId: string, updates: {
+    name?: string;
+    description?: string;
+    cronExpression?: string;
+    timezone?: string;
+    isEnabled?: boolean;
+    config?: JsonObject;
+  }) {
     const db = this.databaseService.db;
 
     const [updated] = await db
@@ -2125,8 +2200,18 @@ export class JobsService {
   async createJob(jobData: {
     queue: string;
     name: string;
-    data: any;
-    options?: any;
+    data: BaseJobData;
+    options?: {
+      priority?: number;
+      delay?: number;
+      attempts?: number;
+      backoff?: {
+        type: string;
+        delay: number;
+      };
+      removeOnComplete?: number | boolean;
+      removeOnFail?: number | boolean;
+    };
   }) {
     const queue = this.getQueueByName(jobData.queue);
     if (!queue) {
@@ -2171,8 +2256,18 @@ export class JobsService {
     jobs: Array<{
       queue: string;
       name: string;
-      data: any;
-      options?: any;
+      data: BaseJobData;
+      options?: {
+        priority?: number;
+        delay?: number;
+        attempts?: number;
+        backoff?: {
+          type: string;
+          delay: number;
+        };
+        removeOnComplete?: number | boolean;
+        removeOnFail?: number | boolean;
+      };
     }>,
   ) {
     const results = await Promise.allSettled(
@@ -2185,9 +2280,9 @@ export class JobsService {
     return {
       created: successful.length,
       failed: failed.length,
-      jobs: successful.map((r: any) => r.value),
-      errors: failed.map((r: any) => ({
-        reason: r.reason?.message || "Unknown error",
+      jobs: successful.map((r) => (r as any).value),
+      errors: failed.map((r) => ({
+        reason: (r as PromiseRejectedResult).reason?.message || "Unknown error",
       })),
     };
   }
@@ -2219,7 +2314,7 @@ export class JobsService {
             throw new Error(`Job is not in failed state: ${state}`);
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Continue searching in other queues
       }
     }
@@ -2256,7 +2351,7 @@ export class JobsService {
             throw new Error(`Cannot cancel job in state: ${state}`);
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Continue searching in other queues
       }
     }
@@ -2339,17 +2434,31 @@ export class JobsService {
         redisJobsDeleted,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to reset job logs",
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw new Error(`Failed to reset job logs: ${error.message}`);
+      throw new Error(`Failed to reset job logs: ${(_error as Error).message}`);
     }
   }
 
   // Advanced search method
-  async searchJobs(filters: any) {
+  async searchJobs(filters: {
+    search?: string;
+    status?: string[];
+    queues?: string[];
+    startDate?: string;
+    endDate?: string;
+    minDuration?: number;
+    maxDuration?: number;
+    priorities?: number[];
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+    includeData?: boolean;
+  }) {
     const db = this.databaseService.db;
     const conditions = [];
 
@@ -2460,7 +2569,7 @@ export class JobsService {
                   data: filters.includeData ? queueJob.data : undefined,
                 };
               }
-            } catch (error) {
+            } catch (_error) {
               // Job not in this queue, continue
             }
           }
@@ -2520,7 +2629,7 @@ export class JobsService {
               }
               break;
             }
-          } catch (error) {
+          } catch (_error) {
             // Continue to next queue
           }
         }
@@ -2528,10 +2637,10 @@ export class JobsService {
         if (!found) {
           results.notFound.push(jobId);
         }
-      } catch (error) {
+      } catch (_error) {
         results.failed.push({
           jobId,
-          reason: error.message,
+          reason: (_error as Error).message,
         });
       }
     }
@@ -2585,7 +2694,7 @@ export class JobsService {
               }
               break;
             }
-          } catch (error) {
+          } catch (_error) {
             // Continue to next queue
           }
         }
@@ -2593,10 +2702,10 @@ export class JobsService {
         if (!found) {
           results.notFound.push(jobId);
         }
-      } catch (error) {
+      } catch (_error) {
         results.failed.push({
           jobId,
-          reason: error.message,
+          reason: (_error as Error).message,
         });
       }
     }
@@ -2706,13 +2815,13 @@ export class JobsService {
         redisJobsDeleted,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to reset queue logs",
         queueName,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw new Error(`Failed to reset queue logs: ${error.message}`);
+      throw new Error(`Failed to reset queue logs: ${(_error as Error).message}`);
     }
   }
 }

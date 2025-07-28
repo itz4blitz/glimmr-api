@@ -3,22 +3,25 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { DatabaseService } from "../../../database/database.service";
+import { JsonObject, JsonValue } from "../../../types/common.types";
 import { SchedulerRegistry } from "@nestjs/schedule";
-const { CronJob } = require("cron");
+import { CronJob } from "cron";
 import {
   jobSchedules,
   jobTemplates,
   jobs,
+  JobSchedule,
+  JobTemplate,
 } from "../../../database/schema";
 import { eq, and, lte, asc } from "drizzle-orm";
 import { CreateJobScheduleDto, UpdateJobScheduleDto } from "../../dto/job-operations.dto";
 import { QUEUE_NAMES } from "../../queues/queue.config";
-const cronParser = require("cron-parser");
+import parser from "cron-parser";
 
 @Injectable()
 export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
   private scheduleCheckInterval: NodeJS.Timeout;
-  private activeSchedules: Map<string, any> = new Map();
+  private activeSchedules: Map<string, CronJob> = new Map();
 
   constructor(
     @InjectQueue(QUEUE_NAMES.PRICE_FILE_PARSER)
@@ -61,11 +64,11 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
       try {
         job.stop();
         this.schedulerRegistry.deleteCronJob(scheduleId);
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Error stopping cron job",
           scheduleId,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     });
@@ -102,8 +105,8 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     // Validate cron expression
     try {
-      cronParser.CronExpressionParser.parse(dto.cronExpression);
-    } catch (error) {
+      (parser as any).parseExpression(dto.cronExpression);
+    } catch (_error) {
       throw new Error(`Invalid cron expression: ${dto.cronExpression}`);
     }
 
@@ -123,7 +126,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
         timeout: dto.timeout,
         retryAttempts: dto.retryAttempts,
         retryDelay: dto.retryDelay,
-        jobConfig: dto.jobConfig,
+        jobConfig: dto.jobConfig || null,
         isEnabled: dto.isEnabled ?? true,
         maxConsecutiveFailures: dto.maxConsecutiveFailures || 5,
         disableOnMaxFailures: dto.disableOnMaxFailures ?? true,
@@ -134,7 +137,10 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     // Start the schedule if enabled
     if (schedule.isEnabled) {
-      await this.startSchedule(schedule);
+      await this.startSchedule({
+        ...schedule,
+        jobConfig: schedule.jobConfig as JsonValue,
+      });
     }
 
     this.logger.info({
@@ -165,8 +171,8 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     // Validate cron expression if provided
     if (dto.cronExpression) {
       try {
-        cronParser.CronExpressionParser.parse(dto.cronExpression);
-      } catch (error) {
+        (parser as any).parseExpression(dto.cronExpression);
+      } catch (_error) {
         throw new Error(`Invalid cron expression: ${dto.cronExpression}`);
       }
     }
@@ -181,10 +187,26 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Update schedule in database
+    const updateData: Partial<typeof jobSchedules.$inferInsert> = {};
+    
+    // Copy allowed fields from dto
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.cronExpression !== undefined) updateData.cronExpression = dto.cronExpression;
+    if (dto.timezone !== undefined) updateData.timezone = dto.timezone;
+    if (dto.priority !== undefined) updateData.priority = dto.priority;
+    if (dto.timeout !== undefined) updateData.timeout = dto.timeout;
+    if (dto.retryAttempts !== undefined) updateData.retryAttempts = dto.retryAttempts;
+    if (dto.retryDelay !== undefined) updateData.retryDelay = dto.retryDelay;
+    if (dto.jobConfig !== undefined) updateData.jobConfig = dto.jobConfig;
+    if (dto.isEnabled !== undefined) updateData.isEnabled = dto.isEnabled;
+    if (dto.maxConsecutiveFailures !== undefined) updateData.maxConsecutiveFailures = dto.maxConsecutiveFailures;
+    if (dto.disableOnMaxFailures !== undefined) updateData.disableOnMaxFailures = dto.disableOnMaxFailures;
+    
     const [updatedSchedule] = await db
       .update(jobSchedules)
       .set({
-        ...dto,
+        ...updateData,
         nextRunAt,
         updatedAt: new Date(),
       })
@@ -200,11 +222,17 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
       await this.stopSchedule(scheduleId);
     } else if (!wasEnabled && isNowEnabled) {
       // Start the schedule
-      await this.startSchedule(updatedSchedule);
+      await this.startSchedule({
+        ...updatedSchedule,
+        jobConfig: updatedSchedule.jobConfig as JsonValue,
+      });
     } else if (isNowEnabled && (dto.cronExpression || dto.timezone)) {
       // Restart the schedule with new timing
       await this.stopSchedule(scheduleId);
-      await this.startSchedule(updatedSchedule);
+      await this.startSchedule({
+        ...updatedSchedule,
+        jobConfig: updatedSchedule.jobConfig as JsonValue,
+      });
     }
 
     this.logger.info({
@@ -319,7 +347,10 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Execute the scheduled job
-    const jobId = await this.executeScheduledJob(result.schedule, result.template);
+    const jobId = await this.executeScheduledJob(
+      result.schedule as JobSchedule,
+      result.template as JobTemplate
+    );
 
     this.logger.info({
       msg: "Schedule run manually triggered",
@@ -349,13 +380,16 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     for (const { schedule } of enabledSchedules) {
       try {
-        await this.startSchedule(schedule);
-      } catch (error) {
+        await this.startSchedule({
+          ...schedule,
+          jobConfig: schedule.jobConfig as JsonValue,
+        });
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to start schedule",
           scheduleId: schedule.id,
           scheduleName: schedule.name,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -366,37 +400,37 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async startSchedule(schedule: any) {
-    if (this.activeSchedules.has(schedule.id)) {
+  private async startSchedule(schedule: Partial<JobSchedule> & { id: string; cronExpression: string; timezone: string; name: string }) {
+    if (this.activeSchedules.has(schedule.id as string)) {
       return; // Already running
     }
 
     try {
       const cronJob = new CronJob(
-        schedule.cronExpression,
+        schedule.cronExpression as string,
         async () => {
-          await this.handleScheduledExecution(schedule.id);
+          await this.handleScheduledExecution(schedule.id as string);
         },
         null,
         true,
-        schedule.timezone,
+        schedule.timezone as string,
       );
 
-      this.schedulerRegistry.addCronJob(schedule.id, cronJob as any);
-      this.activeSchedules.set(schedule.id, cronJob);
+      this.schedulerRegistry.addCronJob(schedule.id as string, cronJob as any);
+      this.activeSchedules.set(schedule.id as string, cronJob);
 
       this.logger.info({
         msg: "Schedule started",
         scheduleId: schedule.id,
         scheduleName: schedule.name,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to start schedule",
         scheduleId: schedule.id,
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -415,11 +449,11 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
         msg: "Schedule stopped",
         scheduleId,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to stop schedule",
         scheduleId,
-        error: error.message,
+        error: (_error as Error).message,
       });
     }
   }
@@ -444,7 +478,10 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Execute the job
-      const jobId = await this.executeScheduledJob(result.schedule, result.template);
+      const jobId = await this.executeScheduledJob(
+        result.schedule as JobSchedule,
+        result.template as JobTemplate
+      );
 
       // Update schedule with execution info
       const nextRunAt = this.calculateNextRunTime(
@@ -469,28 +506,31 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
         jobId,
         nextRunAt,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to execute scheduled job",
         scheduleId,
-        error: error.message,
+        error: (_error as Error).message,
       });
 
       // Handle consecutive failures
-      await this.handleScheduleFailure(scheduleId, error);
+      await this.handleScheduleFailure(scheduleId, _error as Error);
     }
   }
 
-  private async executeScheduledJob(schedule: any, template: any): Promise<string> {
+  private async executeScheduledJob(schedule: JobSchedule, template: JobTemplate): Promise<string> {
     const queue = this.getQueueByName(template.queueName);
     if (!queue) {
       throw new Error(`Queue not found: ${template.queueName}`);
     }
 
     // Merge job configuration
+    const scheduleConfig = (schedule.jobConfig as Record<string, unknown>) || {};
+    const templateConfig = (template.defaultConfig as Record<string, unknown>) || {};
+      
     const jobConfig = {
-      ...(template.defaultConfig || {}),
-      ...(schedule.jobConfig || {}),
+      ...templateConfig,
+      ...scheduleConfig,
       _scheduledExecution: {
         scheduleId: schedule.id,
         scheduleName: schedule.name,
@@ -500,11 +540,11 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     // Create job options
     const jobOptions = {
-      priority: schedule.priority ?? template.defaultPriority ?? 0,
-      attempts: schedule.retryAttempts ?? template.defaultRetryAttempts ?? 3,
+      priority: (schedule.priority ?? template.defaultPriority ?? 0) as number,
+      attempts: (schedule.retryAttempts ?? template.defaultRetryAttempts ?? 3) as number,
       backoff: {
         type: "exponential" as const,
-        delay: schedule.retryDelay ?? template.defaultRetryDelay ?? 60000,
+        delay: (schedule.retryDelay ?? template.defaultRetryDelay ?? 60000) as number,
       },
       removeOnComplete: 10,
       removeOnFail: 20,
@@ -512,7 +552,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     // Add timeout if specified
     if (schedule.timeout || template.defaultTimeout) {
-      jobOptions["timeout"] = schedule.timeout || template.defaultTimeout;
+      (jobOptions as any).timeout = (schedule.timeout || template.defaultTimeout) as number;
     }
 
     // Queue the job
@@ -530,7 +570,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
       description: `Scheduled execution of ${template.displayName}`,
       queue: template.queueName,
       status: "pending",
-      priority: jobOptions.priority,
+      priority: jobOptions.priority as number,
       inputData: JSON.stringify(jobConfig),
       createdBy: "scheduler",
       tags: JSON.stringify(["scheduled", schedule.id]),
@@ -588,19 +628,19 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
   private calculateNextRunTime(cronExpression: string, timezone?: string): Date {
     try {
-      const options: any = {
+      const options = {
         currentDate: new Date(),
         tz: timezone || "UTC",
       };
 
-      const interval = cronParser.CronExpressionParser.parse(cronExpression, options);
+      const interval = (parser as any).parseExpression(cronExpression, options);
       return interval.next().toDate();
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to calculate next run time",
         cronExpression,
         timezone,
-        error: error.message,
+        error: (_error as Error).message,
       });
       // Default to 1 hour from now
       return new Date(Date.now() + 60 * 60 * 1000);
@@ -632,13 +672,16 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
           });
 
           // Try to start it
-          await this.startSchedule(schedule);
+          await this.startSchedule({
+            ...schedule,
+            jobConfig: schedule.jobConfig as JsonValue,
+          });
         }
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Error checking schedule updates",
-        error: error.message,
+        error: (_error as Error).message,
       });
     }
   }

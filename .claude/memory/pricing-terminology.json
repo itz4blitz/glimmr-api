@@ -1,0 +1,211 @@
+{
+  "priceTypes": {
+    "gross_charge": {
+      "aliases": ["standard_charge", "list_price", "chargemaster_rate", "full_charge"],
+      "definition": "The hospital's full established price before any discounts",
+      "usage": "Rarely paid by anyone, used as starting point for negotiations"
+    },
+    "discounted_cash_price": {
+      "aliases": ["cash_price", "self_pay_rate", "uninsured_rate"],
+      "definition": "Price for patients paying directly without insurance",
+      "usage": "Often lower than insurance negotiated rates"
+    },
+    "negotiated_rate": {
+      "aliases": ["contracted_rate", "allowed_amount", "payer_specific_rate"],
+      "definition": "Price negotiated between hospital and insurance company",
+      "usage": "What insurance actually pays, varies by payer and plan"
+    },
+    "de-identified_minimum": {
+      "aliases": ["min_rate", "lowest_negotiated"],
+      "definition": "Lowest negotiated rate across all payers",
+      "usage": "Required by CMS, helps price shopping"
+    },
+    "de-identified_maximum": {
+      "aliases": ["max_rate", "highest_negotiated"],
+      "definition": "Highest negotiated rate across all payers",
+      "usage": "Shows price variation range"
+    }
+  },
+  "serviceCategories": {
+    "codes": {
+      "CPT": {
+        "fullName": "Current Procedural Terminology",
+        "owner": "American Medical Association",
+        "examples": {
+          "99213": "Office visit, established patient, low complexity",
+          "99214": "Office visit, established patient, moderate complexity",
+          "70553": "MRI brain with and without contrast",
+          "93306": "Echocardiogram, complete"
+        }
+      },
+      "HCPCS": {
+        "fullName": "Healthcare Common Procedure Coding System",
+        "owner": "CMS",
+        "levels": {
+          "I": "CPT codes",
+          "II": "Non-physician services and products"
+        },
+        "examples": {
+          "J1100": "Injection, dexamethasone sodium phosphate",
+          "E0114": "Crutches, underarm, adjustable",
+          "A4649": "Surgical supply, miscellaneous"
+        }
+      },
+      "DRG": {
+        "fullName": "Diagnosis Related Group",
+        "usage": "Inpatient hospital stays",
+        "examples": {
+          "470": "Major hip and knee joint replacement",
+          "871": "Septicemia without MV >96 hours",
+          "039": "Extracranial procedures without CC/MCC"
+        }
+      },
+      "Revenue": {
+        "fullName": "Revenue Codes",
+        "usage": "Hospital billing departments",
+        "examples": {
+          "0250": "Pharmacy - General",
+          "0450": "Emergency Room - General",
+          "0636": "Drugs requiring specific identification"
+        }
+      },
+      "NDC": {
+        "fullName": "National Drug Code",
+        "format": "11-digit code",
+        "usage": "Pharmaceutical products",
+        "structure": "Labeler-Product-Package"
+      }
+    }
+  },
+  "payerCategories": {
+    "government": {
+      "Medicare": {
+        "types": ["Traditional", "Part A", "Part B", "Part C", "Part D"],
+        "abbreviations": ["CMS", "Medicare FFS"]
+      },
+      "Medicaid": {
+        "note": "State-specific programs",
+        "variations": ["Apple Health (WA)", "Medi-Cal (CA)", "MassHealth (MA)"]
+      },
+      "Tricare": {
+        "description": "Military health insurance",
+        "types": ["Prime", "Select", "For Life"]
+      },
+      "VA": {
+        "fullName": "Veterans Affairs",
+        "description": "Veterans healthcare"
+      }
+    },
+    "commercial": {
+      "major_insurers": [
+        {
+          "name": "UnitedHealth Group",
+          "brands": ["UnitedHealthcare", "UHC", "United"],
+          "products": ["PPO", "HMO", "EPO", "POS"]
+        },
+        {
+          "name": "Anthem",
+          "brands": ["Anthem BCBS", "Blue Cross Blue Shield"],
+          "regional": true
+        },
+        {
+          "name": "Cigna",
+          "products": ["Open Access Plus", "LocalPlus", "Connect"]
+        },
+        {
+          "name": "Aetna",
+          "parent": "CVS Health",
+          "products": ["HMO", "PPO", "EPO", "Aetna Whole Health"]
+        },
+        {
+          "name": "Humana",
+          "focus": "Medicare Advantage"
+        }
+      ],
+      "planTypes": {
+        "PPO": "Preferred Provider Organization",
+        "HMO": "Health Maintenance Organization",
+        "EPO": "Exclusive Provider Organization",
+        "POS": "Point of Service",
+        "HDHP": "High Deductible Health Plan"
+      }
+    }
+  },
+  "modifiers": {
+    "common": {
+      "-26": "Professional component",
+      "-TC": "Technical component",
+      "-59": "Distinct procedural service",
+      "-25": "Significant, separately identifiable E/M service",
+      "-RT": "Right side",
+      "-LT": "Left side",
+      "-50": "Bilateral procedure"
+    },
+    "usage": "Affects pricing and bundling rules"
+  },
+  "bundlingConcepts": {
+    "DRG_bundling": {
+      "description": "All services during inpatient stay bundled into one payment",
+      "includes": ["Room", "Nursing", "Medications", "Procedures", "Labs"]
+    },
+    "global_surgical_package": {
+      "description": "Surgery plus related care bundled",
+      "includes": ["Pre-op visit", "Surgery", "Post-op care for X days"]
+    },
+    "technical_vs_professional": {
+      "technical": "Equipment, supplies, technician time",
+      "professional": "Physician interpretation and report"
+    }
+  },
+  "priceTransparencyTerms": {
+    "MRF": {
+      "fullName": "Machine Readable File",
+      "requirement": "Must be accessible without barriers",
+      "formats": ["CSV", "JSON", "XML"]
+    },
+    "standard_charge": {
+      "definition": "Regular rate established by hospital",
+      "types": ["Gross", "Discounted cash", "Payer-specific", "De-identified min/max"]
+    },
+    "shoppable_service": {
+      "definition": "Service that can be scheduled in advance",
+      "requirement": "Must display 300 shoppable services",
+      "examples": ["Imaging", "Lab tests", "Outpatient procedures"]
+    },
+    "cost_estimator": {
+      "definition": "Tool for patients to estimate costs",
+      "requirement": "Internet-based, user-friendly"
+    }
+  },
+  "dataAnomalies": {
+    "common_patterns": {
+      "placeholder_values": ["$0.01", "$999,999", "$1.00", "-1", "N/A"],
+      "missing_data_indicators": ["NULL", "NA", "Not Available", ".", "-", ""],
+      "bundled_indicators": ["Included", "See Package", "Part of DRG", "Bundled"],
+      "variable_pricing": ["Market", "Varies", "Call for Quote", "Percentage of Charges"]
+    }
+  },
+  "acronyms": {
+    "healthcare": {
+      "APC": "Ambulatory Payment Classification",
+      "ASC": "Ambulatory Surgery Center",
+      "CAH": "Critical Access Hospital",
+      "CC": "Complication or Comorbidity",
+      "MCC": "Major Complication or Comorbidity",
+      "OPPS": "Outpatient Prospective Payment System",
+      "IPPS": "Inpatient Prospective Payment System",
+      "MAC": "Medicare Administrative Contractor",
+      "MLR": "Medical Loss Ratio",
+      "RBRVS": "Resource-Based Relative Value Scale",
+      "RVU": "Relative Value Unit"
+    },
+    "insurance": {
+      "EOB": "Explanation of Benefits",
+      "OOP": "Out of Pocket",
+      "COB": "Coordination of Benefits",
+      "DME": "Durable Medical Equipment",
+      "UM": "Utilization Management",
+      "PA": "Prior Authorization"
+    }
+  }
+}

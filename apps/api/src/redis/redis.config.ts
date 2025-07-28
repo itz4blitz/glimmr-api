@@ -72,11 +72,11 @@ export const createOptimizedRedisConnection = (
   // Add event listeners for monitoring
   if (!isProduction) {
     redis.on("connect", () => {
-      console.log("✅ Redis connected successfully");
+      console.info("✅ Redis connected successfully");
     });
 
     redis.on("ready", () => {
-      console.log("✅ Redis ready for commands");
+      console.info("✅ Redis ready for commands");
     });
 
     redis.on("error", (err) => {
@@ -84,11 +84,11 @@ export const createOptimizedRedisConnection = (
     });
 
     redis.on("close", () => {
-      console.log("🔌 Redis connection closed");
+      console.info("🔌 Redis connection closed");
     });
 
     redis.on("reconnecting", (ms: number) => {
-      console.log(`🔄 Redis reconnecting in ${ms}ms`);
+      console.info(`🔄 Redis reconnecting in ${ms}ms`);
     });
   } else {
     // Production: Only log critical events
@@ -97,7 +97,7 @@ export const createOptimizedRedisConnection = (
     });
 
     redis.on("connect", () => {
-      console.log("Valkey connected successfully");
+      console.info("Valkey connected successfully");
     });
   }
 

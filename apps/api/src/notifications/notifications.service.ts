@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { JsonObject } from "../types/common.types";
 import { notifications, notificationPreferences } from "../database/schema";
-import { eq, desc, and, or, isNull } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   CreateNotificationDto,
   UpdateNotificationDto,
@@ -23,8 +24,8 @@ export class NotificationsService {
       .insert(notifications)
       .values({
         ...createNotificationDto,
-        type: createNotificationDto.type as any,
-        priority: (createNotificationDto.priority || "medium") as any,
+        type: createNotificationDto.type as "job_success" | "job_failure" | "job_warning" | "system_alert" | "user_action" | "info",
+        priority: (createNotificationDto.priority || "medium") as "low" | "medium" | "high" | "urgent",
       })
       .returning();
 
@@ -49,11 +50,11 @@ export class NotificationsService {
     }
 
     if (filters?.type) {
-      conditions.push(eq(notifications.type, filters.type as any));
+      conditions.push(eq(notifications.type, filters.type as "job_success" | "job_failure" | "job_warning" | "system_alert" | "user_action" | "info"));
     }
 
     if (filters?.priority) {
-      conditions.push(eq(notifications.priority, filters.priority as any));
+      conditions.push(eq(notifications.priority, filters.priority as "low" | "medium" | "high" | "urgent"));
     }
 
     if (conditions.length > 0) {
@@ -97,7 +98,7 @@ export class NotificationsService {
       conditions.push(eq(notifications.userId, userId));
     }
 
-    const updateData: any = {
+    const updateData: Record<string, JsonObject | Date | string | boolean | null> = {
       ...updateNotificationDto,
       updatedAt: new Date(),
     };
@@ -115,7 +116,7 @@ export class NotificationsService {
     return updated;
   }
 
-  async markAsRead(id: string, userId?: string) {
+  markAsRead(id: string, userId?: string) {
     return this.update(id, { read: true }, userId);
   }
 
@@ -150,14 +151,14 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string) {
-    const result = await this.db
+    const _result = await this.db
       .select({ count: notifications.id })
       .from(notifications)
       .where(
         and(eq(notifications.userId, userId), eq(notifications.read, false)),
       );
 
-    return { count: result.length };
+    return { count: _result.length };
   }
 
   // Notification preferences
@@ -180,7 +181,7 @@ export class NotificationsService {
     return preferences;
   }
 
-  async updatePreferences(userId: string, updatePreferencesDto: any) {
+  async updatePreferences(userId: string, updatePreferencesDto: JsonObject) {
     const [updated] = await this.db
       .update(notificationPreferences)
       .set({
@@ -213,7 +214,7 @@ export class NotificationsService {
     type: "job_success" | "job_failure" | "job_warning",
     title: string,
     message: string,
-    data?: any,
+    data?: JsonObject,
   ) {
     const preferences = await this.getPreferences(userId);
 
@@ -238,8 +239,8 @@ export class NotificationsService {
     return this.create({
       userId,
       jobId,
-      type: type as any,
-      priority: priority as any,
+      type: type as "email" | "in_app" | "webhook",
+      priority: priority as "low" | "medium" | "high" | "urgent",
       title,
       message,
       data,

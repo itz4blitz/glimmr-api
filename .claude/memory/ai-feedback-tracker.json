@@ -1,0 +1,182 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-07-26",
+    "description": "Tracks Claude's suggestions and team feedback to improve future recommendations"
+  },
+  "acceptedPatterns": {
+    "codeStructure": [
+      {
+        "pattern": "Modular service architecture",
+        "context": "NestJS services with dependency injection",
+        "acceptanceRate": 0.95,
+        "examples": ["JobMonitorService", "JobAnalyticsService"]
+      },
+      {
+        "pattern": "Streaming for large file processing",
+        "context": "CSV/JSON files over 100MB",
+        "acceptanceRate": 1.0,
+        "examples": ["PriceFileParserProcessor"]
+      },
+      {
+        "pattern": "WebSocket for real-time updates",
+        "context": "Job status and queue monitoring",
+        "acceptanceRate": 0.90,
+        "examples": ["JobsGateway"]
+      }
+    ],
+    "testingApproaches": [
+      {
+        "pattern": "Mock external dependencies",
+        "acceptanceRate": 1.0,
+        "preferredLibrary": "jest"
+      },
+      {
+        "pattern": "E2E tests for API endpoints",
+        "acceptanceRate": 0.85,
+        "preferredLibrary": "supertest"
+      }
+    ],
+    "errorHandling": [
+      {
+        "pattern": "PinoLogger with context",
+        "acceptanceRate": 0.95,
+        "note": "Always include error object and relevant IDs"
+      },
+      {
+        "pattern": "Custom exception classes",
+        "acceptanceRate": 0.80,
+        "examples": ["ValidationError", "ResourceNotFoundError"]
+      }
+    ]
+  },
+  "rejectedPatterns": {
+    "avoid": [
+      {
+        "pattern": "Direct file system access",
+        "reason": "Must use StorageService abstraction",
+        "rejectionRate": 1.0,
+        "alternative": "StorageService.uploadFile()"
+      },
+      {
+        "pattern": "Synchronous file processing",
+        "reason": "Blocks event loop for large files",
+        "rejectionRate": 0.95,
+        "alternative": "Stream processing with Transform"
+      },
+      {
+        "pattern": "Hard-coded configuration",
+        "reason": "Not environment-flexible",
+        "rejectionRate": 0.90,
+        "alternative": "ConfigService or environment variables"
+      }
+    ]
+  },
+  "teamPreferences": {
+    "naming": {
+      "services": "{Domain}Service",
+      "controllers": "{Domain}Controller",
+      "processors": "{JobType}Processor",
+      "components": "PascalCase with descriptive names"
+    },
+    "fileOrganization": {
+      "groupBy": "domain",
+      "testsLocation": "alongside source files",
+      "sharedCode": "common/ directory"
+    },
+    "codeStyle": {
+      "asyncAwait": "preferred over promises",
+      "destructuring": "use when improves readability",
+      "earlyReturns": "preferred for guard clauses",
+      "comments": "only when logic is complex"
+    },
+    "dependencies": {
+      "preferred": {
+        "validation": "class-validator",
+        "transformation": "class-transformer",
+        "httpClient": "axios",
+        "testing": "jest",
+        "database": "drizzle-orm"
+      },
+      "avoided": [
+        "lodash (use native methods)",
+        "moment (use date-fns)",
+        "request (deprecated)"
+      ]
+    }
+  },
+  "learningMetrics": {
+    "suggestionAcceptance": {
+      "overall": 0.82,
+      "byCategory": {
+        "performance": 0.90,
+        "security": 0.95,
+        "refactoring": 0.75,
+        "newFeatures": 0.80,
+        "bugFixes": 0.85
+      }
+    },
+    "commonFeedback": [
+      {
+        "feedback": "Add more specific error messages",
+        "frequency": 0.30,
+        "adjustment": "Include context and troubleshooting hints in errors"
+      },
+      {
+        "feedback": "Consider edge cases",
+        "frequency": 0.25,
+        "adjustment": "Always handle null/undefined and empty collections"
+      },
+      {
+        "feedback": "Add progress tracking",
+        "frequency": 0.20,
+        "adjustment": "Implement progress reporting for long operations"
+      }
+    ]
+  },
+  "contextualRules": {
+    "jobProcessing": [
+      "Always implement idempotency",
+      "Add progress tracking for operations > 10 seconds",
+      "Use child jobs for dependent operations",
+      "Implement exponential backoff for retries"
+    ],
+    "apiEndpoints": [
+      "Include Swagger documentation",
+      "Validate input with DTOs",
+      "Return consistent error responses",
+      "Implement pagination for lists"
+    ],
+    "databaseOperations": [
+      "Use transactions for multi-table updates",
+      "Create indexes for frequent queries",
+      "Avoid N+1 queries",
+      "Use upsert for idempotent operations"
+    ],
+    "frontendComponents": [
+      "Use shadcn/ui components",
+      "Implement loading states",
+      "Handle errors gracefully",
+      "Make components responsive"
+    ]
+  },
+  "improvementTracking": {
+    "recentImprovements": [
+      {
+        "date": "2025-07-26",
+        "improvement": "Better WebSocket event naming",
+        "impact": "Clearer real-time updates"
+      },
+      {
+        "date": "2025-07-25",
+        "improvement": "Consolidated enhanced components",
+        "impact": "Reduced code duplication"
+      }
+    ],
+    "pendingLearnings": [
+      "Optimal batch sizes for different operations",
+      "Preferred state management patterns in React",
+      "Team's debugging workflow preferences"
+    ]
+  }
+}

@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Put,
-  Delete,
   Post,
   Body,
   Param,
@@ -12,24 +11,21 @@ import {
   NotFoundException,
   BadRequestException,
   ParseUUIDPipe,
-  UseInterceptors,
-  UploadedFile,
   Res,
   StreamableFile,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { Response } from "express";
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiConsumes,
   ApiQuery,
   ApiProperty,
 } from "@nestjs/swagger";
 import { IsOptional, IsString, IsIn } from "class-validator";
 import { Type } from "class-transformer";
-import { Response } from "express";
+// import { Response } from "express";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -40,10 +36,7 @@ import {
 } from "./user-management.service";
 import {
   ProfileService,
-  ProfileUpdateData,
-  PreferencesUpdateData,
 } from "./profile.service";
-import { User } from "../database/schema";
 
 // DTOs for API documentation and validation
 export class UpdateUserDto {
@@ -168,31 +161,31 @@ export class UserManagementController {
   @ApiQuery({ name: "role", required: false, type: String })
   @ApiQuery({ name: "isActive", required: false, type: Boolean })
   @ApiResponse({ status: 200, description: "Users retrieved successfully" })
-  async getUserList(@Query() query: UserListQueryDto) {
+  getUserList(@Query() _query: UserListQueryDto) {
     const filters: UserSearchFilters = {
-      search: query.search,
-      role: query.role,
-      isActive: query.isActive,
-      emailVerified: query.emailVerified,
-      createdAfter: query.createdAfter
-        ? new Date(query.createdAfter)
+      search: _query.search,
+      role: _query.role,
+      isActive: _query.isActive,
+      emailVerified: _query.emailVerified,
+      createdAfter: _query.createdAfter
+        ? new Date(_query.createdAfter)
         : undefined,
-      createdBefore: query.createdBefore
-        ? new Date(query.createdBefore)
+      createdBefore: _query.createdBefore
+        ? new Date(_query.createdBefore)
         : undefined,
-      lastLoginAfter: query.lastLoginAfter
-        ? new Date(query.lastLoginAfter)
+      lastLoginAfter: _query.lastLoginAfter
+        ? new Date(_query.lastLoginAfter)
         : undefined,
-      lastLoginBefore: query.lastLoginBefore
-        ? new Date(query.lastLoginBefore)
+      lastLoginBefore: _query.lastLoginBefore
+        ? new Date(_query.lastLoginBefore)
         : undefined,
     };
 
     const options: UserListOptions = {
-      page: Number(query.page) || 1,
-      limit: Math.min(Number(query.limit) || 20, 100), // Max 100 per page
-      sortBy: query.sortBy,
-      sortOrder: query.sortOrder,
+      page: Number(_query.page) || 1,
+      limit: Math.min(Number(_query.limit) || 20, 100), // Max 100 per page
+      sortBy: _query.sortBy,
+      sortOrder: _query.sortOrder,
       filters,
     };
 
@@ -206,7 +199,7 @@ export class UserManagementController {
     status: 200,
     description: "User statistics retrieved successfully",
   })
-  async getUserStats() {
+  getUserStats() {
     return this.userManagementService.getUserStats();
   }
 
@@ -234,7 +227,7 @@ export class UserManagementController {
   async updateUser(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() updateData: UpdateUserDto,
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
   ) {
     const updatedUser = await this.userManagementService.updateUser(
       id,
@@ -261,10 +254,10 @@ export class UserManagementController {
   @ApiOperation({ summary: "Update user role" })
   @ApiResponse({ status: 200, description: "User role updated successfully" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async updateUserRole(
+  updateUserRole(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() roleData: UpdateUserRoleDto,
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
   ) {
     return this.userManagementService.updateUserRole(
       id,
@@ -278,9 +271,9 @@ export class UserManagementController {
   @ApiOperation({ summary: "Activate user account" })
   @ApiResponse({ status: 200, description: "User activated successfully" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async activateUser(
+  activateUser(
     @Param("id", ParseUUIDPipe) id: string,
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
   ) {
     return this.userManagementService.activateUser(id, req.user.id);
   }
@@ -290,9 +283,9 @@ export class UserManagementController {
   @ApiOperation({ summary: "Deactivate user account" })
   @ApiResponse({ status: 200, description: "User deactivated successfully" })
   @ApiResponse({ status: 404, description: "User not found" })
-  async deactivateUser(
+  deactivateUser(
     @Param("id", ParseUUIDPipe) id: string,
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
   ) {
     return this.userManagementService.deactivateUser(id, req.user.id);
   }
@@ -344,7 +337,7 @@ export class UserManagementController {
   })
   async bulkUserAction(
     @Body() bulkAction: BulkUserActionDto,
-    @Request() req: any,
+    @Request() req: Express.Request & { user: { id: string } },
   ) {
     const { userIds, action, role } = bulkAction;
 
@@ -399,7 +392,7 @@ export class UserManagementController {
 
         results.push({ userId, success: true, data: result });
       } catch (error) {
-        errors.push({ userId, success: false, error: error.message });
+        errors.push({ userId, success: false, error: error instanceof Error ? error.message : String(error) });
       }
     }
 

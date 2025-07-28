@@ -7,7 +7,6 @@ import { QUEUE_NAMES } from "../jobs/queues/queue.config";
 
 describe("AnalyticsService", () => {
   let service: AnalyticsService;
-  let _databaseService: DatabaseService;
   let logger: PinoLogger;
 
   const mockDatabaseService = {
@@ -51,7 +50,6 @@ describe("AnalyticsService", () => {
     }).compile();
 
     service = module.get<AnalyticsService>(AnalyticsService);
-    databaseService = module.get<DatabaseService>(DatabaseService);
     logger = module.get<PinoLogger>(`PinoLogger:${AnalyticsService.name}`);
   });
 
@@ -74,7 +72,7 @@ describe("AnalyticsService", () => {
       ];
 
       // Mock multiple database queries
-      const _mockSelect = jest.fn().mockReturnThis();
+      const mockSelect = jest.fn().mockReturnThis();
       const mockFrom = jest.fn().mockReturnThis();
       const mockWhere = jest.fn().mockReturnThis();
       const mockInnerJoin = jest.fn().mockReturnThis();

@@ -404,9 +404,9 @@ async function setupRBAC() {
     console.log(`   Roles: ${allRoles.length}`);
     console.log(`   Permissions: ${allPermissions.length}`);
     console.log(`   Users migrated: ${existingUsers.length}`);
-  } catch (error) {
-    console.error("❌ Error setting up RBAC:", error);
-    throw error;
+  } catch (_error) {
+    console.error("Error", _error);
+    throw _error;
   } finally {
     await pool.end();
   }

@@ -128,10 +128,10 @@ export class DashboardService {
           pendingDownloads: pendingFiles?.count || 0,
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get dashboard stats",
-        error: error.message,
+        error: (_error as Error).message,
       });
 
       // Return default values on error

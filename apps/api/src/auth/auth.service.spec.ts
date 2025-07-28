@@ -19,8 +19,6 @@ describe("AuthService", () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
-  let _configService: jest.Mocked<ConfigService>;
-  let _rbacService: jest.Mocked<RbacService>;
 
   const mockUser: Partial<User> = {
     id: "user-id-123",
@@ -92,8 +90,6 @@ describe("AuthService", () => {
     service = module.get<AuthService>(AuthService);
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
-    configService = module.get(ConfigService);
-    rbacService = module.get(RbacService);
   });
 
   describe("validateUser", () => {
@@ -105,7 +101,7 @@ describe("AuthService", () => {
       };
 
       usersService.findByEmail.mockResolvedValue(userWithHashedPassword);
-      bcrypt.compare.mockResolvedValue(true);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.validateUser(
         "test@example.com",
@@ -134,7 +130,7 @@ describe("AuthService", () => {
       };
 
       usersService.findByEmail.mockResolvedValue(userWithHashedPassword);
-      bcrypt.compare.mockResolvedValue(false);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       const result = await service.validateUser(
         "test@example.com",

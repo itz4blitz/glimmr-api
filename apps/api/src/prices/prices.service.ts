@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
+import { getCoordinatesForZipcode } from "./zipcode-coordinates";
 import {
   eq,
   and,
@@ -10,12 +11,11 @@ import {
   asc,
   count,
   sql,
-  or,
   ilike,
   inArray,
 } from "drizzle-orm";
 import { DatabaseService } from "../database/database.service";
-import { prices, hospitals, analytics } from "../database/schema";
+import { prices, hospitals } from "../database/schema";
 
 @Injectable()
 export class PricesService {
@@ -97,7 +97,7 @@ export class PricesService {
         .limit(limit)
         .offset(offset);
 
-      const result = {
+      const _result = {
         data,
         total: totalResult.count,
         limit,
@@ -116,24 +116,24 @@ export class PricesService {
       const duration = Date.now() - startTime;
       this.logger.info({
         msg: "Prices fetched successfully",
-        count: result.data.length,
-        total: result.total,
+        count: _result.data.length,
+        total: _result.total,
         duration,
         operation: "getPrices",
         filters,
       });
 
-      return result;
-    } catch (error) {
+      return _result;
+    } catch (_error) {
       const duration = Date.now() - startTime;
       this.logger.error({
         msg: "Failed to fetch prices",
-        error: error.message,
+        error: (_error as Error).message,
         duration,
         operation: "getPrices",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -219,14 +219,14 @@ export class PricesService {
         comparison: rankedComparison,
         analytics,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to compare prices",
         service: filters.service,
-        error: error.message,
+        error: (_error as Error).message,
         operation: "comparePrices",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -318,14 +318,14 @@ export class PricesService {
           hospitalCount: state.hospitalCount,
         })),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate pricing analytics",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getPricingAnalytics",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -376,14 +376,14 @@ export class PricesService {
       });
 
       return priceData;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to fetch price",
         priceId: id,
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getPriceById",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -530,6 +530,9 @@ export class PricesService {
     if (!zipcode) {
       throw new Error("Zipcode is required");
     }
+
+    // Get coordinates for the zipcode
+    const { lat, lng } = getCoordinatesForZipcode(zipcode);
 
     // Find hospitals within the radius using Haversine formula
     // For a production system with many hospitals, consider using PostGIS extension

@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { hospitals, prices, analytics, jobs } from "../schema";
+import { hospitals, prices, analytics, jobs as _jobs } from "../schema";
 
 const connectionString =
   process.env.DATABASE_URL ||
@@ -196,9 +196,9 @@ export async function seedInitialData() {
     console.log(`✅ Seeded ${analyticsData.length} analytics records`);
 
     console.log("🎉 Database seeding completed successfully!");
-  } catch (error) {
-    console.error("❌ Error seeding database:", error);
-    throw error;
+  } catch (_error) {
+    console.error("Error", _error);
+    throw _error;
   } finally {
     await client.end();
   }

@@ -52,6 +52,7 @@ export function NotificationPreferences() {
       const response = await apiClient.get("/notifications/preferences");
       setPreferences(response.data);
     } catch (error) {
+      console.error('Failed to load notification preferences:', error);
       toast.error("Failed to load notification preferences");
     } finally {
       setLoading(false);
@@ -64,6 +65,7 @@ export function NotificationPreferences() {
       await apiClient.put("/notifications/preferences", preferences);
       toast.success("Notification preferences saved");
     } catch (error) {
+      console.error('Failed to save notification preferences:', error);
       toast.error("Failed to save notification preferences");
     } finally {
       setSaving(false);

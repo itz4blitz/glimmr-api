@@ -32,9 +32,15 @@ export class RbacService {
 
   // Role Management
   async createRole(roleData: NewRole): Promise<Role> {
+    // Ensure required fields are present
+    const validatedRoleData = {
+      name: roleData.name,
+      description: roleData.description,
+    };
+    
     const [role] = await this.db
       .insert(roles)
-      .values(roleData as NewRole)
+      .values(validatedRoleData)
       .returning();
 
     this.logger.info({
@@ -115,9 +121,17 @@ export class RbacService {
 
   // Permission Management
   async createPermission(permissionData: NewPermission): Promise<Permission> {
+    // Ensure required fields are present
+    const validatedPermissionData = {
+      name: permissionData.name,
+      resource: permissionData.resource,
+      action: permissionData.action,
+      description: permissionData.description,
+    };
+    
     const [permission] = await this.db
       .insert(permissions)
-      .values(permissionData as NewPermission)
+      .values(validatedPermissionData)
       .returning();
 
     this.logger.info({
@@ -287,7 +301,7 @@ export class RbacService {
     resource: string,
     action: string,
   ): Promise<boolean> {
-    const result = await this.db
+    const _result = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -305,11 +319,11 @@ export class RbacService {
         ),
       );
 
-    return result[0].count > 0;
+    return _result[0].count > 0;
   }
 
   async userHasRole(userId: string, roleName: string): Promise<boolean> {
-    const result = await this.db
+    const _result = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -322,7 +336,7 @@ export class RbacService {
         ),
       );
 
-    return result[0].count > 0;
+    return _result[0].count > 0;
   }
 
   // Role Permission Assignment

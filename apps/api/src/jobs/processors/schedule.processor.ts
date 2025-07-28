@@ -75,8 +75,8 @@ export class ScheduleProcessor implements OnModuleInit, OnModuleDestroy {
             typeof schedule.jobConfig === "object" ? schedule.jobConfig : {};
 
           const jobData = {
-            ...(templateConfig as any),
-            ...(scheduleConfig as any),
+            ...(templateConfig as Record<string, unknown>),
+            ...(scheduleConfig as Record<string, unknown>),
             scheduleId: schedule.id,
             scheduleName: schedule.name,
           };
@@ -131,12 +131,12 @@ export class ScheduleProcessor implements OnModuleInit, OnModuleDestroy {
               updatedAt: now,
             })
             .where(eq(jobSchedules.id, schedule.id));
-        } catch (error) {
+        } catch (_error) {
           this.logger.error({
             msg: "Failed to process scheduled job",
             scheduleId: schedule.id,
             scheduleName: schedule.name,
-            error: error.message,
+            error: (_error as Error).message,
           });
 
           // Update consecutive failures
@@ -170,10 +170,10 @@ export class ScheduleProcessor implements OnModuleInit, OnModuleDestroy {
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Error in schedule processor",
-        error: error.message,
+        error: (_error as Error).message,
       });
     } finally {
       this.isProcessing = false;

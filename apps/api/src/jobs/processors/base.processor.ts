@@ -23,12 +23,12 @@ export abstract class BaseProcessor {
   /**
    * Process the job - to be implemented by subclasses
    */
-  abstract process(job: Job): Promise<any>;
+  abstract process(job: Job): Promise<unknown>;
 
   /**
    * Main entry point that wraps the process method with logging
    */
-  async execute(job: Job): Promise<any> {
+  async execute(job: Job): Promise<unknown> {
     const startTime = Date.now();
 
     try {
@@ -43,13 +43,13 @@ export abstract class BaseProcessor {
       });
 
       // Execute the actual processing
-      const result = await this.process(job);
+      const _result = await this.process(job);
 
       // Calculate duration
       const duration = Date.now() - startTime;
 
       // Update job record as completed
-      await this.updateJobRecord("completed", result, duration);
+      await this.updateJobRecord("completed", _result, duration);
 
       // Log completion
       await this.logToDatabase(
@@ -57,11 +57,11 @@ export abstract class BaseProcessor {
         `Job ${job.name} completed successfully`,
         {
           duration,
-          result: result?.summary || result,
+          result: ((_result as { summary?: unknown })?.summary) || _result,
         },
       );
 
-      return result;
+      return _result;
     } catch (error) {
       const duration = Date.now() - startTime;
 
@@ -71,10 +71,10 @@ export abstract class BaseProcessor {
       // Log error
       await this.logToDatabase(
         "error",
-        `Job ${job.name} failed: ${error.message}`,
+        `Job ${job.name} failed: ${(error as Error).message}`,
         {
-          error: error.message,
-          stack: error.stack,
+          error: (error as Error).message,
+          stack: (error as Error).stack,
           duration,
         },
       );
@@ -114,7 +114,7 @@ export abstract class BaseProcessor {
    */
   private async updateJobRecord(
     status: "completed" | "failed",
-    output: any,
+    output: unknown,
     duration: number,
     error?: Error,
   ) {
@@ -145,7 +145,7 @@ export abstract class BaseProcessor {
   protected async logToDatabase(
     level: "info" | "warn" | "error" | "debug" | "success",
     message: string,
-    data?: any,
+    data?: Record<string, unknown>,
   ) {
     if (!this.dbJobId) return;
 

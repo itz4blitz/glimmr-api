@@ -30,9 +30,9 @@ export class RequestContextMiddleware implements NestMiddleware {
       this.setResponseHeaders(res, requestId);
 
       // Extract user context from headers
-      const userAgent = req.headers["user-agent"];
-      const apiKey = req.headers["x-api-key"] as string;
-      const contentLength = req.headers["content-length"];
+      const _userAgent = req.headers["user-agent"];
+      const _apiKey = req.headers["x-api-key"] as string;
+      const _contentLength = req.headers["content-length"];
 
       // Store context for this request (no need to assign to logger)
       // The context will be automatically included via pinoHttp customProps
@@ -45,13 +45,13 @@ export class RequestContextMiddleware implements NestMiddleware {
       this.setupResponseLogging(req, res, startTime);
 
       next();
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Error in request context middleware",
-        error: error.message,
-        stack: error.stack,
+        error: (_error as Error).message,
+        stack: (_error as Error).stack,
       });
-      next(error);
+      next(_error);
     }
   }
 
@@ -126,12 +126,12 @@ export class RequestContextMiddleware implements NestMiddleware {
     startTime: number,
   ): void {
     const originalEnd = res.end.bind(res);
-    const logger = this.logger;
+    const _logger = this.logger;
 
     res.end = function (
       this: Response,
-      chunk?: any,
-      encoding?: any,
+      chunk?: unknown,
+      encoding?: BufferEncoding | (() => void),
       cb?: () => void,
     ): Response {
       try {
@@ -154,35 +154,35 @@ export class RequestContextMiddleware implements NestMiddleware {
 
         // Log based on response characteristics
         if (statusCode >= 500) {
-          logger.error({
+          _logger.error({
             msg: "Request completed with server error",
             ...logData,
           });
         } else if (statusCode >= 400) {
-          logger.warn({
+          _logger.warn({
             msg: "Request completed with client error",
             ...logData,
           });
         } else if (responseTime > 2000) {
-          logger.warn({
+          _logger.warn({
             msg: "Slow request detected",
             ...logData,
           });
         } else if (responseTime > 1000) {
-          logger.info({
+          _logger.info({
             msg: "Request completed (slow)",
             ...logData,
           });
         } else {
-          logger.debug({
+          _logger.debug({
             msg: "Request completed",
             ...logData,
           });
         }
-      } catch (error) {
-        logger.error({
+      } catch (_error) {
+        _logger.error({
           msg: "Error in response logging",
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
 

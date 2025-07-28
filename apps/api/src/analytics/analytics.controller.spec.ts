@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { HttpException, HttpStatus, ExecutionContext } from "@nestjs/common";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD, Reflector } from "@nestjs/core";
+import type { Request, Response } from "express";
 import { AnalyticsController } from "./analytics.controller";
 import { AnalyticsService } from "./analytics.service";
 import { CustomThrottlerGuard } from "../common/guards/custom-throttler.guard";
@@ -18,6 +19,7 @@ describe("AnalyticsController", () => {
     getPowerBIInfo: jest.fn(),
     exportData: jest.fn(),
     downloadExportData: jest.fn(),
+    streamExportData: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -294,6 +296,11 @@ describe("AnalyticsController", () => {
       mockExecutionContext = {
         getHandler: jest.fn(),
         getClass: jest.fn().mockReturnValue(AnalyticsController),
+        getArgs: jest.fn(),
+        getArgByIndex: jest.fn(),
+        switchToRpc: jest.fn(),
+        switchToWs: jest.fn(),
+        getType: jest.fn(),
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: jest.fn().mockReturnValue({
             ip: "127.0.0.1",
@@ -307,7 +314,7 @@ describe("AnalyticsController", () => {
             setHeader: jest.fn(),
           }),
         }),
-      } as any;
+      } as ExecutionContext;
     });
 
     it("should have expensive throttle limit on dashboard endpoint", () => {
@@ -315,11 +322,12 @@ describe("AnalyticsController", () => {
       mockExecutionContext.getHandler = jest.fn().mockReturnValue(handler);
 
       // Check if the @Throttle decorator is applied with expensive limits
-      const _throttleMetadata = reflector.get("throttle:limits", handler);
+      const throttleMetadata = reflector.get("throttle:limits", handler);
 
       // Since we're using @Throttle({ expensive: { limit: 10, ttl: 900000 } })
       // The metadata should contain the throttle configuration
       expect(handler).toBeDefined();
+      expect(throttleMetadata).toBeDefined();
     });
 
     it("should have expensive throttle limit on trends endpoint", () => {
@@ -464,8 +472,18 @@ describe("AnalyticsController", () => {
   });
 
   describe("Rate Limiting Behavior Simulation", () => {
-    let mockRequest: any;
-    let mockResponse: any;
+    let mockRequest: {
+      ip: string;
+      method: string;
+      path: string;
+      route: { path: string };
+      headers: Record<string, string>;
+      connection: { remoteAddress: string };
+      user: { id: string } | null;
+    };
+    let mockResponse: {
+      setHeader: jest.Mock;
+    };
     let mockContext: ExecutionContext;
 
     beforeEach(() => {
@@ -490,7 +508,12 @@ describe("AnalyticsController", () => {
         }),
         getHandler: jest.fn(),
         getClass: jest.fn(),
-      } as any;
+        getArgs: jest.fn(),
+        getArgByIndex: jest.fn(),
+        switchToRpc: jest.fn(),
+        switchToWs: jest.fn(),
+        getType: jest.fn(),
+      } as ExecutionContext;
     });
 
     it("should generate different keys for different users", () => {
@@ -537,7 +560,7 @@ describe("AnalyticsController", () => {
     it("should handle X-Forwarded-For header for proxy scenarios", () => {
       mockRequest.headers["x-forwarded-for"] = "192.168.1.1, 10.0.0.1";
 
-      const clientId = throttlerGuard["getClientId"](mockRequest);
+      const clientId = throttlerGuard["getClientId"](mockRequest as unknown as Request);
       expect(clientId).toBe("ip:192.168.1.1");
     });
   });
@@ -557,7 +580,7 @@ describe("AnalyticsController", () => {
       mockAnalyticsService.getPricingTrends.mockResolvedValue([]);
 
       // Test with potentially malicious input
-      const _result = await controller.getPricingTrends({
+      await controller.getPricingTrends({
         service: '<script>alert("xss")</script>',
         state: "DROP TABLE users;",
         period: "../../etc/passwd",
@@ -1104,7 +1127,14 @@ describe("AnalyticsController", () => {
   });
 
   describe("downloadExportData", () => {
-    let mockResponse: any;
+    let mockResponse: {
+      setHeader: jest.Mock;
+      write: jest.Mock;
+      end: jest.Mock;
+      status: jest.Mock;
+      json: jest.Mock;
+      headersSent: boolean;
+    };
 
     beforeEach(() => {
       mockResponse = {
@@ -1121,7 +1151,7 @@ describe("AnalyticsController", () => {
       const query = {};
       mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.downloadExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse as unknown as Response);
 
       expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(
         query,
@@ -1137,7 +1167,7 @@ describe("AnalyticsController", () => {
       };
       mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.downloadExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse as unknown as Response);
 
       expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(
         query,
@@ -1152,7 +1182,7 @@ describe("AnalyticsController", () => {
         const query = { format: "json", dataset };
         mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-        await controller.downloadExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse as unknown as Response);
 
         expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(
           query,
@@ -1167,7 +1197,7 @@ describe("AnalyticsController", () => {
       mockAnalyticsService.downloadExportData.mockRejectedValue(error);
 
       await expect(
-        controller.downloadExportData(query, mockResponse),
+        controller.downloadExportData(query, mockResponse as unknown as Response),
       ).rejects.toThrow(HttpException);
     });
 
@@ -1179,11 +1209,11 @@ describe("AnalyticsController", () => {
       );
 
       await expect(
-        controller.downloadExportData(query, mockResponse),
+        controller.downloadExportData(query, mockResponse as unknown as Response),
       ).rejects.toThrow(HttpException);
 
       try {
-        await controller.downloadExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse as unknown as Response);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
@@ -1201,11 +1231,11 @@ describe("AnalyticsController", () => {
       mockAnalyticsService.downloadExportData.mockRejectedValue(otherError);
 
       await expect(
-        controller.downloadExportData(query, mockResponse),
+        controller.downloadExportData(query, mockResponse as unknown as Response),
       ).rejects.toThrow(HttpException);
 
       try {
-        await controller.downloadExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse as unknown as Response);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -1223,11 +1253,11 @@ describe("AnalyticsController", () => {
       mockAnalyticsService.downloadExportData.mockRejectedValue(networkError);
 
       await expect(
-        controller.downloadExportData(query, mockResponse),
+        controller.downloadExportData(query, mockResponse as unknown as Response),
       ).rejects.toThrow(HttpException);
 
       try {
-        await controller.downloadExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse as unknown as Response);
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
@@ -1241,7 +1271,7 @@ describe("AnalyticsController", () => {
         const query = { format: "json", dataset: "hospitals", limit };
         mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-        await controller.downloadExportData(query, mockResponse);
+        await controller.downloadExportData(query, mockResponse as unknown as Response);
 
         expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(
           query,
@@ -1254,7 +1284,7 @@ describe("AnalyticsController", () => {
       const query = {};
       mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.downloadExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse as unknown as Response);
 
       expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(
         query,
@@ -1270,7 +1300,7 @@ describe("AnalyticsController", () => {
       };
       mockAnalyticsService.downloadExportData.mockResolvedValue(undefined);
 
-      await controller.downloadExportData(query, mockResponse);
+      await controller.downloadExportData(query, mockResponse as unknown as Response);
 
       expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledTimes(1);
       expect(mockAnalyticsService.downloadExportData).toHaveBeenCalledWith(

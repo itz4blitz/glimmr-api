@@ -408,7 +408,6 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
 
   const handleResetLogs = async (retryCount = 0) => {
     setIsResetting(true);
-    let shouldRetry = false;
 
     try {
       const response = await apiClient.delete("/jobs/logs/reset");

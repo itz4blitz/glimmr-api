@@ -8,7 +8,6 @@ import { AuthService } from "../auth.service";
 describe("BullBoardAuthMiddleware", () => {
   let middleware: BullBoardAuthMiddleware;
   let jwtService: jest.Mocked<JwtService>;
-  let _configService: jest.Mocked<ConfigService>;
   let authService: jest.Mocked<AuthService>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
@@ -41,7 +40,6 @@ describe("BullBoardAuthMiddleware", () => {
 
     middleware = module.get<BullBoardAuthMiddleware>(BullBoardAuthMiddleware);
     jwtService = module.get(JwtService);
-    configService = module.get(ConfigService);
     authService = module.get(AuthService);
 
     mockRequest = {
@@ -91,7 +89,7 @@ describe("BullBoardAuthMiddleware", () => {
         "x-api-key": "gapi_admin123",
       };
 
-      authService.validateApiKey.mockResolvedValue(mockUser as any);
+      authService.validateApiKey.mockResolvedValue(mockUser);
 
       await middleware.use(
         mockRequest as Request,
@@ -142,7 +140,7 @@ describe("BullBoardAuthMiddleware", () => {
         "x-api-key": "gapi_user123",
       };
 
-      authService.validateApiKey.mockResolvedValue(mockUser as any);
+      authService.validateApiKey.mockResolvedValue(mockUser);
 
       await middleware.use(
         mockRequest as Request,
@@ -279,7 +277,7 @@ describe("BullBoardAuthMiddleware", () => {
         authorization: [
           "Bearer valid.jwt.token",
           "Bearer another.token",
-        ] as any,
+        ] as unknown as string,
       };
 
       jwtService.verify.mockReturnValue(mockPayload);
@@ -302,10 +300,10 @@ describe("BullBoardAuthMiddleware", () => {
       };
 
       mockRequest.headers = {
-        "x-api-key": ["gapi_admin123", "gapi_another"] as any,
+        "x-api-key": ["gapi_admin123", "gapi_another"] as unknown as string,
       };
 
-      authService.validateApiKey.mockResolvedValue(mockUser as any);
+      authService.validateApiKey.mockResolvedValue(mockUser);
 
       await middleware.use(
         mockRequest as Request,

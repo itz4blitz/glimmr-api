@@ -29,6 +29,9 @@ jest.mock("cron", () => ({
   })),
 }));
 
+// Type for service with private methods - using any to avoid intersection issues
+type JobSchedulingServiceWithPrivate = any;
+
 describe("JobSchedulingService", () => {
   let service: JobSchedulingService;
   let databaseService: DatabaseService;
@@ -149,12 +152,13 @@ describe("JobSchedulingService", () => {
           },
         },
         {
-          provide: PinoLogger,
+          provide: `PinoLogger:${JobSchedulingService.name}`,
           useValue: {
             info: jest.fn(),
             error: jest.fn(),
             warn: jest.fn(),
             debug: jest.fn(),
+            setContext: jest.fn(),
           },
         },
         ...Object.entries(mockQueues).map(([name, queue]) => ({
@@ -176,8 +180,9 @@ describe("JobSchedulingService", () => {
   afterEach(() => {
     jest.clearAllMocks();
     // Clear any intervals
-    if ((service as any).scheduleCheckInterval) {
-      clearInterval((service as any).scheduleCheckInterval);
+    const serviceWithPrivate = service as JobSchedulingServiceWithPrivate;
+    if (serviceWithPrivate.scheduleCheckInterval) {
+      clearInterval(serviceWithPrivate.scheduleCheckInterval);
     }
   });
 
@@ -266,7 +271,7 @@ describe("JobSchedulingService", () => {
     });
 
     it("should start schedule if enabled", async () => {
-      const startScheduleSpy = jest.spyOn(service as any, "startSchedule");
+      const startScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "startSchedule");
 
       const createDto: CreateJobScheduleDto = {
         name: "Test Schedule",
@@ -283,7 +288,7 @@ describe("JobSchedulingService", () => {
     });
 
     it("should not start schedule if disabled", async () => {
-      const startScheduleSpy = jest.spyOn(service as any, "startSchedule");
+      const startScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "startSchedule");
 
       const createDto: CreateJobScheduleDto = {
         name: "Test Schedule",
@@ -434,7 +439,7 @@ describe("JobSchedulingService", () => {
     });
 
     it("should stop schedule when disabled", async () => {
-      const stopScheduleSpy = jest.spyOn(service as any, "stopSchedule");
+      const stopScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "stopSchedule");
       
       const updateDto: UpdateJobScheduleDto = {
         isEnabled: false,
@@ -455,7 +460,7 @@ describe("JobSchedulingService", () => {
     });
 
     it("should start schedule when enabled", async () => {
-      const startScheduleSpy = jest.spyOn(service as any, "startSchedule");
+      const startScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "startSchedule");
       
       // Mock existing schedule as disabled
       (databaseService.db.select as jest.Mock).mockReturnValue({
@@ -476,8 +481,8 @@ describe("JobSchedulingService", () => {
     });
 
     it("should restart schedule when timing changes", async () => {
-      const stopScheduleSpy = jest.spyOn(service as any, "stopSchedule");
-      const startScheduleSpy = jest.spyOn(service as any, "startSchedule");
+      const stopScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "stopSchedule");
+      const startScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "startSchedule");
 
       const updateDto: UpdateJobScheduleDto = {
         cronExpression: "0 4 * * *",
@@ -492,7 +497,7 @@ describe("JobSchedulingService", () => {
 
   describe("deleteSchedule", () => {
     it("should delete schedule successfully", async () => {
-      const stopScheduleSpy = jest.spyOn(service as any, "stopSchedule");
+      const stopScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "stopSchedule");
 
       const result = await service.deleteSchedule("schedule-1");
 
@@ -550,7 +555,7 @@ describe("JobSchedulingService", () => {
 
     it("should indicate active schedules", async () => {
       // Add schedule to active map
-      (service as any).activeSchedules.set("schedule-1", {});
+      (service as JobSchedulingServiceWithPrivate).activeSchedules.set("schedule-1", {});
 
       const result = await service.getSchedules();
 
@@ -659,7 +664,7 @@ describe("JobSchedulingService", () => {
     });
 
     it("should execute schedule immediately", async () => {
-      const executeScheduledJobSpy = jest.spyOn(service as any, "executeScheduledJob")
+      const executeScheduledJobSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "executeScheduledJob")
         .mockResolvedValue("job-123");
 
       const result = await service.runScheduleNow("schedule-1");
@@ -718,7 +723,7 @@ describe("JobSchedulingService", () => {
 
   describe("Schedule lifecycle", () => {
     it("should handle scheduled execution", async () => {
-      const executeScheduledJobSpy = jest.spyOn(service as any, "executeScheduledJob")
+      const executeScheduledJobSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "executeScheduledJob")
         .mockResolvedValue("job-123");
 
       // Mock schedule and template lookup
@@ -741,7 +746,7 @@ describe("JobSchedulingService", () => {
         }),
       });
 
-      await (service as any).handleScheduledExecution("schedule-1");
+      await (service as JobSchedulingServiceWithPrivate).handleScheduledExecution("schedule-1");
 
       expect(executeScheduledJobSpy).toHaveBeenCalled();
       expect(databaseService.db.update).toHaveBeenCalledWith(expect.anything());
@@ -754,10 +759,10 @@ describe("JobSchedulingService", () => {
     });
 
     it("should handle execution failures", async () => {
-      const handleScheduleFailureSpy = jest.spyOn(service as any, "handleScheduleFailure")
+      const handleScheduleFailureSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "handleScheduleFailure")
         .mockResolvedValue(undefined);
 
-      jest.spyOn(service as any, "executeScheduledJob")
+      jest.spyOn(service as JobSchedulingServiceWithPrivate, "executeScheduledJob")
         .mockRejectedValue(new Error("Execution failed"));
 
       // Mock schedule lookup
@@ -773,7 +778,7 @@ describe("JobSchedulingService", () => {
         }),
       });
 
-      await (service as any).handleScheduledExecution("schedule-1");
+      await (service as JobSchedulingServiceWithPrivate).handleScheduledExecution("schedule-1");
 
       expect(handleScheduleFailureSpy).toHaveBeenCalledWith(
         "schedule-1",
@@ -810,10 +815,10 @@ describe("JobSchedulingService", () => {
         }),
       });
 
-      const stopScheduleSpy = jest.spyOn(service as any, "stopSchedule")
+      const stopScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "stopSchedule")
         .mockImplementation(() => {});
 
-      await (service as any).handleScheduleFailure("schedule-1", new Error("Test error"));
+      await (service as JobSchedulingServiceWithPrivate).handleScheduleFailure("schedule-1", new Error("Test error"));
 
       // Should update failure count
       expect(databaseService.db.update).toHaveBeenCalledWith(expect.anything());
@@ -833,14 +838,14 @@ describe("JobSchedulingService", () => {
 
   describe("Module lifecycle", () => {
     it("should load active schedules on init", async () => {
-      const loadActiveSchedulesSpy = jest.spyOn(service as any, "loadActiveSchedules")
+      const loadActiveSchedulesSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "loadActiveSchedules")
         .mockResolvedValue(undefined);
 
       // Manually call onModuleInit
       await service.onModuleInit();
 
       expect(loadActiveSchedulesSpy).toHaveBeenCalled();
-      expect((service as any).scheduleCheckInterval).toBeDefined();
+      expect((service as JobSchedulingServiceWithPrivate).scheduleCheckInterval).toBeDefined();
     });
 
     it("should clean up on destroy", () => {
@@ -848,14 +853,14 @@ describe("JobSchedulingService", () => {
       const mockCronJob = {
         stop: jest.fn(),
       };
-      (service as any).activeSchedules.set("schedule-1", mockCronJob);
-      (service as any).scheduleCheckInterval = setInterval(() => {}, 60000);
+      (service as JobSchedulingServiceWithPrivate).activeSchedules.set("schedule-1", mockCronJob);
+      (service as JobSchedulingServiceWithPrivate).scheduleCheckInterval = setInterval(() => {}, 60000);
 
       service.onModuleDestroy();
 
       expect(mockCronJob.stop).toHaveBeenCalled();
       expect(schedulerRegistry.deleteCronJob).toHaveBeenCalledWith("schedule-1");
-      expect((service as any).activeSchedules.size).toBe(0);
+      expect((service as JobSchedulingServiceWithPrivate).activeSchedules.size).toBe(0);
     });
 
     it("should handle errors when stopping cron jobs on destroy", () => {
@@ -864,7 +869,7 @@ describe("JobSchedulingService", () => {
           throw new Error("Stop failed");
         }),
       };
-      (service as any).activeSchedules.set("schedule-1", mockCronJob);
+      (service as JobSchedulingServiceWithPrivate).activeSchedules.set("schedule-1", mockCronJob);
 
       // Should not throw
       expect(() => service.onModuleDestroy()).not.toThrow();
@@ -889,7 +894,7 @@ describe("JobSchedulingService", () => {
         },
       };
 
-      const jobId = await (service as any).executeScheduledJob(mockSchedule, mockTemplate);
+      const jobId = await (service as JobSchedulingServiceWithPrivate).executeScheduledJob(mockSchedule, mockTemplate);
 
       expect(mockQueues[QUEUE_NAMES.ANALYTICS_REFRESH].add).toHaveBeenCalledWith(
         expect.stringContaining("scheduled-analytics-refresh-"),
@@ -917,7 +922,7 @@ describe("JobSchedulingService", () => {
       };
 
       await expect(
-        (service as any).executeScheduledJob(mockSchedule, templateWithInvalidQueue),
+        (service as JobSchedulingServiceWithPrivate).executeScheduledJob(mockSchedule, templateWithInvalidQueue),
       ).rejects.toThrow("Queue not found: non-existent-queue");
     });
   });
@@ -935,10 +940,10 @@ describe("JobSchedulingService", () => {
         }),
       });
 
-      const startScheduleSpy = jest.spyOn(service as any, "startSchedule")
+      const startScheduleSpy = jest.spyOn(service as JobSchedulingServiceWithPrivate, "startSchedule")
         .mockResolvedValue(undefined);
 
-      await (service as any).checkScheduleUpdates();
+      await (service as JobSchedulingServiceWithPrivate).checkScheduleUpdates();
 
       expect(startScheduleSpy).toHaveBeenCalledWith(overdueSchedule);
       expect(logger.warn).toHaveBeenCalledWith({
@@ -954,7 +959,7 @@ describe("JobSchedulingService", () => {
       );
 
       // Should not throw
-      await expect((service as any).checkScheduleUpdates()).resolves.not.toThrow();
+      await expect((service as JobSchedulingServiceWithPrivate).checkScheduleUpdates()).resolves.not.toThrow();
 
       expect(logger.error).toHaveBeenCalledWith({
         msg: "Error checking schedule updates",
@@ -969,7 +974,7 @@ describe("JobSchedulingService", () => {
         throw new Error("Invalid timezone");
       });
 
-      const result = (service as any).calculateNextRunTime("0 2 * * *", "Invalid/Timezone");
+      const result = (service as JobSchedulingServiceWithPrivate).calculateNextRunTime("0 2 * * *", "Invalid/Timezone");
 
       // Should return a default time (1 hour from now)
       expect(result.getTime()).toBeGreaterThan(Date.now());
@@ -989,7 +994,7 @@ describe("JobSchedulingService", () => {
         timezone: undefined,
       };
 
-      await (service as any).startSchedule(scheduleNoTimezone);
+      await (service as JobSchedulingServiceWithPrivate).startSchedule(scheduleNoTimezone);
 
       expect(CronJob).toHaveBeenCalledWith(
         "0 2 * * *",
@@ -1003,7 +1008,7 @@ describe("JobSchedulingService", () => {
     it("should handle concurrent schedule executions", async () => {
       // Simulate multiple executions
       const promises = Array(5).fill(null).map(() => 
-        (service as any).handleScheduledExecution("schedule-1")
+        (service as JobSchedulingServiceWithPrivate).handleScheduledExecution("schedule-1")
       );
 
       // Mock responses
@@ -1019,7 +1024,7 @@ describe("JobSchedulingService", () => {
         }),
       });
 
-      jest.spyOn(service as any, "executeScheduledJob")
+      jest.spyOn(service as JobSchedulingServiceWithPrivate, "executeScheduledJob")
         .mockResolvedValue("job-123");
 
       (databaseService.db.update as jest.Mock).mockReturnValue({
@@ -1038,7 +1043,7 @@ describe("JobSchedulingService", () => {
         cronExpression: "* * * * *", // Every minute
       };
 
-      await (service as any).startSchedule(frequentSchedule);
+      await (service as JobSchedulingServiceWithPrivate).startSchedule(frequentSchedule);
 
       expect(CronJob).toHaveBeenCalledWith(
         "* * * * *",
@@ -1066,7 +1071,7 @@ describe("JobSchedulingService", () => {
         jobConfig: complexConfig,
       };
 
-      await (service as any).executeScheduledJob(scheduleWithComplexConfig, mockTemplate);
+      await (service as JobSchedulingServiceWithPrivate).executeScheduledJob(scheduleWithComplexConfig, mockTemplate);
 
       expect(mockQueues[QUEUE_NAMES.ANALYTICS_REFRESH].add).toHaveBeenCalledWith(
         expect.any(String),

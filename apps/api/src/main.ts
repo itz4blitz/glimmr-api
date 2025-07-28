@@ -91,11 +91,11 @@ async function bootstrap() {
   await app.listen(port, "0.0.0.0");
 
   // Use structured logging for startup messages
-  const logger = app.get(Logger);
+  const _logger = app.get(Logger);
   const docsPath = apiPrefix ? `${apiPrefix}/docs` : "docs";
   const healthPath = apiPrefix ? `${apiPrefix}/health` : "health";
 
-  logger.log(
+  _logger.log(
     {
       msg: "🚀 Glimmr API started successfully",
       port,
@@ -111,9 +111,9 @@ async function bootstrap() {
 bootstrap().catch((error) => {
   // Use console.error for bootstrap failures since logger may not be available
   console.error("❌ Failed to start Glimmr API:", {
-    error: error.message,
-    stack: error.stack,
+    error: (error as Error).message,
+    stack: (error as Error).stack,
     timestamp: new Date().toISOString(),
   });
-  process.exit(1);
+  throw new Error("Unhandled rejection - shutting down");
 });

@@ -2,11 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Activity,
-  
-  
   Search,
   User,
-  
   AlertCircle,
   CheckCircle2,
   XCircle,
@@ -19,7 +16,6 @@ import {
 import {
   Card,
   CardContent,
-  
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -103,11 +99,6 @@ export function ActivityDashboardPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("24h");
 
-  useEffect(() => {
-    loadActivities();
-    loadStats();
-  }, [page, actionFilter, resourceFilter, statusFilter, timeFilter, loadActivities]);
-
   const loadActivities = useCallback(async () => {
     try {
       setLoading(true);
@@ -130,7 +121,8 @@ export function ActivityDashboardPage() {
       setActivities(response.data.activities || []);
       setTotal(response.data.total || 0);
       setTotalPages(response.data.totalPages || 0);
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to fetch activity data:', error);
       toast.error("Failed to load activities");
     } finally {
       setLoading(false);
@@ -141,10 +133,16 @@ export function ActivityDashboardPage() {
     try {
       const response = await apiClient.get("/api/v1/activity/stats");
       setStats(response.data);
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to fetch activity data:', error);
       // Silently fail for stats loading
     }
   };
+
+  useEffect(() => {
+    loadActivities();
+    loadStats();
+  }, [page, actionFilter, resourceFilter, statusFilter, timeFilter, loadActivities]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -176,7 +174,8 @@ export function ActivityDashboardPage() {
       link.remove();
 
       toast.success("Activity logs exported successfully");
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to fetch activity data:', error);
       toast.error("Failed to export activity logs");
     }
   };
@@ -490,6 +489,20 @@ export function ActivityDashboardPage() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => {
+                                  // Show activity details in a toast for now
+                                  toast.info(
+                                    <div className="space-y-2">
+                                      <p className="font-semibold">Activity Details</p>
+                                      <p className="text-sm">ID: {activity.id}</p>
+                                      <p className="text-sm">Action: {activity.action}</p>
+                                      <p className="text-sm">Resource: {activity.resourceType} ({activity.resourceId})</p>
+                                      <p className="text-sm">Status: {activity.success ? 'Success' : 'Failed'}</p>
+                                      {activity.errorMessage && (
+                                        <p className="text-sm text-red-500">Error: {activity.errorMessage}</p>
+                                      )}
+                                    </div>,
+                                    { duration: 5000 }
+                                  );
                                 }}
                               >
                                 View details
@@ -497,6 +510,8 @@ export function ActivityDashboardPage() {
                               {activity.userId && (
                                 <DropdownMenuItem
                                   onClick={() => {
+                                    // Navigate to user profile
+                                    window.location.href = `/admin/users/${activity.userId}`;
                                   }}
                                 >
                                   View user

@@ -21,7 +21,7 @@ export class DashboardController {
     status: 200,
     description: "Dashboard statistics retrieved successfully",
   })
-  async getDashboardStats() {
+  getDashboardStats() {
     return this.dashboardService.getDashboardStats();
   }
 }

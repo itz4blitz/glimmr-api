@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { APP_GUARD } from "@nestjs/core";
+import { INestApplication, MiddlewareConsumer } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AppModule } from "./app.module";
@@ -12,9 +13,9 @@ import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 
 describe("AppModule - Rate Limiting Configuration", () => {
   let module: TestingModule;
-  let app: any;
+  let app: INestApplication;
   let configService: ConfigService;
-  let throttlerGuard: any;
+  let throttlerGuard: ThrottlerGuard;
 
   beforeEach(async () => {
     // Set up environment variables for testing
@@ -162,7 +163,7 @@ describe("AppModule - Rate Limiting Configuration", () => {
     it("should have both default and expensive throttlers configured", () => {
       // Verify that the throttler configurations are accessible
       // The exact internal structure depends on the ThrottlerModule implementation
-      const moduleRef = module as any;
+      const moduleRef = module as TestingModule;
       expect(moduleRef).toBeDefined();
     });
   });
@@ -364,7 +365,7 @@ describe("AppModule - Rate Limiting Configuration", () => {
         forRoutes: jest.fn().mockReturnThis(),
       };
 
-      appModule.configure(mockConsumer as any);
+      appModule.configure(mockConsumer as MiddlewareConsumer);
 
       // In test module, middleware is skipped for simplicity
       expect(mockConsumer.apply).not.toHaveBeenCalled();
@@ -566,8 +567,8 @@ describe("AppModule - Rate Limiting Configuration", () => {
     it("should serialize error properly", () => {
       const mockError = new Error("Test error");
       mockError.name = "TestError";
-      (mockError as any).code = "TEST_CODE";
-      (mockError as any).statusCode = 400;
+      (mockError as Error & { code?: string; statusCode?: number }).code = "TEST_CODE";
+      (mockError as Error & { code?: string; statusCode?: number }).statusCode = 400;
 
       const errSerializer = (err: any) => ({
         type: err.constructor.name,

@@ -1,7 +1,6 @@
-import { Injectable, Inject } from "@nestjs/common";
-import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Injectable } from "@nestjs/common";
 import { eq, and } from "drizzle-orm";
-import { users, User, NewUser } from "../database/schema/users";
+import { users, User } from "../database/schema/users";
 import { DatabaseService } from "../database/database.service";
 
 @Injectable()
@@ -18,7 +17,7 @@ export class UsersService {
       .from(users)
       .where(and(eq(users.id, id), eq(users.isActive, true)))
       .limit(1);
-    return (result[0] as User) || null;
+    return result[0] || null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -27,7 +26,7 @@ export class UsersService {
       .from(users)
       .where(and(eq(users.email, email), eq(users.isActive, true)))
       .limit(1);
-    return (result[0] as User) || null;
+    return result[0] || null;
   }
 
   async findByApiKey(apiKey: string): Promise<User | null> {
@@ -36,7 +35,7 @@ export class UsersService {
       .from(users)
       .where(and(eq(users.apiKey, apiKey), eq(users.isActive, true)))
       .limit(1);
-    return (result[0] as User) || null;
+    return result[0] || null;
   }
 
   async create(userData: {
@@ -48,7 +47,7 @@ export class UsersService {
     apiKey?: string;
   }): Promise<User> {
     const result = await this.db.insert(users).values(userData).returning();
-    return result[0] as User;
+    return result[0];
   }
 
   async updateApiKey(id: string, apiKey: string): Promise<User> {
@@ -60,7 +59,7 @@ export class UsersService {
       })
       .where(eq(users.id, id))
       .returning();
-    return result[0] as User;
+    return result[0];
   }
 
   async updateLastLogin(id: string): Promise<void> {
@@ -73,7 +72,7 @@ export class UsersService {
       .where(eq(users.id, id));
   }
 
-  async findAll(): Promise<User[]> {
+  findAll(): Promise<User[]> {
     return this.db.select().from(users).where(eq(users.isActive, true));
   }
 

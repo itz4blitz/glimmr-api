@@ -7,7 +7,6 @@ import { PinoLogger } from "nestjs-pino";
 
 describe("Analytics Streaming Integration", () => {
   let app: INestApplication;
-  let _databaseService: DatabaseService;
 
   // Mock database service with realistic data
   const mockDatabaseService = {
@@ -41,7 +40,7 @@ describe("Analytics Streaming Integration", () => {
     app = moduleFixture.createNestApplication();
     await app.init();
 
-    databaseService = moduleFixture.get<DatabaseService>(DatabaseService);
+    // Database service is mocked, no need to retrieve it
   });
 
   afterEach(async () => {

@@ -1,12 +1,10 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
+import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
+import { Job, Queue } from "bullmq";
 import { Injectable } from "@nestjs/common";
 import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
 import { QUEUE_NAMES } from "../queues/queue.config";
 import { PatientRightsAdvocateService } from "../../external-apis/patient-rights-advocate.service";
 import { DatabaseService } from "../../database/database.service";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import {
   priceTransparencyFiles,
   hospitals,
@@ -43,7 +41,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
   private async logToDatabase(
     level: "info" | "warning" | "error" | "success",
     message: string,
-    data?: any,
+    data?: unknown,
   ) {
     if (!this.dbJobId) return;
 
@@ -59,7 +57,17 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
     }
   }
 
-  async process(job: Job<PRAUnifiedScanJobData>): Promise<any> {
+  async process(job: Job<PRAUnifiedScanJobData>): Promise<{
+    scannedStates: number;
+    newHospitals: number;
+    updatedHospitals: number;
+    newFiles: number;
+    updatedFiles: number;
+    downloadJobsCreated: number;
+    errors: string[];
+    duration: number;
+    completedAt: string;
+  }> {
     const { forceRefresh = false, testMode = false, states = [] } = job.data;
     const startTime = Date.now();
 
@@ -181,16 +189,16 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
           this.logger.error({
             msg: "Error processing state",
             state,
-            error: error.message,
+            error: (error as Error).message,
           });
-          results.errors.push(`${state}: ${error.message}`);
+          results.errors.push(`${state}: ${(error as Error).message}`);
 
           await this.logToDatabase(
             "error",
-            `Failed to process ${state}: ${error.message}`,
+            `Failed to process ${state}: ${(error as Error).message}`,
             {
               state,
-              error: error.message,
+              error: (error as Error).message,
             },
           );
         }
@@ -207,7 +215,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
           } catch (err) {
             this.logger.warn({
               msg: "Failed to extend job lock",
-              error: err.message,
+              error: (err as Error).message,
             });
           }
         }
@@ -268,9 +276,9 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
     } catch (error) {
       const duration = Date.now() - startTime;
 
-      await this.logToDatabase("error", `Scan failed: ${error.message}`, {
-        error: error.message,
-        stack: error.stack,
+      await this.logToDatabase("error", `Scan failed: ${(error as Error).message}`, {
+        error: (error as Error).message,
+        stack: (error as Error).stack,
       });
 
       // Update job record as failed
@@ -281,7 +289,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
             status: "failed",
             completedAt: new Date(),
             duration,
-            errorMessage: error.message,
+            errorMessage: (error as Error).message,
             updatedAt: new Date(),
           })
           .where(eq(jobs.id, this.dbJobId));
@@ -290,8 +298,8 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
       this.logger.error({
         msg: "PRA unified scan failed",
         jobId: job.id,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
         duration,
       });
       throw error;
@@ -524,7 +532,21 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
     return results;
   }
 
-  private hasHospitalChanged(existing: any, updated: any): boolean {
+  private hasHospitalChanged(existing: typeof hospitals.$inferSelect, updated: {
+    name?: string;
+    address?: string;
+    city?: string;
+    zip?: string;
+    phone?: string;
+    url?: string;
+    ccn?: string;
+    id?: string;
+    state?: string;
+    beds?: string;
+    lat?: string | number;
+    long?: string | number;
+    files?: unknown[];
+  }): boolean {
     // Check key fields for changes
     const fieldsToCheck = [
       { existing: "name", updated: "name" },
@@ -542,7 +564,15 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
 
   private async processHospitalFiles(
     hospitalId: string,
-    files: any[],
+    files: Array<{
+      fileid?: string;
+      url: string;
+      filename: string;
+      filesuffix?: string;
+      size?: string;
+      retrieved?: string;
+      lastModified?: string;
+    }>,
     forceRefresh: boolean,
   ): Promise<{
     newFiles: number;
@@ -569,7 +599,15 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
     const downloadJobs: Array<{
       hospitalId: string;
       fileId: string;
-      file: any;
+      file: {
+        fileid?: string;
+        url: string;
+        filename: string;
+        filesuffix?: string;
+        size?: string;
+        retrieved?: string;
+        lastModified?: string;
+      };
     }> = [];
 
     for (const file of files) {
@@ -681,7 +719,15 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
   private async queueFileDownload(
     hospitalId: string,
     fileId: string,
-    fileData: any,
+    fileData: {
+      fileid?: string;
+      url: string;
+      filename: string;
+      filesuffix?: string;
+      size?: string;
+      retrieved?: string;
+      lastModified?: string;
+    },
   ): Promise<void> {
     await this.downloadQueue.add(
       `download-${fileId}`,

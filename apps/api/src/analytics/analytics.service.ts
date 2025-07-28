@@ -10,7 +10,7 @@ import {
   sql,
   countDistinct,
 } from "drizzle-orm";
-import { Response } from "express";
+import type { Response } from "express";
 import { DatabaseService } from "../database/database.service";
 import { analytics, prices, hospitals } from "../database/schema";
 
@@ -204,13 +204,13 @@ export class AnalyticsService {
             : null,
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate dashboard analytics",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getDashboardAnalytics",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -280,17 +280,17 @@ export class AnalyticsService {
           overallTrend: this.determineTrend(percentageChange),
           percentageChange: Math.abs(percentageChange),
           volatility: "moderate", // Could calculate actual volatility
-          seasonalPattern: "unknown", // Would need more sophisticated analysis
+          seasonalPattern: "not_analyzed", // Would need more sophisticated analysis
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate pricing trends",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getPricingTrends",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -385,13 +385,13 @@ export class AnalyticsService {
           documentation: "https://api.glimmr.health/docs#powerbi",
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate PowerBI information",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getPowerBIInfo",
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -485,7 +485,7 @@ export class AnalyticsService {
       }
 
       // Adjust size based on format
-      const formatMultipliers = {
+      const formatMultipliers: Record<string, number> = {
         json: 1.0,
         csv: 0.6,
         excel: 1.2,
@@ -546,6 +546,7 @@ export class AnalyticsService {
           : "Small export - ready for immediate processing.",
       };
 
+
       // Initialize progress tracking
       this.updateExportProgress(exportId, {
         exportId,
@@ -586,14 +587,14 @@ export class AnalyticsService {
       }
 
       return result;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to initiate data export",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "exportData",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -668,11 +669,11 @@ export class AnalyticsService {
           this.exportProgress.set(exportId, updatedProgress);
           return updatedProgress;
         }
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get job status",
           exportId,
-          error: error.message,
+          error: (_error as Error).message,
           operation: "getExportProgress",
         });
       }
@@ -691,7 +692,8 @@ export class AnalyticsService {
     const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
     let cleanedCount = 0;
 
-    for (const [exportId, progress] of this.exportProgress.entries()) {
+    const entries = Array.from(this.exportProgress.entries());
+    for (const [exportId, progress] of entries) {
       if (progress.createdAt < cutoffTime) {
         this.exportProgress.delete(exportId);
         cleanedCount++;
@@ -707,6 +709,17 @@ export class AnalyticsService {
     }
   }
 
+  async downloadExportData(
+    filters: {
+      format?: string;
+      dataset?: string;
+      limit?: number;
+    },
+    response: Response,
+  ): Promise<void> {
+    return this.streamExportData(filters, response);
+  }
+
   async streamExportData(
     filters: {
       format?: string;
@@ -714,7 +727,7 @@ export class AnalyticsService {
       limit?: number;
     },
     response: Response,
-  ) {
+  ): Promise<void> {
     const format = filters.format || "json";
     const dataset = filters.dataset || "hospitals";
     const limit = Math.min(filters.limit || 1000, 100000);
@@ -755,16 +768,16 @@ export class AnalyticsService {
         dataset,
         operation: "streamExportData",
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Streaming export failed",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "streamExportData",
       });
       if (!response.headersSent) {
         response.status(500).json({ error: "Export failed" });
       }
-      throw error;
+      throw _error;
     }
   }
 
@@ -917,7 +930,13 @@ export class AnalyticsService {
         .where(eq(hospitals.isActive, true))
         .limit(limit);
       if (hospitalData.length > 0) {
-        const worksheet = this.createWorksheet(hospitalData);
+        const serializedData = hospitalData.map(row => ({
+          ...row,
+          createdAt: row.createdAt?.toISOString(),
+          updatedAt: row.updatedAt?.toISOString(),
+          lastFileCheck: row.lastFileCheck?.toISOString(),
+        }));
+        const worksheet = this.createWorksheet(serializedData);
         workbook.SheetNames.push("Hospitals");
         workbook.Sheets["Hospitals"] = worksheet;
       }
@@ -930,7 +949,13 @@ export class AnalyticsService {
         .where(eq(prices.isActive, true))
         .limit(limit);
       if (priceData.length > 0) {
-        const worksheet = this.createWorksheet(priceData);
+        const serializedData = priceData.map(row => ({
+          ...row,
+          createdAt: row.createdAt?.toISOString(),
+          updatedAt: row.updatedAt?.toISOString(),
+          lastUpdated: row.lastUpdated?.toISOString(),
+        }));
+        const worksheet = this.createWorksheet(serializedData);
         workbook.SheetNames.push("Prices");
         workbook.Sheets["Prices"] = worksheet;
       }
@@ -939,7 +964,13 @@ export class AnalyticsService {
     if (dataset === "analytics" || dataset === "all") {
       const analyticsData = await db.select().from(analytics).limit(limit);
       if (analyticsData.length > 0) {
-        const worksheet = this.createWorksheet(analyticsData);
+        const serializedData = analyticsData.map(row => ({
+          ...row,
+          createdAt: row.createdAt?.toISOString(),
+          updatedAt: row.updatedAt?.toISOString(),
+          calculatedAt: row.calculatedAt?.toISOString(),
+        }));
+        const worksheet = this.createWorksheet(serializedData);
         workbook.SheetNames.push("Analytics");
         workbook.Sheets["Analytics"] = worksheet;
       }
@@ -951,7 +982,7 @@ export class AnalyticsService {
     response.end();
   }
 
-  private createWorksheet(data: Array<Record<string, unknown>>): XLSX.WorkSheet {
+  private createWorksheet(data: Array<Record<string, any>>): XLSX.WorkSheet {
     // Create a simple worksheet from array data
     const headers = Object.keys(data[0]);
     const wsData = [headers, ...data.map((row) => headers.map((h) => row[h]))];
@@ -1061,14 +1092,14 @@ export class AnalyticsService {
         filters,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to retrieve comprehensive metrics",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getComprehensiveMetrics",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -1193,14 +1224,14 @@ export class AnalyticsService {
         filters,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate price variance insights",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getPriceVarianceInsights",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -1222,14 +1253,14 @@ export class AnalyticsService {
         // Market-wide analysis
         return this.getMarketWideAnalysis(filters.state);
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate market position insights",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getMarketPositionInsights",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -1322,18 +1353,23 @@ export class AnalyticsService {
                 benchmarkMetrics.filter((m) => m.state).map((m) => m.state),
               ).size,
         },
-        interpretation: this.interpretBenchmarks(benchmarks),
+        interpretation: this.interpretBenchmarks({
+          position: 0,
+          percentBelow: 0,
+          percentAbove: 0,
+          avgDifference: 0,
+        }),
         filters,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate benchmarks",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getBenchmarks",
         filters,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -1405,13 +1441,13 @@ export class AnalyticsService {
         },
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to generate real-time metrics",
-        error: error.message,
+        error: (_error as Error).message,
         operation: "getRealTimeMetrics",
       });
-      throw error;
+      throw _error;
     }
   }
 

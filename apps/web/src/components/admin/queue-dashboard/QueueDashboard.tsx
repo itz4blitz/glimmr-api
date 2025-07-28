@@ -147,7 +147,8 @@ export function QueueDashboard({
       }));
       
       setQueues(transformedData);
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to fetch queue statistics:', error);
       toast.error("Failed to fetch queue statistics");
     } finally {
       setLoading(false);
@@ -189,7 +190,8 @@ export function QueueDashboard({
       link.remove();
       
       toast.success("Export completed successfully");
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to export queue statistics:', error);
       toast.error("Failed to export queue statistics");
     }
   };

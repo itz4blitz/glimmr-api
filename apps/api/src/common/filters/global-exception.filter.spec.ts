@@ -4,18 +4,47 @@ import { Request, Response } from "express";
 import { PinoLogger } from "nestjs-pino";
 import { GlobalExceptionFilter } from "./global-exception.filter";
 
+// Types for mock objects
+type MockPinoLogger = {
+  info: jest.Mock;
+  warn: jest.Mock;
+  error: jest.Mock;
+  debug: jest.Mock;
+};
+
+type MockRequest = Partial<Request> & {
+  url: string;
+  method: string;
+  headers: Record<string, string | string[] | undefined>;
+  ip: string;
+};
+
+type MockResponse = {
+  status: jest.Mock;
+  json: jest.Mock;
+};
+
+type MockArgumentsHost = {
+  switchToHttp: jest.Mock;
+  getArgs: jest.Mock;
+  getArgByIndex: jest.Mock;
+  switchToRpc: jest.Mock;
+  switchToWs: jest.Mock;
+  getType: jest.Mock;
+};
+
 describe("GlobalExceptionFilter", () => {
   let filter: GlobalExceptionFilter;
   let logger: PinoLogger;
 
-  const mockLogger = {
+  const mockLogger: MockPinoLogger = {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
   };
 
-  const mockRequest = {
+  const mockRequest: MockRequest = {
     url: "/api/v1/test",
     method: "GET",
     headers: {
@@ -25,21 +54,29 @@ describe("GlobalExceptionFilter", () => {
     ip: "127.0.0.1",
   };
 
-  const mockResponse = {
+  const mockResponse: MockResponse = {
     status: jest.fn().mockReturnThis(),
     json: jest.fn(),
   };
 
-  const mockArgumentsHost = {
+  const mockArgumentsHost: MockArgumentsHost = {
     switchToHttp: jest.fn().mockReturnValue({
       getResponse: jest.fn().mockReturnValue(mockResponse),
       getRequest: jest.fn().mockReturnValue(mockRequest),
     }),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
   };
 
   beforeEach(async () => {
-    filter = new GlobalExceptionFilter(mockLogger as any);
-    logger = mockLogger as any;
+    filter = new GlobalExceptionFilter(mockLogger as unknown as PinoLogger);
+    logger = mockLogger as unknown as PinoLogger;
+    
+    // Set NODE_ENV to test for consistent behavior
+    process.env.NODE_ENV = "test";
   });
 
   afterEach(() => {
@@ -53,7 +90,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -90,7 +127,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.UNPROCESSABLE_ENTITY,
@@ -124,7 +161,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -157,11 +194,12 @@ describe("GlobalExceptionFilter", () => {
     it("should handle non-HttpException errors", () => {
       const exception = new Error("Database connection failed");
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+      
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: "Internal server error",
@@ -190,7 +228,7 @@ describe("GlobalExceptionFilter", () => {
     it("should handle unknown exception types", () => {
       const exception = "String exception";
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -221,18 +259,23 @@ describe("GlobalExceptionFilter", () => {
     });
 
     it("should handle missing correlation ID", () => {
-      const mockRequestWithoutCorrelation = {
+      const mockRequestWithoutCorrelation: MockRequest = {
         ...mockRequest,
         headers: {
           "user-agent": "Mozilla/5.0 (Test Browser)",
         },
       };
 
-      const mockArgumentsHostWithoutCorrelation = {
+      const mockArgumentsHostWithoutCorrelation: MockArgumentsHost = {
         switchToHttp: jest.fn().mockReturnValue({
           getResponse: jest.fn().mockReturnValue(mockResponse),
           getRequest: jest.fn().mockReturnValue(mockRequestWithoutCorrelation),
         }),
+        getArgs: jest.fn(),
+        getArgByIndex: jest.fn(),
+        switchToRpc: jest.fn(),
+        switchToWs: jest.fn(),
+        getType: jest.fn(),
       };
 
       const exception = new HttpException(
@@ -240,7 +283,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockArgumentsHostWithoutCorrelation as any);
+      filter.catch(exception, mockArgumentsHostWithoutCorrelation as unknown as ArgumentsHost);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         {
@@ -263,7 +306,7 @@ describe("GlobalExceptionFilter", () => {
 
       const exception = new Error("Development error");
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -283,7 +326,7 @@ describe("GlobalExceptionFilter", () => {
 
       const exception = new Error("Production error");
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -299,7 +342,7 @@ describe("GlobalExceptionFilter", () => {
     it("should handle 300 level responses with info logging", () => {
       const exception = new HttpException("Multiple Choices", 300);
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(300);
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -320,44 +363,46 @@ describe("GlobalExceptionFilter", () => {
 
   describe("getErrorName", () => {
     it("should return correct error names for common status codes", () => {
-      expect((filter as any).getErrorName(HttpStatus.BAD_REQUEST)).toBe(
+      const filterWithPrivate = filter as any;
+      expect(filterWithPrivate.getErrorName(HttpStatus.BAD_REQUEST)).toBe(
         "Bad Request",
       );
-      expect((filter as any).getErrorName(HttpStatus.UNAUTHORIZED)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.UNAUTHORIZED)).toBe(
         "Unauthorized",
       );
-      expect((filter as any).getErrorName(HttpStatus.FORBIDDEN)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.FORBIDDEN)).toBe(
         "Forbidden",
       );
-      expect((filter as any).getErrorName(HttpStatus.NOT_FOUND)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.NOT_FOUND)).toBe(
         "Not Found",
       );
-      expect((filter as any).getErrorName(HttpStatus.CONFLICT)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.CONFLICT)).toBe(
         "Conflict",
       );
       expect(
-        (filter as any).getErrorName(HttpStatus.UNPROCESSABLE_ENTITY),
+        filterWithPrivate.getErrorName(HttpStatus.UNPROCESSABLE_ENTITY),
       ).toBe("Unprocessable Entity");
-      expect((filter as any).getErrorName(HttpStatus.TOO_MANY_REQUESTS)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.TOO_MANY_REQUESTS)).toBe(
         "Too Many Requests",
       );
       expect(
-        (filter as any).getErrorName(HttpStatus.INTERNAL_SERVER_ERROR),
+        filterWithPrivate.getErrorName(HttpStatus.INTERNAL_SERVER_ERROR),
       ).toBe("Internal Server Error");
-      expect((filter as any).getErrorName(HttpStatus.BAD_GATEWAY)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.BAD_GATEWAY)).toBe(
         "Bad Gateway",
       );
-      expect((filter as any).getErrorName(HttpStatus.SERVICE_UNAVAILABLE)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.SERVICE_UNAVAILABLE)).toBe(
         "Service Unavailable",
       );
-      expect((filter as any).getErrorName(HttpStatus.GATEWAY_TIMEOUT)).toBe(
+      expect(filterWithPrivate.getErrorName(HttpStatus.GATEWAY_TIMEOUT)).toBe(
         "Gateway Timeout",
       );
     });
 
     it('should return "Unknown Error" for unrecognized status codes', () => {
-      expect((filter as any).getErrorName(999)).toBe("Unknown Error");
-      expect((filter as any).getErrorName(123)).toBe("Unknown Error");
+      const filterWithPrivate = filter as any;
+      expect(filterWithPrivate.getErrorName(999)).toBe("Unknown Error");
+      expect(filterWithPrivate.getErrorName(123)).toBe("Unknown Error");
     });
   });
 
@@ -372,7 +417,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -391,7 +436,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -406,7 +451,7 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockArgumentsHost as any);
+      filter.catch(exception, mockArgumentsHost as unknown as ArgumentsHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({

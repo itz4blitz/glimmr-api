@@ -247,8 +247,9 @@ describe("HealthService", () => {
         },
       });
 
-      // Access private method via any
-      const result = await (service as any).checkDatabaseHealth();
+      // Access private method via type assertion
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkDatabaseHealth();
 
       expect(result.status).toBe("healthy");
       expect(result.details.duration).toBe(15);
@@ -259,7 +260,8 @@ describe("HealthService", () => {
       const dbError = new Error("Connection timeout");
       mockDatabaseService.healthCheck.mockRejectedValue(dbError);
 
-      const result = await (service as any).checkDatabaseHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkDatabaseHealth();
 
       expect(result.status).toBe("unhealthy");
       expect(result.error).toBe("Connection timeout");
@@ -277,7 +279,8 @@ describe("HealthService", () => {
       mockRedisClient.ping.mockResolvedValue("PONG");
       mockRedisClient.quit.mockResolvedValue("OK");
 
-      const result = await (service as any).checkRedisHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkRedisHealth();
 
       expect(result.status).toBe("healthy");
       expect(result.details.duration).toBeGreaterThanOrEqual(0);
@@ -295,7 +298,8 @@ describe("HealthService", () => {
       mockRedisClient.ping.mockResolvedValue("PONG");
       mockRedisClient.quit.mockResolvedValue("OK");
 
-      const result = await (service as any).checkRedisHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkRedisHealth();
 
       expect(result.status).toBe("healthy");
       expect(result.details.url).toBe("redis://user:***@localhost:6379");
@@ -306,7 +310,8 @@ describe("HealthService", () => {
       const redisError = new Error("ECONNREFUSED");
       mockRedisClient.connect.mockRejectedValue(redisError);
 
-      const result = await (service as any).checkRedisHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkRedisHealth();
 
       expect(result.status).toBe("unhealthy");
       expect(result.error).toBe("ECONNREFUSED");
@@ -322,7 +327,8 @@ describe("HealthService", () => {
       const pingError = new Error("Ping timeout");
       mockRedisClient.ping.mockRejectedValue(pingError);
 
-      const result = await (service as any).checkRedisHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkRedisHealth();
 
       expect(result.status).toBe("unhealthy");
       expect(result.error).toBe("Ping timeout");
@@ -334,7 +340,8 @@ describe("HealthService", () => {
       mockRedisClient.ping.mockResolvedValue("PONG");
       mockRedisClient.quit.mockRejectedValue(new Error("Quit failed"));
 
-      const result = await (service as any).checkRedisHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkRedisHealth();
 
       expect(result.status).toBe("healthy");
       expect(result.details.duration).toBeGreaterThanOrEqual(0);
@@ -343,7 +350,8 @@ describe("HealthService", () => {
     it("should return unhealthy when Redis URL is not configured", async () => {
       mockConfigService.get.mockReturnValue(undefined);
 
-      const result = await (service as any).checkRedisHealth();
+      const serviceWithPrivate = service as any;
+      const result = await serviceWithPrivate.checkRedisHealth();
 
       expect(result.status).toBe("unhealthy");
       expect(result.error).toBe("Redis URL not configured");
@@ -366,7 +374,8 @@ describe("HealthService", () => {
         { rss: jest.fn() },
       );
 
-      const result = (service as any).getMemoryUsage();
+      const serviceWithPrivate = service as any;
+      const result = serviceWithPrivate.getMemoryUsage();
 
       expect(result).toEqual({
         rss: "100MB",
@@ -393,7 +402,8 @@ describe("HealthService", () => {
         { rss: jest.fn() },
       );
 
-      const result = (service as any).getMemoryUsage();
+      const serviceWithPrivate = service as any;
+      const result = serviceWithPrivate.getMemoryUsage();
 
       expect(result).toEqual({
         rss: "150MB",

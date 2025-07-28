@@ -4,9 +4,18 @@ import { Queue } from "bullmq";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { DatabaseService } from "../../../database/database.service";
 import { jobs, jobLogs } from "../../../database/schema";
-import { sql, eq, and, gte, lte, desc, asc, count } from "drizzle-orm";
+import { sql, eq, and, gte, lte, desc as _desc, asc, count } from "drizzle-orm";
 import { QUEUE_NAMES } from "../../queues/queue.config";
 import { JobAnalyticsQueryDto } from "../../dto/job-operations.dto";
+
+interface JobFailure {
+  id: string;
+  jobName: string;
+  queue: string;
+  errorMessage: string | null;
+  completedAt: Date | null;
+  duration: number | null;
+}
 
 @Injectable()
 export class JobAnalyticsService {
@@ -71,12 +80,12 @@ export class JobAnalyticsService {
         summary: this.calculateSummary(trends),
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get success trends",
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -105,12 +114,12 @@ export class JobAnalyticsService {
         aggregated,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get performance metrics",
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -145,12 +154,12 @@ export class JobAnalyticsService {
         analysis,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get failure analysis",
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -179,12 +188,12 @@ export class JobAnalyticsService {
         alerts: this.checkResourceAlerts(filteredUsage),
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get resource usage",
-        error: error.message,
+        error: (_error as Error).message,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -283,11 +292,11 @@ export class JobAnalyticsService {
             duration: job.finishedOn - job.processedOn,
           })),
         );
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get realtime data for queue",
           queue: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -296,8 +305,18 @@ export class JobAnalyticsService {
   }
 
   private mergeSuccessTrends(
-    historical: any[],
-    realtime: any[],
+    historical: Array<{
+      queue: string;
+      status: string;
+      completedAt: Date | null;
+      duration: number | null;
+    }>,
+    realtime: Array<{
+      queue: string;
+      status: string;
+      completedAt: Date;
+      duration: number;
+    }>,
     interval: string,
   ) {
     const combined = [...historical, ...realtime];
@@ -340,11 +359,14 @@ export class JobAnalyticsService {
       .map(group => ({
         ...group,
         successRate: group.total > 0 ? (group.completed / group.total) * 100 : 0,
-        byQueue: Object.entries(group.byQueue).map(([queue, stats]: [string, any]) => ({
-          queue,
-          ...stats,
-          successRate: stats.total > 0 ? (stats.completed / stats.total) * 100 : 0,
-        })),
+        byQueue: Object.entries(group.byQueue).map(([queue, stats]) => {
+          const queueStats = stats as { total: number; completed: number; failed: number };
+          return {
+            queue,
+            ...queueStats,
+            successRate: queueStats.total > 0 ? (queueStats.completed / queueStats.total) * 100 : 0,
+          };
+        }),
       }))
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }
@@ -367,7 +389,12 @@ export class JobAnalyticsService {
     return d.toISOString();
   }
 
-  private calculateSummary(trends: any[]) {
+  private calculateSummary(trends: Array<{
+    total: number;
+    completed: number;
+    failed: number;
+    successRate: number;
+  }>) {
     const total = trends.reduce((sum, t) => sum + t.total, 0);
     const completed = trends.reduce((sum, t) => sum + t.completed, 0);
     const failed = trends.reduce((sum, t) => sum + t.failed, 0);
@@ -381,7 +408,11 @@ export class JobAnalyticsService {
     };
   }
 
-  private calculateTrend(trends: any[]): "improving" | "stable" | "declining" {
+  private calculateTrend(trends: Array<{
+    total: number;
+    completed: number;
+    failed: number;
+  }>): "improving" | "stable" | "declining" {
     if (trends.length < 2) return "stable";
 
     const recentHalf = trends.slice(Math.floor(trends.length / 2));
@@ -397,7 +428,10 @@ export class JobAnalyticsService {
     return "stable";
   }
 
-  private averageSuccessRate(trends: any[]): number {
+  private averageSuccessRate(trends: Array<{
+    total: number;
+    completed: number;
+  }>): number {
     const total = trends.reduce((sum, t) => sum + t.total, 0);
     const completed = trends.reduce((sum, t) => sum + t.completed, 0);
     return total > 0 ? (completed / total) * 100 : 0;
@@ -447,11 +481,11 @@ export class JobAnalyticsService {
         waitingJobs: waiting.length,
         failureRate: (failed.length / (completed.length + failed.length)) * 100,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get queue performance metrics",
         queue: queueName,
-        error: error.message,
+        error: (_error as Error).message,
       });
       return {
         throughput: 0,
@@ -465,7 +499,16 @@ export class JobAnalyticsService {
     }
   }
 
-  private aggregatePerformanceMetrics(metrics: any[]) {
+  private aggregatePerformanceMetrics(metrics: Array<{
+    queue: string;
+    throughput: number;
+    avgProcessingTime: number;
+    minProcessingTime: number;
+    maxProcessingTime: number;
+    activeJobs: number;
+    waitingJobs: number;
+    failureRate: number;
+  }>) {
     const total = metrics.length;
     if (total === 0) return null;
 
@@ -541,11 +584,11 @@ export class JobAnalyticsService {
             duration: job.finishedOn - job.processedOn,
           })),
         );
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Failed to get queue failures",
           queue: name,
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -553,7 +596,7 @@ export class JobAnalyticsService {
     return failures;
   }
 
-  private groupFailuresByQueue(failures: any[]) {
+  private groupFailuresByQueue(failures: JobFailure[]) {
     const grouped = failures.reduce((acc, failure) => {
       if (!acc[failure.queue]) {
         acc[failure.queue] = { count: 0, reasons: {} };
@@ -566,17 +609,20 @@ export class JobAnalyticsService {
       return acc;
     }, {});
 
-    return Object.entries(grouped).map(([queue, data]: [string, any]) => ({
-      queue,
-      count: data.count,
-      topReasons: Object.entries(data.reasons)
-        .sort(([, a]: any, [, b]: any) => b - a)
-        .slice(0, 5)
-        .map(([reason, count]) => ({ reason, count })),
-    }));
+    return Object.entries(grouped).map(([queue, data]) => {
+      const queueData = data as { count: number; reasons: Record<string, number> };
+      return {
+        queue,
+        count: queueData.count,
+        topReasons: Object.entries(queueData.reasons)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 5)
+          .map(([reason, count]) => ({ reason, count })),
+      };
+    });
   }
 
-  private groupFailuresByReason(failures: any[]) {
+  private groupFailuresByReason(failures: JobFailure[]) {
     const grouped = failures.reduce((acc, failure) => {
       const reason = failure.errorMessage || "Unknown error";
       if (!acc[reason]) {
@@ -588,16 +634,19 @@ export class JobAnalyticsService {
     }, {});
 
     return Object.entries(grouped)
-      .map(([reason, data]: [string, any]) => ({
-        reason,
-        count: data.count,
-        queues: Object.entries(data.queues).map(([queue, count]) => ({ queue, count })),
-      }))
+      .map(([reason, data]) => {
+        const reasonData = data as { count: number; queues: Record<string, number> };
+        return {
+          reason,
+          count: reasonData.count,
+          queues: Object.entries(reasonData.queues).map(([queue, count]) => ({ queue, count })),
+        };
+      })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
   }
 
-  private groupFailuresByTime(failures: any[], timeRange: string) {
+  private groupFailuresByTime(failures: JobFailure[], timeRange: string) {
     const interval = this.getGroupByInterval(timeRange);
     const grouped = new Map();
 
@@ -611,7 +660,7 @@ export class JobAnalyticsService {
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }
 
-  private getTopFailingJobs(failures: any[]) {
+  private getTopFailingJobs(failures: JobFailure[]) {
     const jobFailures = failures.reduce((acc, failure) => {
       const key = `${failure.queue}:${failure.jobName}`;
       if (!acc[key]) {
@@ -621,12 +670,13 @@ export class JobAnalyticsService {
       return acc;
     }, {});
 
+    type JobFailureCount = { queue: string; jobName: string; count: number };
     return Object.values(jobFailures)
-      .sort((a: any, b: any) => b.count - a.count)
+      .sort((a, b) => (b as JobFailureCount).count - (a as JobFailureCount).count)
       .slice(0, 10);
   }
 
-  private generateFailureRecommendations(failures: any[]) {
+  private generateFailureRecommendations(failures: JobFailure[]) {
     const recommendations = [];
 
     // Check for timeout errors
@@ -659,7 +709,7 @@ export class JobAnalyticsService {
 
     // Check for repeated failures
     const jobFailureCounts = this.getTopFailingJobs(failures);
-    const repeatedFailures = jobFailureCounts.filter((j: any) => j.count > 5);
+    const repeatedFailures = jobFailureCounts.filter((j) => (j as { count: number }).count > 5);
     if (repeatedFailures.length > 0) {
       recommendations.push({
         type: "repeated",
@@ -759,10 +809,10 @@ export class JobAnalyticsService {
           total: 20, // Pool size
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to get database usage",
-        error: error.message,
+        error: (_error as Error).message,
       });
       return null;
     }
@@ -781,7 +831,7 @@ export class JobAnalyticsService {
             workers: workers.length,
             memory: (counts.active + counts.waiting) * 1024, // 1KB per job estimate
           };
-        } catch (error) {
+        } catch (_error) {
           return {
             queue: name,
             jobs: 0,
@@ -795,29 +845,32 @@ export class JobAnalyticsService {
     return usage;
   }
 
-  private checkResourceAlerts(usage: any) {
+  private checkResourceAlerts(usage: Record<string, unknown>) {
     const alerts = [];
 
     // CPU alerts
-    if (usage.cpu?.current > 80) {
+    const cpu = usage.cpu as { current?: number } | undefined;
+    if (cpu?.current && cpu.current > 80) {
       alerts.push({
         type: "cpu",
         severity: "high",
-        message: `CPU usage is high: ${usage.cpu.current.toFixed(1)}%`,
+        message: `CPU usage is high: ${cpu.current.toFixed(1)}%`,
       });
     }
 
     // Memory alerts
-    if (usage.memory?.currentPercentage > 85) {
+    const memory = usage.memory as { currentPercentage?: number } | undefined;
+    if (memory?.currentPercentage && memory.currentPercentage > 85) {
       alerts.push({
         type: "memory",
         severity: "critical",
-        message: `Memory usage is critical: ${usage.memory.currentPercentage.toFixed(1)}%`,
+        message: `Memory usage is critical: ${memory.currentPercentage.toFixed(1)}%`,
       });
     }
 
     // Redis alerts
-    if (usage.redis && usage.redis.memoryUsed / usage.redis.memoryMax > 0.9) {
+    const redis = usage.redis as { memoryUsed?: number; memoryMax?: number } | undefined;
+    if (redis?.memoryUsed && redis?.memoryMax && redis.memoryUsed / redis.memoryMax > 0.9) {
       alerts.push({
         type: "redis",
         severity: "high",
@@ -826,8 +879,9 @@ export class JobAnalyticsService {
     }
 
     // Queue alerts
-    if (usage.queues) {
-      const totalJobs = usage.queues.reduce((sum, q) => sum + q.jobs, 0);
+    const queues = usage.queues as Array<{ jobs: number }> | undefined;
+    if (queues) {
+      const totalJobs = queues.reduce((sum, q) => sum + q.jobs, 0);
       if (totalJobs > 10000) {
         alerts.push({
           type: "queue",

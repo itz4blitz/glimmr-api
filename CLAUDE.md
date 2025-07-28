@@ -463,3 +463,568 @@ docker exec glimmr-api node -e "console.log(require('./package.json').version)"
 docker exec glimmr-api node -e "console.log(process.memoryUsage())"
 docker exec glimmr-api top -n 1
 ```
+
+## Domain Context
+
+### Healthcare Price Transparency
+
+#### Regulations & Compliance
+- **CMS Hospital Price Transparency Rule**: Requires hospitals to publish pricing in machine-readable formats
+- **Standard Charge Files**: Must include gross charges, discounted cash prices, payer-specific negotiated charges
+- **Update Frequency**: Files must be updated at least annually, but hospitals may update more frequently
+- **Accessibility**: Files must be easily accessible without barriers (no login requirements)
+
+#### File Formats & Standards
+- **CSV Format**: Most common, but inconsistent column naming and structure across hospitals
+- **JSON Format**: Usually follows CMS schema but with hospital-specific variations
+- **XML Format**: Less common, often legacy systems
+- **Common Issues**:
+  - Inconsistent date formats (MM/DD/YYYY vs YYYY-MM-DD)
+  - Mixed encoding (UTF-8, ISO-8859-1, Windows-1252)
+  - Nested price structures in flat CSV files
+  - Missing or invalid CPT/DRG codes
+  - Payer names vary wildly (e.g., "BCBS", "Blue Cross", "BlueCross Blue Shield")
+
+#### Data Quality Challenges
+- **Duplicate Entries**: Same service with slightly different descriptions
+- **Price Outliers**: $0.01 placeholder prices or $999,999 max values
+- **Missing Data**: Blank negotiated rates, missing payer information
+- **Code Mismatches**: Invalid CPT codes, proprietary hospital codes
+- **Rate Structures**: Complex tiered pricing, percentage of charges
+- **File Size**: Files can be 1GB+ requiring streaming parsers
+
+#### PRA API Integration
+- **Patient Rights Advocate API**: Aggregates hospital transparency URLs
+- **Rate Limiting**: 100 requests per minute, implement exponential backoff
+- **Data Structure**: Returns hospital metadata with file URLs
+- **Change Detection**: Compare lastUpdated timestamps and file hashes
+- **State Coverage**: Not all states fully represented, data quality varies
+
+## Critical Paths
+
+### Job Processing Pipeline
+
+#### 1. Hospital Discovery Flow
+```
+pra-unified-scan
+├── Fetches hospitals from PRA API by state
+├── Compares with existing hospital records
+├── Detects new hospitals and file URL changes
+└── Triggers → pra-file-download (for each changed file)
+```
+
+#### 2. File Download & Processing
+```
+pra-file-download
+├── Downloads transparency files to MinIO/S3
+├── Validates file format and size
+├── Calculates file hash for change detection
+├── Updates price_transparency_files table
+└── Triggers → price-file-parser
+```
+
+#### 3. Price Extraction & Normalization
+```
+price-file-parser
+├── Detects file format (CSV/JSON/XML)
+├── Streams large files in chunks
+├── Extracts price records with validation
+├── Handles format-specific parsing logic
+└── Triggers → price-normalization
+
+price-normalization
+├── Standardizes payer names
+├── Validates CPT/DRG codes
+├── Normalizes price amounts
+├── Deduplicates records
+└── Triggers → analytics-refresh
+```
+
+#### 4. Analytics Generation
+```
+analytics-refresh
+├── Aggregates prices by service, payer, geography
+├── Calculates statistical measures
+├── Updates materialized views
+└── Emits WebSocket events for real-time updates
+```
+
+### BullMQ Job Dependencies
+- Jobs use `parent-child` relationships for workflow orchestration
+- Failed jobs trigger exponential backoff: 1s, 2s, 4s, 8s, 16s
+- Dead letter queue after 5 failed attempts
+- Progress reporting every 100 records for large files
+- Graceful shutdown handling for long-running jobs
+
+### Drizzle ORM Patterns
+```typescript
+// Always use transactions for multi-table operations
+await db.transaction(async (tx) => {
+  const hospital = await tx.insert(hospitals).values({...}).returning();
+  await tx.insert(priceTransparencyFiles).values({
+    hospitalId: hospital[0].id,
+    ...
+  });
+});
+
+// Use proper indexes from schema definitions
+// Example: Search by hospital name uses GIN index
+const results = await db.select()
+  .from(hospitals)
+  .where(sql`name_tsvector @@ plainto_tsquery('english', ${searchTerm})`);
+```
+
+### WebSocket Event Flows
+```typescript
+// Job status updates
+@WebSocketGateway()
+export class JobsGateway {
+  // Emitted events:
+  // 'job:started' - When job begins processing
+  // 'job:progress' - Progress updates (0-100%)
+  // 'job:completed' - Job finished successfully
+  // 'job:failed' - Job failed with error
+  // 'queue:stats' - Queue statistics update
+}
+```
+
+## Code Generation Rules
+
+### Work File-by-File, Never Bulk Automate
+- **NEVER** create shell scripts, JavaScript files, or any automation scripts to make bulk changes
+- **NEVER** use `find`, `sed`, `awk`, or similar tools to modify multiple files at once
+- **ALWAYS** work on one file at a time using the Read, Edit, and MultiEdit tools
+- **ALWAYS** understand the context before making changes
+- **WHY**: Bulk automation creates errors, breaks functionality, and bypasses type safety
+
+### NestJS Module Pattern
+```typescript
+// Always create three files for each module:
+// 1. module.ts - Module definition with imports/exports
+@Module({
+  imports: [DatabaseModule, RedisModule],
+  controllers: [HospitalController],
+  providers: [HospitalService],
+  exports: [HospitalService],
+})
+export class HospitalModule {}
+
+// 2. service.ts - Business logic with dependency injection
+@Injectable()
+export class HospitalService {
+  constructor(
+    @Inject('DB') private db: Database,
+    private readonly logger: PinoLogger,
+  ) {}
+}
+
+// 3. controller.ts - HTTP endpoints with Swagger docs
+@ApiTags('hospitals')
+@Controller('hospitals')
+export class HospitalController {
+  constructor(private readonly hospitalService: HospitalService) {}
+}
+```
+
+### Drizzle Schema Usage
+```typescript
+// Always import from centralized schema files
+import { hospitals, prices, priceTransparencyFiles } from '@/database/schema';
+
+// Use proper types from schema
+import type { Hospital, Price, NewHospital } from '@/database/schema';
+
+// Reference relations for joins
+import { hospitalsRelations } from '@/database/schema/hospitals';
+```
+
+### React Component Patterns
+```typescript
+// Use existing UI components from shadcn/ui
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+
+// Follow established patterns for forms
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+// Use our custom hooks
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
+```
+
+### Error Handling with PinoLogger
+```typescript
+// Always inject and use PinoLogger
+constructor(private readonly logger: PinoLogger) {
+  logger.setContext(HospitalService.name);
+}
+
+// Log with appropriate context
+this.logger.error(
+  { err: error, hospitalId, context: 'file-download' },
+  'Failed to download transparency file'
+);
+
+// Use try-catch with proper error types
+try {
+  // operation
+} catch (error) {
+  if (error instanceof ValidationError) {
+    throw new BadRequestException(error.message);
+  }
+  this.logger.error({ err: error }, 'Unexpected error');
+  throw new InternalServerErrorException();
+}
+```
+
+### Job Processing Patterns
+```typescript
+// Always implement progress tracking
+async process(job: Job<PriceFileData>) {
+  const totalRecords = await this.countRecords(job.data.filePath);
+  let processed = 0;
+
+  for await (const batch of this.streamBatches(job.data.filePath)) {
+    await this.processBatch(batch);
+    processed += batch.length;
+    
+    // Report progress every 100 records
+    if (processed % 100 === 0) {
+      await job.updateProgress((processed / totalRecords) * 100);
+    }
+  }
+}
+
+// Implement proper cleanup
+finally {
+  await this.cleanup(job.data.tempFiles);
+}
+```
+
+## Anti-Patterns to Avoid
+
+### Automation Scripts
+```bash
+# ❌ NEVER create shell scripts to automate changes across multiple files
+# This creates tons of errors and bypasses proper type checking
+cat > fix-all-types.sh << 'EOF'
+for file in $(find . -name "*.ts"); do
+  sed -i 's/as any//g' "$file"
+done
+EOF
+
+# ❌ NEVER create JS/TS scripts to bulk modify files
+// fix-all-any-types.js
+const files = glob.sync('**/*.ts');
+files.forEach(file => {
+  const content = fs.readFileSync(file, 'utf8');
+  fs.writeFileSync(file, content.replace(/as any/g, ''));
+});
+
+# ✅ ALWAYS work file by file using the provided tools
+# Use Read to understand the file
+# Use Edit/MultiEdit to make precise, context-aware changes
+# This ensures proper type checking and avoids breaking code
+```
+
+**Why this matters:**
+- Automated scripts can't understand context and make incorrect replacements
+- Bulk operations bypass TypeScript's type checking
+- Scripts often create syntax errors or break functionality
+- Working file-by-file ensures each change is validated and correct
+- The tools provided (Read, Edit, MultiEdit, Grep, etc.) are designed for safe, precise operations
+
+### TypeScript
+```typescript
+// ❌ NEVER use double type assertion - this is a code smell that bypasses type safety
+const value = someArray as unknown as string; 
+
+// ✅ Fix the underlying type issue instead
+const value = someArray[0]; // If you need first element
+const value = someArray.join(','); // If you need string representation
+
+// ❌ NEVER use as any when proper types can be defined
+authService.validateApiKey.mockResolvedValue(mockUser as any);
+
+// ✅ Use proper types or fix the mock setup
+authService.validateApiKey.mockResolvedValue(mockUser);
+
+// ❌ NEVER bypass TypeScript with multiple assertions
+const headers = {
+  authorization: ["Bearer token"] as any,
+};
+
+// ✅ Create proper mock types for tests
+interface MockHeaders {
+  [key: string]: string | string[] | undefined;
+}
+const headers: MockHeaders = {
+  authorization: ["Bearer token"],
+};
+```
+
+### Storage Layer
+```typescript
+// ❌ NEVER bypass storage abstraction
+import * as fs from 'fs';
+fs.writeFileSync('/tmp/file.csv', data);
+
+// ✅ ALWAYS use StorageService
+await this.storageService.uploadFile(buffer, 'hospitals/file.csv');
+```
+
+### Database Schemas
+```typescript
+// ❌ NEVER create duplicate schemas
+const myHospitalsTable = pgTable('my_hospitals', {...});
+
+// ✅ ALWAYS extend existing schemas
+import { hospitals } from '@/database/schema/hospitals';
+// Use the existing schema or propose modifications
+```
+
+### Redis Operations
+```typescript
+// ❌ NEVER use Redis directly for job management
+const redis = new Redis();
+await redis.lpush('my-queue', jobData);
+
+// ✅ ALWAYS use BullMQ
+await this.myQueue.add('job-name', jobData, {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 1000 }
+});
+```
+
+### Authentication
+```typescript
+// ❌ NEVER implement auth logic outside auth module
+const user = await db.select().from(users).where(eq(users.email, email));
+const isValid = await bcrypt.compare(password, user.password);
+
+// ✅ ALWAYS use AuthService
+const user = await this.authService.validateUser(email, password);
+const token = await this.authService.generateToken(user);
+```
+
+### File Processing
+```typescript
+// ❌ NEVER load entire file into memory
+const fileContent = fs.readFileSync(largeCsvFile, 'utf-8');
+const lines = fileContent.split('\n');
+
+// ✅ ALWAYS use streaming for large files
+import { pipeline } from 'stream/promises';
+import * as csv from 'csv-parser';
+
+await pipeline(
+  fs.createReadStream(largeCsvFile),
+  csv(),
+  new Transform({
+    objectMode: true,
+    transform: this.processRow.bind(this)
+  })
+);
+```
+
+## Testing Requirements
+
+### Service Method Testing
+```typescript
+// Every service method needs a test
+describe('HospitalService', () => {
+  let service: HospitalService;
+  let mockDb: jest.Mocked<Database>;
+
+  beforeEach(() => {
+    // Setup mocks
+  });
+
+  describe('findByState', () => {
+    it('should return hospitals for given state', async () => {
+      // Arrange
+      const mockHospitals = [{ id: 1, name: 'Test Hospital', state: 'CA' }];
+      mockDb.select.mockResolvedValue(mockHospitals);
+
+      // Act
+      const result = await service.findByState('CA');
+
+      // Assert
+      expect(result).toEqual(mockHospitals);
+      expect(mockDb.select).toHaveBeenCalledWith(/* expected query */);
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Test error scenarios
+    });
+  });
+});
+```
+
+### API Endpoint Testing
+```typescript
+// Integration tests for all endpoints
+describe('HospitalController (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleFixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  describe('/hospitals (GET)', () => {
+    it('should return paginated hospitals', () => {
+      return request(app.getHttpServer())
+        .get('/hospitals?page=1&limit=10')
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('data');
+          expect(res.body).toHaveProperty('total');
+          expect(res.body.data).toBeInstanceOf(Array);
+        });
+    });
+  });
+});
+```
+
+### Job Processor Testing
+```typescript
+// Test job processors with mocked dependencies
+describe('PriceFileParserProcessor', () => {
+  let processor: PriceFileParserProcessor;
+  let mockStorageService: jest.Mocked<StorageService>;
+  let mockJob: jest.Mocked<Job>;
+
+  beforeEach(() => {
+    mockJob = {
+      data: { fileId: '123', filePath: 'hospitals/test.csv' },
+      updateProgress: jest.fn(),
+    } as any;
+  });
+
+  it('should parse CSV file and extract prices', async () => {
+    // Mock file stream
+    const mockStream = new Readable();
+    mockStorageService.getFileStream.mockReturnValue(mockStream);
+
+    // Process job
+    const processPromise = processor.process(mockJob);
+
+    // Simulate CSV data
+    mockStream.push('CPT,Description,Price\n');
+    mockStream.push('99213,Office Visit,150.00\n');
+    mockStream.push(null); // End stream
+
+    await processPromise;
+
+    // Verify progress updates
+    expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
+  });
+});
+```
+
+### React Component Testing
+```typescript
+// Use React Testing Library
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+describe('HospitalList', () => {
+  it('should display hospitals and handle pagination', async () => {
+    render(<HospitalList />);
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.getByText('Test Hospital')).toBeInTheDocument();
+    });
+
+    // Test pagination
+    const nextButton = screen.getByRole('button', { name: /next/i });
+    await userEvent.click(nextButton);
+
+    // Verify new data loaded
+    await waitFor(() => {
+      expect(screen.getByText('Page 2 Hospital')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+### Test Coverage Requirements
+- **Unit Tests**: Minimum 80% coverage for business logic
+- **Integration Tests**: All API endpoints must have e2e tests
+- **Job Tests**: Each processor must test success and failure scenarios
+- **Component Tests**: Interactive components need user interaction tests
+- **Error Scenarios**: Test error handling and edge cases
+
+## Dynamic Context & Intelligence
+
+### Project Intelligence Files
+The `.claude/memory/` directory contains domain-specific knowledge to enhance Claude's understanding:
+
+- **hospital-data-patterns.json**: Common file formats, encoding issues, data quality patterns
+- **pricing-terminology.json**: Healthcare pricing terms, payer categories, code types
+- **compliance-requirements.json**: CMS rules, penalties, audit checklists
+- **performance-benchmarks.json**: Target metrics for API, jobs, database, and frontend
+
+### Gathering Runtime Context
+Before complex tasks, run the context gathering script:
+
+```bash
+.claude/scripts/project-context.sh
+```
+
+This collects:
+- Current service status (Docker, API, database, Redis)
+- Job queue metrics (waiting, active, completed, failed)
+- Database statistics (row counts per table)
+- Recent errors from logs
+- Test coverage data
+- Performance metrics
+- Git status
+
+### Context Files for Planning
+Update these files to guide Claude's decisions:
+
+**`.claude/memory/current-sprint-goals.md`**
+- Current priorities and tasks
+- Sprint objectives
+- Blockers and dependencies
+
+**`.claude/memory/recent-incidents.md`**
+- Production issues and resolutions
+- Lessons learned
+- Patterns to avoid
+
+**`.claude/memory/performance-bottlenecks.md`**
+- Auto-generated from project-context.sh
+- Slow queries and API endpoints
+- Memory usage concerns
+
+### Code Pattern References
+For implementation examples:
+- **Job Processing**: See `@apps/api/src/jobs/processors/`
+- **React Components**: See `@apps/web/src/components/admin/`
+- **Database Queries**: See `@apps/api/src/analytics/`
+- **Authentication**: See `@apps/api/src/auth/`
+- **Error Handling**: See `@apps/api/src/common/exceptions/`
+
+### AI Learning Loop
+Claude improves over time by:
+1. Tracking accepted/rejected suggestions
+2. Learning from code review feedback
+3. Adapting to team coding patterns
+4. Updating memory files with new patterns
+
+### Using Domain Knowledge
+When working with healthcare data:
+1. Reference `hospital-data-patterns.json` for file format handling
+2. Use `pricing-terminology.json` for correct healthcare terms
+3. Check `compliance-requirements.json` for regulatory compliance
+4. Target `performance-benchmarks.json` metrics in optimizations

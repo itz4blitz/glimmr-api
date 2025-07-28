@@ -1,9 +1,7 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
+import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
+import { Job, Queue } from "bullmq";
 import { Injectable } from "@nestjs/common";
 import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import { DatabaseService } from "../../database/database.service";
 import { StorageService } from "../../storage/storage.service";
 import { QUEUE_NAMES } from "../queues/queue.config";
@@ -47,10 +45,19 @@ export class PRAFileDownloadProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<PRAFileDownloadJobData>): Promise<any> {
+  async process(job: Job<PRAFileDownloadJobData>): Promise<{
+    success?: boolean;
+    skipped?: boolean;
+    reason?: string;
+    storageKey?: string;
+    fileSize?: number;
+    fileHash?: string;
+    downloadDuration?: number;
+    duration?: number;
+  }> {
     const { hospitalId, fileId, fileUrl, filename, forceRefresh } = job.data;
     const startTime = Date.now();
-    let jobRecord: any;
+    let jobRecord: typeof jobsTable.$inferSelect;
 
     this.logger.info({
       msg: "Starting file download",
@@ -169,7 +176,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
           } catch (err) {
             this.logger.warn({
               msg: "Could not verify file existence, proceeding with download",
-              error: err.message,
+              error: (err as Error).message,
               storageKey: fileRecord.storageKey,
             });
           }
@@ -280,13 +287,13 @@ export class PRAFileDownloadProcessor extends WorkerHost {
         msg: "File download failed",
         jobId: job.id,
         fileId,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
         duration,
       });
 
       if (jobRecord) {
-        await this.updateJobFailure(jobRecord.id, error, duration);
+        await this.updateJobFailure(jobRecord.id, error as Error, duration);
       }
 
       // Update file status to failed
@@ -294,7 +301,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
         .update(priceTransparencyFiles)
         .set({
           processingStatus: "failed",
-          errorMessage: error.message,
+          errorMessage: (error as Error).message,
           updatedAt: new Date(),
         })
         .where(eq(priceTransparencyFiles.id, fileId));
@@ -373,7 +380,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
             msg: "Download attempt failed, retrying",
             attempt: retryCount,
             maxRetries,
-            error: error.message,
+            error: (error as Error).message,
             url: fileUrl,
           });
           
@@ -453,7 +460,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
             } catch (err) {
               this.logger.warn({
                 msg: "Failed to update progress",
-                error: err.message,
+                error: (err as Error).message,
               });
             }
           })();
@@ -479,12 +486,12 @@ export class PRAFileDownloadProcessor extends WorkerHost {
       } catch (uploadError) {
         // Log detailed error for debugging
         await this.logJobEvent(jobId, "error", "Storage upload failed", {
-          error: uploadError.message,
+          error: (uploadError as Error).message,
           storageKey,
           downloadedBytes,
         });
         
-        throw new Error(`Failed to upload to storage: ${uploadError.message}`);
+        throw new Error(`Failed to upload to storage: ${(uploadError as Error).message}`);
       }
 
       const fileHash = hash.digest("hex");
@@ -504,15 +511,16 @@ export class PRAFileDownloadProcessor extends WorkerHost {
       };
     } catch (error) {
       await this.logJobEvent(jobId, "error", "File download failed", {
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
       });
 
-      if (error.response) {
+      if ((error as { response?: { status: number; statusText: string } }).response) {
+        const err = error as { response: { status: number; statusText: string } };
         throw new Error(
-          `HTTP ${error.response.status}: ${error.response.statusText} - ${fileUrl}`,
+          `HTTP ${err.response.status}: ${err.response.statusText} - ${fileUrl}`,
         );
-      } else if (error.code === "ECONNABORTED") {
+      } else if ((error as { code?: string }).code === "ECONNABORTED") {
         throw new Error(`Download timeout exceeded for ${fileUrl}`);
       } else {
         throw error;
@@ -541,7 +549,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
     jobId: string,
     level: string,
     message: string,
-    data?: any,
+    data?: unknown,
   ): Promise<void> {
     try {
       await this.databaseService.db.insert(jobLogs).values({
@@ -553,7 +561,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
     } catch (error) {
       this.logger.error({
         msg: "Failed to log job event",
-        error: error.message,
+        error: (error as Error).message,
         jobId,
         level,
         message,
@@ -563,7 +571,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
 
   private async updateJobSuccess(
     jobId: string,
-    outputData: any,
+    outputData: Record<string, unknown>,
   ): Promise<void> {
     const db = this.databaseService.db;
     await db
@@ -571,7 +579,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
       .set({
         status: "completed",
         completedAt: new Date(),
-        duration: outputData.duration,
+        duration: outputData.duration as number,
         outputData: JSON.stringify(outputData),
         progressPercentage: 100,
         recordsProcessed: outputData.skipped ? 0 : 1,
@@ -595,15 +603,15 @@ export class PRAFileDownloadProcessor extends WorkerHost {
         status: "failed",
         completedAt: new Date(),
         duration,
-        errorMessage: error.message,
-        errorStack: error.stack,
+        errorMessage: (error as Error).message,
+        errorStack: (error as Error).stack,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
 
     await this.logJobEvent(jobId, "error", "Job failed", {
-      error: error.message,
-      stack: error.stack,
+      error: (error as Error).message,
+      stack: (error as Error).stack,
       duration,
     });
   }

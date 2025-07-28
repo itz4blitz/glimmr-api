@@ -18,6 +18,7 @@ import {
 } from "@nestjs/swagger";
 import { NotificationsService } from "./notifications.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { JsonObject } from "../types/common.types";
 import {
   CreateNotificationDto,
   UpdateNotificationDto,
@@ -82,7 +83,7 @@ export class NotificationsController {
   ) {
     return this.notificationsService.updatePreferences(
       req.user.id,
-      updatePreferencesDto,
+      updatePreferencesDto as JsonObject,
     );
   }
 

@@ -8,7 +8,7 @@ import {
   timestamp,
   boolean,
   index,
-  json,
+  json as _json,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";

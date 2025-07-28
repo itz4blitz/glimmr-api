@@ -1,0 +1,199 @@
+name: Code Health Check
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      run_cleanup:
+        description: 'Run cleanup actions'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  code-health:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git blame
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: |
+          pnpm install
+          npm install -g ts-unused-exports jscpd
+      
+      - name: Run dead code check
+        id: dead_code
+        continue-on-error: true
+        run: |
+          bash .claude/scripts/dead-code-check.sh || echo "DEAD_CODE_ISSUES=true" >> $GITHUB_OUTPUT
+      
+      - name: Run code health score
+        id: health_score
+        run: |
+          bash .claude/scripts/code-health-score.sh
+          
+          # Extract score from latest report
+          SCORE=$(grep "Total Score:" .claude/reports/code-health-*.md | tail -1 | grep -oE "[0-9]+/100" | cut -d'/' -f1)
+          echo "HEALTH_SCORE=$SCORE" >> $GITHUB_OUTPUT
+          
+          # Determine if score is failing
+          if [ "$SCORE" -lt 70 ]; then
+            echo "HEALTH_FAILING=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run weekly janitor
+        run: bash .claude/scripts/weekly-janitor.sh
+      
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-health-reports
+          path: |
+            .claude/reports/
+            .claude/logs/
+          retention-days: 30
+      
+      - name: Comment PR with health report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Find latest health report
+            const reportsDir = '.claude/reports';
+            const files = fs.readdirSync(reportsDir);
+            const healthReports = files.filter(f => f.startsWith('code-health-'));
+            const latestReport = healthReports.sort().pop();
+            
+            if (latestReport) {
+              const reportContent = fs.readFileSync(path.join(reportsDir, latestReport), 'utf8');
+              
+              // Extract key metrics
+              const scoreMatch = reportContent.match(/Total Score: (\d+)\/100 \(Grade: ([A-F])\)/);
+              const score = scoreMatch ? scoreMatch[1] : 'Unknown';
+              const grade = scoreMatch ? scoreMatch[2] : 'Unknown';
+              
+              const comment = `## 📊 Code Health Report
+              
+              **Overall Score**: ${score}/100 (Grade: ${grade})
+              
+              <details>
+              <summary>View Full Report</summary>
+              
+              ${reportContent}
+              
+              </details>
+              
+              ${score < 70 ? '⚠️ **Warning**: Code health score is below acceptable threshold (70)' : '✅ Code health is good!'}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+      
+      - name: Create issue for critical problems
+        if: steps.health_score.outputs.HEALTH_FAILING == 'true' && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const score = '${{ steps.health_score.outputs.HEALTH_SCORE }}';
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ Code Health Alert: Score ${score}/100`,
+              body: `The weekly code health check has detected issues that need attention.
+              
+              **Current Score**: ${score}/100
+              
+              ## Actions Required
+              
+              1. Review the [latest code health reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              2. Run \`bash .claude/scripts/dead-code-check.sh\` locally to see detailed issues
+              3. Use the code janitor agent to help clean up: \`/claude run .claude/agents/code-janitor.md\`
+              
+              ## Quick Fixes
+              
+              - Remove unused exports and imports
+              - Delete orphaned components
+              - Address TODOs older than 30 days
+              - Refactor complex functions (>50 lines)
+              
+              cc @${{ github.repository_owner }}`,
+              labels: ['tech-debt', 'code-quality']
+            });
+            
+            console.log(`Created issue #${issue.data.number}`);
+      
+      - name: Run automated cleanup
+        if: (inputs.run_cleanup == true || github.event_name == 'schedule') && steps.dead_code.outputs.DEAD_CODE_ISSUES == 'true'
+        run: |
+          echo "🧹 Running automated cleanup..."
+          
+          # This is where you could add safe automated cleanup actions
+          # For now, we'll just create a cleanup branch
+          
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          BRANCH_NAME="automated-cleanup-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH_NAME"
+          
+          # Example: Remove empty files
+          find apps -type f -empty -delete
+          
+          # Commit if there are changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: automated code cleanup
+            
+            - Removed empty files
+            - Run 'bash .claude/scripts/dead-code-check.sh' for more cleanup opportunities"
+            
+            git push origin "$BRANCH_NAME"
+            
+            # Create PR
+            gh pr create \
+              --title "🧹 Automated Code Cleanup" \
+              --body "This PR contains automated code cleanup based on the weekly code health check.
+              
+              ## Changes
+              - Removed empty files
+              
+              ## Next Steps
+              1. Review the changes
+              2. Run tests to ensure nothing is broken
+              3. Consider running more aggressive cleanup manually
+              
+              Generated by the [Code Health workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+              --label "automated-pr" \
+              --label "tech-debt"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

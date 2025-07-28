@@ -3,7 +3,7 @@ import {
   Post,
   Body,
   UseGuards,
-  Request,
+  Request as Req,
   Get,
   Query,
   Res,
@@ -65,9 +65,9 @@ export class ActivityController {
   @Post("page-view")
   @SkipActivityLog()
   @ApiOperation({ summary: "Track page view" })
-  async trackPageView(@Body() dto: PageViewDto, @Request() req: Request & { user: { id: string } }) {
+  async trackPageView(@Body() dto: PageViewDto, @Req() req: Request & { user: { id: string } }) {
     await this.activityLoggingService.logPageView(
-      req.user.id,
+      req.user.id.toString(),
       dto.page,
       {
         referrer: dto.referrer,
@@ -82,7 +82,7 @@ export class ActivityController {
   @Post("session")
   @SkipActivityLog()
   @ApiOperation({ summary: "Track session activity" })
-  async trackSession(@Body() dto: SessionActivityDto, @Request() req: Request & { user: { id: string } }) {
+  async trackSession(@Body() dto: SessionActivityDto, @Req() req: Request & { user: { id: string } }) {
     const actionMap = {
       start: "session_start",
       ping: "session_active",
@@ -103,13 +103,13 @@ export class ActivityController {
   @Get("my-activity")
   @ApiOperation({ summary: "Get current user activity log" })
   async getMyActivity(
-    @Request() req: Request & { user: { id: string } },
+    @Req() req: Request & { user: { id: string } },
     @Query("limit") limit?: number,
     @Query("offset") offset?: number,
     @Query("actions") actions?: string,
   ) {
     const activities = await this.activityLoggingService.getUserActivities(
-      req.user.id,
+      req.user.id.toString(),
       {
         limit: Math.min(Number(limit) || 50, 200),
         offset: Number(offset) || 0,
@@ -123,11 +123,11 @@ export class ActivityController {
   @Get("my-summary")
   @ApiOperation({ summary: "Get activity summary for current user" })
   async getMyActivitySummary(
-    @Request() req: Request & { user: { id: string } },
+    @Req() req: Request & { user: { id: string } },
     @Query("days") days?: number,
   ) {
     const summary = await this.activityLoggingService.getUserActivitySummary(
-      req.user.id,
+      req.user.id.toString(),
       Number(days) || 30,
     );
 

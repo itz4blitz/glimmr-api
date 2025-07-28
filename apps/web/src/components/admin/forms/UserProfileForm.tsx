@@ -108,7 +108,7 @@ export function UserProfileForm({
     canSave,
     save,
     cancel,
-  } = useFormState({
+  } = useFormState<FormData>({
     initialData,
     onSave: async (data) => {
       // Split data into user and profile updates
@@ -158,6 +158,7 @@ export function UserProfileForm({
     try {
       await updateUserRole(user.id, newRole);
     } catch (error) {
+      console.error('Failed to update user role:', error);
     }
   };
 

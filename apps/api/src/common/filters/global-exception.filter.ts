@@ -39,7 +39,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       message:
         typeof message === "string"
           ? message
-          : (message as any)?.message || "Unknown error",
+          : (message as { message?: string })?.message || "Unknown error",
       userAgent: request.headers["user-agent"],
       ip: request.ip,
       correlationId: request.headers["x-correlation-id"] || "unknown",

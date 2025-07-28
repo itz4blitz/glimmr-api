@@ -79,13 +79,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         msg: "Database connection established successfully",
         database: config.database,
       });
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to connect to database",
-        error: error.message,
-        stack: error.stack,
+        error: (_error as Error).message,
+        stack: (_error as Error).stack,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -95,10 +95,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         this.logger.info("Disconnecting from database");
         await this.client.end();
         this.logger.info("Database connection closed");
-      } catch (error) {
+      } catch (_error) {
         this.logger.error({
           msg: "Error disconnecting from database",
-          error: error.message,
+          error: (_error as Error).message,
         });
       }
     }
@@ -121,44 +121,48 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   // Health check method
   async healthCheck(): Promise<{
     status: "healthy" | "unhealthy";
-    details?: any;
+    details?: {
+      duration?: number;
+      timestamp?: Date;
+      error?: string;
+    };
   }> {
     try {
       const startTime = Date.now();
-      const result = await this
+      const _result = await this
         .client`SELECT 1 as health_check, NOW() as timestamp`;
       const duration = Date.now() - startTime;
 
       this.logger.debug({
         msg: "Database health check successful",
         duration,
-        timestamp: result[0]?.timestamp,
+        timestamp: _result[0]?.timestamp,
       });
 
       return {
         status: "healthy",
         details: {
           duration,
-          timestamp: result[0]?.timestamp,
+          timestamp: _result[0]?.timestamp,
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Database health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
 
       return {
         status: "unhealthy",
         details: {
-          error: error.message,
+          error: (_error as Error).message,
         },
       };
     }
   }
 
   // Transaction helper
-  async transaction<T>(
+  transaction<T>(
     callback: (tx: PostgresJsDatabase<Schema>) => Promise<T>,
   ): Promise<T> {
     return this.db.transaction(callback);
@@ -169,7 +173,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const startTime = Date.now();
 
     try {
-      const result = await query();
+      const _result = await query();
       const duration = Date.now() - startTime;
 
       // Log slow queries (>1 second) as warnings
@@ -182,19 +186,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         ...(duration > 1000 && { slowQuery: true }),
       });
 
-      return result;
-    } catch (error) {
+      return _result;
+    } catch (_error) {
       const duration = Date.now() - startTime;
 
       this.logger.error({
         msg: "Database query failed",
         operation,
         duration,
-        error: error.message,
+        error: (_error as Error).message,
         success: false,
       });
 
-      throw error;
+      throw _error;
     }
   }
 

@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsOptional, IsString } from "class-validator";
+import { JsonValue } from "../../types/common.types";
 
 export class RequestDto {
   @ApiProperty({
@@ -40,7 +41,7 @@ export class ResponseDto {
   @IsOptional()
   headers?: Record<string, string>;
 
-  json?: (data: unknown) => unknown;
-  send?: (data: unknown) => unknown;
-  setHeader?: (key: string, value: string) => void;
+  json?: (data: JsonValue) => void;
+  send?: (data: string | Buffer | JsonValue) => void;
+  setHeader?: (key: string, value: string | string[]) => void;
 }

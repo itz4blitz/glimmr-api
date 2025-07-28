@@ -50,7 +50,7 @@ export class FlexibleAuthGuard implements CanActivate {
           request.user = user;
           return true;
         }
-      } catch (error) {
+      } catch (_error) {
         // API key validation failed
       }
     }

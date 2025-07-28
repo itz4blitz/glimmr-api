@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
   Delete,
-  Res,
+  Res as _Res,
   StreamableFile,
 } from "@nestjs/common";
 import {
@@ -21,14 +21,16 @@ import {
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
-import { Response } from "express";
+import { JobsOptions } from "bullmq";
+// import { Response } from "express";
 import { JobsService } from "../services/core/jobs.service";
 import { HospitalMonitorService } from "../services/pipelines/hospital-monitor.service";
 import { PRAPipelineService } from "../services/pipelines/pra-pipeline.service";
-import { JobCleanupService } from "../services/operations/job-cleanup.service";
+import { JobCleanupService, CleanupPolicy } from "../services/operations/job-cleanup.service";
 import { JobAnalyticsService } from "../services/monitoring/job-analytics.service";
 import { JobExportService } from "../services/operations/job-export.service";
 import { JobSchedulingService } from "../services/operations/job-scheduling.service";
+import { BaseJobData, FilterParams } from "../../types";
 import {
   TriggerHospitalImportDto,
   TriggerPriceFileDownloadDto,
@@ -85,8 +87,8 @@ export class JobsController {
     description: "Number of results to return",
   })
   @Roles("admin", "api-user")
-  async getJobs(@Query() query: JobFilterQueryDto) {
-    return this.jobsService.getJobs(query);
+  getJobs(@Query() _query: JobFilterQueryDto) {
+    return this.jobsService.getJobs(_query);
   }
 
   @Get("stats")
@@ -96,7 +98,7 @@ export class JobsController {
     description: "Job statistics retrieved successfully",
   })
   @Roles("admin", "api-user")
-  async getJobStats() {
+  getJobStats() {
     return this.jobsService.getJobStats();
   }
 
@@ -110,7 +112,7 @@ export class JobsController {
     description: "Job system status retrieved successfully",
   })
   @Roles("admin", "api-user")
-  async getJobSystemStatus() {
+  getJobSystemStatus() {
     return this.jobsService.getJobSystemStatus();
   }
 
@@ -118,7 +120,7 @@ export class JobsController {
   @ApiOperation({ summary: "Get Bull Board dashboard URL" })
   @ApiResponse({ status: 200, description: "Bull Board dashboard information" })
   @Roles("admin")
-  async getBullBoard() {
+  getBullBoard() {
     return this.jobsService.getBullBoardInfo();
   }
 
@@ -132,7 +134,7 @@ export class JobsController {
   })
   @Roles("admin")
   @ApiBody({ type: StartPriceUpdateDto })
-  async startPriceUpdate(@Body() updateData: StartPriceUpdateDto) {
+  startPriceUpdate(@Body() updateData: StartPriceUpdateDto) {
     return this.jobsService.startPriceUpdate(updateData);
   }
 
@@ -167,7 +169,7 @@ export class JobsController {
   @ApiOperation({ summary: "Get monitoring statistics" })
   @ApiResponse({ status: 200, description: "Monitoring statistics" })
   @Roles("admin", "api-user")
-  async getMonitoringStats() {
+  getMonitoringStats() {
     return this.hospitalMonitorService.getMonitoringStats();
   }
 
@@ -194,7 +196,7 @@ export class JobsController {
     description: "Pipeline status retrieved successfully",
   })
   @Roles("admin", "api-user")
-  async getPRAPipelineStatus() {
+  getPRAPipelineStatus() {
     return this.praPipelineService.getPipelineStatus();
   }
 
@@ -216,7 +218,7 @@ export class JobsController {
     description: "Cleanup statistics retrieved successfully",
   })
   @Roles("admin", "api-user")
-  async getCleanupStats() {
+  getCleanupStats() {
     return this.jobCleanupService.getCleanupStats();
   }
 
@@ -308,7 +310,7 @@ export class JobsController {
   })
   async cleanupSpecificQueue(
     @Param("queueName") queueName: string,
-    @Body() policy?: any,
+    @Body() policy?: CleanupPolicy,
   ) {
     const results = await this.jobCleanupService.cleanupSpecificQueue(
       queueName,
@@ -438,7 +440,7 @@ export class JobsController {
   })
   async addJobToQueue(
     @Param("queueName") queueName: string,
-    @Body() body: { name?: string; data: any; opts?: any },
+    @Body() body: { name?: string; data: BaseJobData; opts?: JobsOptions },
   ) {
     const queue = this.jobsService.getQueueByName(queueName);
     if (!queue) {
@@ -565,9 +567,9 @@ export class JobsController {
     description: "Cleanup policies retrieved successfully",
   })
   @Roles("admin", "api-user")
-  async getCleanupPolicies() {
+  getCleanupPolicies() {
     const availableQueues = this.jobCleanupService.getAvailableQueues();
-    const policies: Record<string, any> = {};
+    const policies: Record<string, CleanupPolicy | null> = {};
 
     for (const queueName of availableQueues) {
       policies[queueName] = this.jobCleanupService.getDefaultPolicy(queueName);
@@ -642,7 +644,12 @@ export class JobsController {
       },
     },
   })
-  async triggerDataExport(@Body() body: any = {}) {
+  async triggerDataExport(@Body() body: {
+    format?: string;
+    dataset?: string;
+    limit?: number;
+    filters?: FilterParams;
+  } = {}) {
     const {
       format = "json",
       dataset = "hospitals",
@@ -652,9 +659,11 @@ export class JobsController {
 
     const result = await this.jobsService.startDataExport({
       format,
-      dataset,
-      limit,
-      filters,
+      filters: {
+        ...filters,
+        dataset,
+        limit,
+      },
     });
 
     return {
@@ -668,7 +677,7 @@ export class JobsController {
   @ApiOperation({ summary: "Get detailed queue monitoring statistics" })
   @ApiResponse({ status: 200, description: "Detailed monitoring statistics" })
   @Roles("admin", "api-user")
-  async getDetailedMonitoringStats() {
+  getDetailedMonitoringStats() {
     return this.jobsService.getDetailedQueueStats();
   }
 
@@ -677,7 +686,7 @@ export class JobsController {
   @ApiResponse({ status: 200, description: "Queue performance metrics" })
   @ApiParam({ name: "queueName", description: "Name of the queue" })
   @Roles("admin", "api-user")
-  async getQueuePerformance(@Param("queueName") queueName: string) {
+  getQueuePerformance(@Param("queueName") queueName: string) {
     return this.jobsService.getQueuePerformanceMetrics(queueName);
   }
 
@@ -685,7 +694,7 @@ export class JobsController {
   @ApiOperation({ summary: "Get queue health status" })
   @ApiResponse({ status: 200, description: "Queue health status" })
   @Roles("admin", "api-user")
-  async getQueueHealth() {
+  getQueueHealth() {
     return this.jobsService.getQueueHealth();
   }
 
@@ -698,7 +707,7 @@ export class JobsController {
     description: "Hours of history to include (default: 24)",
   })
   @Roles("admin", "api-user")
-  async getQueueTrends(@Query("hours") hours?: string) {
+  getQueueTrends(@Query("hours") hours?: string) {
     const hoursNumber = hours ? parseInt(hours, 10) : 24;
     return this.jobsService.getQueueTrends(hoursNumber);
   }
@@ -731,7 +740,7 @@ export class JobsController {
     description: "Search in job names and descriptions",
   })
   @Roles("admin", "api-user")
-  async getQueueHistory(
+  getQueueHistory(
     @Param("queueName") queueName: string,
     @Query("limit") limit?: number,
     @Query("offset") offset?: number,
@@ -754,7 +763,7 @@ export class JobsController {
   })
   @ApiParam({ name: "queueName", description: "Queue name" })
   @Roles("admin", "api-user")
-  async getCurrentJobs(@Param("queueName") queueName: string) {
+  getCurrentJobs(@Param("queueName") queueName: string) {
     return this.jobsService.getCurrentJobs(queueName);
   }
 
@@ -766,7 +775,7 @@ export class JobsController {
   })
   @ApiParam({ name: "jobId", description: "Job ID" })
   @Roles("admin", "api-user")
-  async getJobDetails(@Param("jobId") jobId: string) {
+  getJobDetails(@Param("jobId") jobId: string) {
     return this.jobsService.getJobDetails(jobId);
   }
 
@@ -795,7 +804,7 @@ export class JobsController {
     description: "Number of logs to skip (default: 0)",
   })
   @Roles("admin", "api-user")
-  async getJobLogsById(
+  getJobLogsById(
     @Param("jobId") jobId: string,
     @Query("level") level?: string,
     @Query("search") search?: string,
@@ -835,7 +844,7 @@ export class JobsController {
     description: "Number of logs to skip (default: 0)",
   })
   @Roles("admin", "api-user")
-  async getAllLogs(
+  getAllLogs(
     @Query("level") level?: string,
     @Query("search") search?: string,
     @Query("limit") limit?: number,
@@ -862,7 +871,7 @@ export class JobsController {
     description: "Forbidden - Admin access required",
   })
   @Roles("admin")
-  async resetAllLogs() {
+  resetAllLogs() {
     return this.jobsService.resetAllLogs();
   }
 
@@ -894,7 +903,7 @@ export class JobsController {
     description: "Number of logs to skip (default: 0)",
   })
   @Roles("admin", "api-user")
-  async getQueueLogs(
+  getQueueLogs(
     @Param("queueName") queueName: string,
     @Query("level") level?: string,
     @Query("search") search?: string,
@@ -923,7 +932,7 @@ export class JobsController {
   })
   @ApiParam({ name: "queueName", description: "Name of the queue" })
   @Roles("admin")
-  async resetQueueLogs(@Param("queueName") queueName: string) {
+  resetQueueLogs(@Param("queueName") queueName: string) {
     return this.jobsService.resetQueueLogs(queueName);
   }
 
@@ -938,7 +947,7 @@ export class JobsController {
     description: "Configurations with schedules retrieved successfully",
   })
   @Roles("admin")
-  async getJobConfigurationsWithSchedules() {
+  getJobConfigurationsWithSchedules() {
     return this.jobsService.getQueueConfigsWithSchedules();
   }
 
@@ -948,7 +957,7 @@ export class JobsController {
   @ApiOperation({ summary: "Search jobs with advanced filtering" })
   @ApiResponse({ status: 200, description: "Filtered jobs retrieved successfully" })
   @Roles("admin", "api-user")
-  async searchJobs(@Query() filters: JobAdvancedFilterDto) {
+  searchJobs(@Query() filters: JobAdvancedFilterDto) {
     return this.jobsService.searchJobs(filters);
   }
 
@@ -959,7 +968,7 @@ export class JobsController {
   @ApiResponse({ status: 400, description: "Invalid job IDs or jobs not in failed state" })
   @ApiBody({ type: BulkJobOperationDto })
   @Roles("admin")
-  async bulkRetryJobs(@Body() dto: BulkJobOperationDto) {
+  bulkRetryJobs(@Body() dto: BulkJobOperationDto) {
     return this.jobsService.bulkRetryJobs(dto.jobIds);
   }
 
@@ -969,7 +978,7 @@ export class JobsController {
   @ApiResponse({ status: 400, description: "Invalid job IDs or jobs cannot be cancelled" })
   @ApiBody({ type: BulkJobOperationDto })
   @Roles("admin")
-  async bulkCancelJobs(@Body() dto: BulkJobOperationDto) {
+  bulkCancelJobs(@Body() dto: BulkJobOperationDto) {
     return this.jobsService.bulkCancelJobs(dto.jobIds);
   }
 
@@ -980,7 +989,7 @@ export class JobsController {
   @ApiQuery({ name: "enabled", required: false, type: Boolean })
   @ApiQuery({ name: "templateId", required: false, type: String })
   @Roles("admin")
-  async getJobSchedules(
+  getJobSchedules(
     @Query("enabled") enabled?: boolean,
     @Query("templateId") templateId?: string,
   ) {
@@ -993,7 +1002,7 @@ export class JobsController {
   @ApiResponse({ status: 404, description: "Schedule not found" })
   @ApiParam({ name: "scheduleId", description: "Schedule ID" })
   @Roles("admin")
-  async getJobSchedule(@Param("scheduleId") scheduleId: string) {
+  getJobSchedule(@Param("scheduleId") scheduleId: string) {
     return this.jobSchedulingService.getSchedule(scheduleId);
   }
 
@@ -1003,7 +1012,7 @@ export class JobsController {
   @ApiResponse({ status: 400, description: "Invalid schedule data" })
   @ApiBody({ type: CreateJobScheduleDto })
   @Roles("admin")
-  async createJobSchedule(@Body() dto: CreateJobScheduleDto) {
+  createJobSchedule(@Body() dto: CreateJobScheduleDto) {
     return this.jobSchedulingService.createSchedule(dto);
   }
 
@@ -1014,7 +1023,7 @@ export class JobsController {
   @ApiParam({ name: "scheduleId", description: "Schedule ID" })
   @ApiBody({ type: UpdateJobScheduleDto })
   @Roles("admin")
-  async updateJobSchedule(
+  updateJobSchedule(
     @Param("scheduleId") scheduleId: string,
     @Body() dto: UpdateJobScheduleDto,
   ) {
@@ -1027,7 +1036,7 @@ export class JobsController {
   @ApiResponse({ status: 404, description: "Schedule not found" })
   @ApiParam({ name: "scheduleId", description: "Schedule ID" })
   @Roles("admin")
-  async deleteJobSchedule(@Param("scheduleId") scheduleId: string) {
+  deleteJobSchedule(@Param("scheduleId") scheduleId: string) {
     return this.jobSchedulingService.deleteSchedule(scheduleId);
   }
 
@@ -1038,7 +1047,7 @@ export class JobsController {
   @ApiResponse({ status: 400, description: "Schedule is disabled" })
   @ApiParam({ name: "scheduleId", description: "Schedule ID" })
   @Roles("admin")
-  async runScheduleNow(@Param("scheduleId") scheduleId: string) {
+  runScheduleNow(@Param("scheduleId") scheduleId: string) {
     return this.jobSchedulingService.runScheduleNow(scheduleId);
   }
 
@@ -1047,32 +1056,32 @@ export class JobsController {
   @ApiOperation({ summary: "Get job success rate trends" })
   @ApiResponse({ status: 200, description: "Success trends retrieved successfully" })
   @Roles("admin", "api-user")
-  async getSuccessTrends(@Query() query: JobAnalyticsQueryDto) {
-    return this.jobAnalyticsService.getSuccessTrends(query);
+  getSuccessTrends(@Query() _query: JobAnalyticsQueryDto) {
+    return this.jobAnalyticsService.getSuccessTrends(_query);
   }
 
   @Get("analytics/performance")
   @ApiOperation({ summary: "Get job performance metrics" })
   @ApiResponse({ status: 200, description: "Performance metrics retrieved successfully" })
   @Roles("admin", "api-user")
-  async getPerformanceMetrics(@Query() query: JobAnalyticsQueryDto) {
-    return this.jobAnalyticsService.getPerformanceMetrics(query);
+  getPerformanceMetrics(@Query() _query: JobAnalyticsQueryDto) {
+    return this.jobAnalyticsService.getPerformanceMetrics(_query);
   }
 
   @Get("analytics/failures")
   @ApiOperation({ summary: "Get job failure analysis" })
   @ApiResponse({ status: 200, description: "Failure analysis retrieved successfully" })
   @Roles("admin", "api-user")
-  async getFailureAnalysis(@Query() query: JobAnalyticsQueryDto) {
-    return this.jobAnalyticsService.getFailureAnalysis(query);
+  getFailureAnalysis(@Query() _query: JobAnalyticsQueryDto) {
+    return this.jobAnalyticsService.getFailureAnalysis(_query);
   }
 
   @Get("analytics/resource-usage")
   @ApiOperation({ summary: "Get resource utilization metrics" })
   @ApiResponse({ status: 200, description: "Resource usage retrieved successfully" })
   @Roles("admin")
-  async getResourceUsage(@Query() query: ResourceUsageQueryDto) {
-    return this.jobAnalyticsService.getResourceUsage(query);
+  getResourceUsage(@Query() _query: ResourceUsageQueryDto) {
+    return this.jobAnalyticsService.getResourceUsage(_query);
   }
 
   // Export endpoint
@@ -1097,7 +1106,7 @@ export class JobsController {
   })
   @ApiBody({ type: JobExportDto })
   @Roles("admin")
-  async exportJobs(@Body() dto: JobExportDto) {
+  exportJobs(@Body() dto: JobExportDto) {
     return this.jobExportService.exportJobs(dto);
   }
 
@@ -1144,7 +1153,20 @@ export class JobsController {
     },
   })
   @Roles("admin")
-  async createJob(@Body() body: any) {
+  createJob(@Body() body: {
+    queue: string;
+    name: string;
+    data: BaseJobData;
+    options?: {
+      priority?: number;
+      delay?: number;
+      attempts?: number;
+      backoff?: {
+        type: string;
+        delay: number;
+      };
+    };
+  }) {
     return this.jobsService.createJob(body);
   }
 
@@ -1155,7 +1177,7 @@ export class JobsController {
   @ApiResponse({ status: 404, description: "Job not found" })
   @ApiParam({ name: "id", description: "Job ID" })
   @Roles("admin")
-  async retryJob(@Param("id") id: string) {
+  retryJob(@Param("id") id: string) {
     return this.jobsService.retryJob(id);
   }
 
@@ -1165,7 +1187,7 @@ export class JobsController {
   @ApiResponse({ status: 404, description: "Job not found" })
   @ApiParam({ name: "id", description: "Job ID" })
   @Roles("admin")
-  async cancelJob(@Param("id") id: string) {
+  cancelJob(@Param("id") id: string) {
     return this.jobsService.cancelJob(id);
   }
 
@@ -1195,7 +1217,22 @@ export class JobsController {
     },
   })
   @Roles("admin")
-  async createBulkJobs(@Body() body: any) {
+  createBulkJobs(@Body() body: {
+    jobs: Array<{
+      queue: string;
+      name: string;
+      data: BaseJobData;
+      options?: {
+        priority?: number;
+        delay?: number;
+        attempts?: number;
+        backoff?: {
+          type: string;
+          delay: number;
+        };
+      };
+    }>;
+  }) {
     return this.jobsService.createBulkJobs(body.jobs);
   }
 
@@ -1206,7 +1243,7 @@ export class JobsController {
   @ApiResponse({ status: 404, description: "Job not found" })
   @ApiParam({ name: "id", description: "Job ID" })
   @Roles("admin", "api-user")
-  async getJobById(@Param("id") id: string) {
+  getJobById(@Param("id") id: string) {
     return this.jobsService.getJobById(id);
   }
 }

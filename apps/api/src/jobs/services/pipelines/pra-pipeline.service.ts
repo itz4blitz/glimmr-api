@@ -41,10 +41,10 @@ export class PRAPipelineService {
       });
 
       this.logger.info("Twice daily PRA unified scan scheduled successfully");
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to schedule twice daily PRA unified scan",
       );
@@ -85,16 +85,16 @@ export class PRAPipelineService {
       );
 
       return { jobId: job.id, testMode, forceRefresh };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           testMode,
           forceRefresh,
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to trigger manual PRA unified scan",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -118,14 +118,14 @@ export class PRAPipelineService {
         paused: await this.unifiedScanQueue.isPaused(),
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to get PRA pipeline status",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -138,10 +138,10 @@ export class PRAPipelineService {
       await this.unifiedScanQueue.clean(7 * 24 * 60 * 60 * 1000, 50, "failed");
 
       this.logger.info("PRA pipeline job cleanup completed successfully");
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to cleanup PRA pipeline jobs",
       );

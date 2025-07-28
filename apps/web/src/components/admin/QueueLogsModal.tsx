@@ -114,7 +114,8 @@ export function QueueLogsModal({
       const logsData = Array.isArray(logsResponse.data) ? logsResponse.data : [];
       setLogs(logsData);
       setMetrics(metricsResponse.data);
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to load logs:', error);
       toast.error("Failed to load logs");
     } finally {
       setLoading(false);
@@ -182,7 +183,8 @@ export function QueueLogsModal({
       link.remove();
 
       toast.success("Logs exported successfully");
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to export logs:', error);
       toast.error("Failed to export logs");
     }
   };
@@ -194,7 +196,8 @@ export function QueueLogsModal({
       // Clear logs is not available in current API
       toast.info("Clear logs feature is not available");
       return;
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to clear logs:', error);
       toast.error("Failed to clear logs");
     }
   };
@@ -204,7 +207,8 @@ export function QueueLogsModal({
       const response = await api.get(`/jobs/job/${jobId}/details`);
       setSelectedJob(response.data);
       setActiveTab("details");
-    } catch (_error) {
+    } catch (error) {
+      console.error('Failed to load job details:', error);
       toast.error("Failed to load job details");
     }
   };

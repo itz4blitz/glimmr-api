@@ -1,8 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
-  ForbiddenException,
 } from "@nestjs/common";
 import { eq, and, or, like, desc, asc, count, sql, inArray } from "drizzle-orm";
 import { DatabaseService } from "../database/database.service";
@@ -11,8 +9,6 @@ import {
   userProfiles,
   userPreferences,
   userActivityLogs,
-  userSessions,
-  passwordResetTokens,
   userFiles,
   User,
   UserProfile,
@@ -20,8 +16,8 @@ import {
   UserActivityLog,
   UserWithProfile,
   UserListItem,
+  UserFile,
 } from "../database/schema";
-import * as bcrypt from "bcrypt";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 
 export interface UserSearchFilters {
@@ -257,10 +253,10 @@ export class UserManagementService {
     }
 
     // Remove sensitive fields that shouldn't be updated directly
-    const { password, apiKey, id: _, ...rawUpdateData } = updateData;
+    const { password: _password, apiKey: _apiKey, id: _, ...rawUpdateData } = updateData;
 
     // Type-safe update data
-    const safeUpdateData: any = {};
+    const safeUpdateData: Record<string, unknown> = {};
     if (rawUpdateData.email !== undefined)
       safeUpdateData.email = rawUpdateData.email;
     if (rawUpdateData.firstName !== undefined)
@@ -339,11 +335,11 @@ export class UserManagementService {
     return updatedUser;
   }
 
-  async activateUser(id: string, activatedBy: string): Promise<User> {
+  activateUser(id: string, activatedBy: string): Promise<User> {
     return this.updateUserStatus(id, true, activatedBy);
   }
 
-  async deactivateUser(id: string, deactivatedBy: string): Promise<User> {
+  deactivateUser(id: string, deactivatedBy: string): Promise<User> {
     return this.updateUserStatus(id, false, deactivatedBy);
   }
 
@@ -396,7 +392,7 @@ export class UserManagementService {
     resourceId?: string;
     ipAddress?: string;
     userAgent?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     success?: boolean;
     errorMessage?: string;
   }): Promise<UserActivityLog> {
@@ -465,7 +461,7 @@ export class UserManagementService {
   }
 
   // User Files
-  async getUserFiles(userId: string): Promise<any[]> {
+  async getUserFiles(userId: string): Promise<UserFile[]> {
     const files = await this.db
       .select()
       .from(userFiles)
@@ -522,7 +518,7 @@ export class UserManagementService {
       this.logger.info({ adminUsers }, "Admin users query successful");
 
       // For now, return simplified stats without date queries
-      const result = {
+      const _result = {
         totalUsers,
         activeUsers,
         inactiveUsers: totalUsers - activeUsers,
@@ -534,14 +530,14 @@ export class UserManagementService {
         newUsersThisWeek: 0, // Temporarily disabled
       };
 
-      this.logger.info(result, "getUserStats completed successfully");
-      return result;
-    } catch (error) {
+      this.logger.info(_result, "getUserStats completed successfully");
+      return _result;
+    } catch (_error) {
       this.logger.error(
-        { error: error.message, stack: error.stack },
+        { error: (_error as Error).message, stack: (_error as Error).stack },
         "getUserStats failed",
       );
-      throw error;
+      throw _error;
     }
   }
 }

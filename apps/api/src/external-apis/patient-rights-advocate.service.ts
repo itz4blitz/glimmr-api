@@ -1,7 +1,6 @@
 import {
   Injectable,
-  HttpException,
-  HttpStatus,
+  HttpException as _HttpException,
   OnModuleDestroy,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -90,10 +89,10 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
       try {
         await this.apiContext.dispose();
         this.logger.info("Playwright API context disposed successfully");
-      } catch (error) {
+      } catch (_error) {
         this.logger.error(
           {
-            error: error.message,
+            error: (_error as Error).message,
           },
           "Failed to dispose Playwright API context",
         );
@@ -146,14 +145,14 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
         },
         "Playwright API context initialized successfully",
       );
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to initialize Playwright API context",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -201,10 +200,10 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
     if (this.apiContext) {
       try {
         await this.apiContext.dispose();
-      } catch (error) {
+      } catch (_error) {
         this.logger.warn(
           {
-            error: error.message,
+            error: (_error as Error).message,
           },
           "Failed to dispose old context during recreation",
         );
@@ -225,7 +224,7 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
     method: "GET" | "POST",
     url: string,
     options: {
-      data?: any;
+      data?: string;
       headers?: Record<string, string>;
     } = {},
   ) {
@@ -296,22 +295,22 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
         data: responseData,
         headers: response.headers(),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           url,
-          message: error.message,
-          errorType: error.constructor.name,
+          message: (_error as Error).message,
+          errorType: (_error as Error).constructor.name,
         },
         "PRA API request failed",
       );
 
       // Check if this is a context-related error that requires recreation
-      if (this.isContextError(error)) {
+      if (this.isContextError(_error)) {
         this.logger.warn(
           {
             url,
-            error: error.message,
+            error: (_error as Error).message,
           },
           "Context error detected, will recreate on next request",
         );
@@ -320,15 +319,15 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
         this.contextCreatedAt = 0; // Force recreation on next request
       }
 
-      throw error;
+      throw _error;
     }
   }
 
   /**
    * Check if an error indicates the context needs to be recreated
    */
-  private isContextError(error: any): boolean {
-    const errorMessage = error.message?.toLowerCase() || "";
+  private isContextError(error: Error | { message?: string }): boolean {
+    const errorMessage = (error as { message?: string }).message?.toLowerCase() || "";
     const contextErrorIndicators = [
       "context",
       "connection",
@@ -429,14 +428,14 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
         );
         throw new Error("No session ID returned from API");
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to create PRA API session",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -456,15 +455,15 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
         },
         "Session check successful",
       );
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
           sessionId: this.sessionId,
         },
         "Session check failed",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -577,21 +576,21 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
       );
 
       return response.data;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
-          error: error.message,
+          error: (_error as Error).message,
           options,
           sessionId: this.sessionId,
         },
         "Failed to search hospitals via PRA API",
       );
 
-      if (error.response?.status === 429) {
+      if ((_error as { response?: { status?: number } }).response?.status === 429) {
         throw new RateLimitExceededException("Patient Rights Advocate API");
       }
 
-      if (error.response?.status >= 500) {
+      if (((_error as { response?: { status?: number } }).response?.status ?? 0) >= 500) {
         throw new ExternalServiceException(
           "Patient Rights Advocate API",
           "Service currently unavailable",
@@ -608,7 +607,7 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
   /**
    * Get hospitals for a specific state
    */
-  async getHospitalsByState(state: string): Promise<PRAHospital[]> {
+  getHospitalsByState(state: string): Promise<PRAHospital[]> {
     if (!state || state.length !== 2) {
       throw new ValidationException(
         "state",
@@ -704,11 +703,11 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
 
         // Small delay between states to be respectful to the API
         await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
+      } catch (_error) {
         this.logger.error(
           {
             state,
-            error: error.message,
+            error: (_error as Error).message,
           },
           "Failed to fetch hospitals for state",
         );

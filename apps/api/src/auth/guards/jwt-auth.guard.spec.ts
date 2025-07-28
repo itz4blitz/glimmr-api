@@ -8,8 +8,6 @@ import { UsersService } from "../../users/users.service";
 
 describe("JwtAuthGuard", () => {
   let guard: JwtAuthGuard;
-  let _jwtService: jest.Mocked<JwtService>;
-  let _usersService: jest.Mocked<UsersService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -43,8 +41,6 @@ describe("JwtAuthGuard", () => {
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
-    jwtService = module.get(JwtService);
-    usersService = module.get(UsersService);
   });
 
   it("should be defined", () => {

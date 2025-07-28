@@ -13,7 +13,7 @@ export interface ExportJobData {
   format: string;
   dataset: string;
   limit: number;
-  filters?: any;
+  filters?: Record<string, unknown>;
 }
 
 export interface ExportJobResult {
@@ -136,7 +136,7 @@ export class ExportDataProcessor extends WorkerHost {
       this.logger.error({
         msg: "Export job failed",
         exportId,
-        error: error.message,
+        error: (error as Error).message,
         operation: "processExportJob",
       });
 
@@ -144,13 +144,13 @@ export class ExportDataProcessor extends WorkerHost {
         exportId,
         "failed",
         0,
-        `Export failed: ${error.message}`,
+        `Export failed: ${(error as Error).message}`,
       );
 
       return {
         exportId,
         status: "failed",
-        errorMessage: error.message,
+        errorMessage: (error as Error).message,
         totalRecords: 0,
         processedRecords: 0,
         fileSizeMB: 0,
@@ -219,7 +219,12 @@ export class ExportDataProcessor extends WorkerHost {
   }
 
   private async generateExportFile(
-    data: any,
+    data: {
+      hospitals: Array<typeof hospitals.$inferSelect>;
+      prices: Array<typeof prices.$inferSelect>;
+      analytics: Array<typeof analytics.$inferSelect>;
+      totalRecords: number;
+    },
     format: string,
     job: Job,
   ): Promise<Buffer> {
@@ -238,7 +243,12 @@ export class ExportDataProcessor extends WorkerHost {
     }
   }
 
-  private generateCSVFile(data: any): Buffer {
+  private generateCSVFile(data: {
+    hospitals: Array<typeof hospitals.$inferSelect>;
+    prices: Array<typeof prices.$inferSelect>;
+    analytics: Array<typeof analytics.$inferSelect>;
+    totalRecords: number;
+  }): Buffer {
     let csvContent = "";
 
     // Hospitals
@@ -304,7 +314,12 @@ export class ExportDataProcessor extends WorkerHost {
     return Buffer.from(csvContent);
   }
 
-  private generateExcelFile(data: any): Buffer {
+  private generateExcelFile(data: {
+    hospitals: Array<typeof hospitals.$inferSelect>;
+    prices: Array<typeof prices.$inferSelect>;
+    analytics: Array<typeof analytics.$inferSelect>;
+    totalRecords: number;
+  }): Buffer {
     // Simplified Excel generation - in production, would use a proper Excel library
     // For now, return CSV format with Excel extension
     return this.generateCSVFile(data);
@@ -342,8 +357,7 @@ export class ExportDataProcessor extends WorkerHost {
       operation: "updateServiceProgress",
     });
 
-    // TODO: In future, we could emit events or use Redis to share progress
-    // with the analytics service. For now, BullMQ's job progress is sufficient.
+    // BullMQ's job progress is sufficient for current needs.
   }
 
   @OnWorkerEvent("completed")
@@ -352,7 +366,7 @@ export class ExportDataProcessor extends WorkerHost {
       msg: "Export job completed",
       exportId: job.data.exportId,
       jobId: job.id,
-      result,
+      result: result,
       operation: "onCompleted",
     });
   }
@@ -363,7 +377,7 @@ export class ExportDataProcessor extends WorkerHost {
       msg: "Export job failed",
       exportId: job.data.exportId,
       jobId: job.id,
-      error: error.message,
+      error: (error as Error).message,
       operation: "onFailed",
     });
   }

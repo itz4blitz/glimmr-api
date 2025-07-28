@@ -8,6 +8,39 @@ import { JobAdvancedFilterDto, JobExportDto } from "../../dto/job-operations.dto
 import * as ExcelJS from "exceljs";
 import { createObjectCsvStringifier } from "csv-writer";
 import { Readable } from "stream";
+import { JsonObject, JsonValue, ExportFormat } from "../../../types/common.types";
+
+interface ExportableJob {
+  id: string;
+  jobType: string;
+  jobName: string;
+  description: string | null;
+  queue: string;
+  status: string;
+  priority: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  duration: number | null;
+  progressPercentage: number | null;
+  recordsProcessed: number | null;
+  recordsCreated: number | null;
+  recordsUpdated: number | null;
+  recordsSkipped: number | null;
+  recordsFailed: number | null;
+  errorMessage: string | null;
+  createdBy: string | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  inputData: JsonObject | null;
+  outputData: JsonObject | null;
+  tags: string[] | null;
+  logs?: Array<{
+    level: string;
+    message: string;
+    data: JsonObject | null;
+    createdAt: Date;
+  }>;
+}
 
 @Injectable()
 export class JobExportService {
@@ -20,7 +53,7 @@ export class JobExportService {
 
   async exportJobs(exportDto: JobExportDto): Promise<{
     url?: string;
-    data?: any;
+    data?: ExportableJob[] | string;
     filename: string;
     format: string;
     totalRecords: number;
@@ -60,17 +93,17 @@ export class JobExportService {
         format: exportDto.format || "json",
         totalRecords: selectedJobs.length,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to export jobs",
-        error: error.message,
+        error: (_error as Error).message,
         exportDto,
       });
-      throw error;
+      throw _error;
     }
   }
 
-  private async getFilteredJobs(filters?: JobAdvancedFilterDto) {
+  private async getFilteredJobs(filters?: JobAdvancedFilterDto): Promise<ExportableJob[]> {
     const db = this.databaseService.db;
     const conditions = [];
 
@@ -153,7 +186,7 @@ export class JobExportService {
     }));
   }
 
-  private selectFields(jobs: any[], fields?: string[]) {
+  private selectFields(jobs: ExportableJob[], fields?: string[]): Partial<ExportableJob>[] {
     if (!fields || fields.length === 0) {
       // Default fields
       fields = [
@@ -172,17 +205,19 @@ export class JobExportService {
     }
 
     return jobs.map(job => {
-      const selected: any = {};
+      const selected: Partial<ExportableJob> = {};
+      const jobRecord = job as any;
+      const selectedRecord = selected as any;
       fields.forEach(field => {
-        if (job.hasOwnProperty(field)) {
-          selected[field] = job[field];
+        if (field in jobRecord) {
+          selectedRecord[field] = jobRecord[field];
         }
       });
       return selected;
     });
   }
 
-  private async attachJobLogs(jobs: any[]) {
+  private async attachJobLogs(jobs: Partial<ExportableJob>[]) {
     const db = this.databaseService.db;
     const jobIds = jobs.map(j => j.id).filter(Boolean);
 
@@ -194,7 +229,7 @@ export class JobExportService {
       .where(inArray(jobLogs.jobId, jobIds))
       .orderBy(jobLogs.createdAt);
 
-    const logsByJobId = logs.reduce((acc, log) => {
+    const logsByJobId = logs.reduce<Record<string, ExportableJob["logs"]>>((acc, log) => {
       if (!acc[log.jobId]) {
         acc[log.jobId] = [];
       }
@@ -218,7 +253,7 @@ export class JobExportService {
     return `job-export-${timestamp}.${extension}`;
   }
 
-  private async exportToJSON(jobs: any[], filename: string) {
+  private async exportToJSON(jobs: Partial<ExportableJob>[], filename: string) {
     const jsonContent = JSON.stringify(jobs, null, 2);
     const buffer = Buffer.from(jsonContent, "utf-8");
 
@@ -232,7 +267,7 @@ export class JobExportService {
     return { url: file.url, data: jobs };
   }
 
-  private async exportToCSV(jobs: any[], filename: string) {
+  private async exportToCSV(jobs: Partial<ExportableJob>[], filename: string) {
     if (jobs.length === 0) {
       return { data: "" };
     }
@@ -261,9 +296,9 @@ export class JobExportService {
 
     // Format data for CSV
     const records = jobs.map(job => {
-      const record: any = {};
+      const record: Record<string, string | number> = {};
       headerArray.forEach(header => {
-        const value = job[header];
+        const value = (job as Record<string, JsonValue>)[header];
         if (value instanceof Date) {
           record[header] = value.toISOString();
         } else if (value === null || value === undefined) {
@@ -271,7 +306,7 @@ export class JobExportService {
         } else if (typeof value === "object") {
           record[header] = JSON.stringify(value);
         } else {
-          record[header] = value;
+          record[header] = value as string | number;
         }
       });
       return record;
@@ -291,7 +326,7 @@ export class JobExportService {
     return { url: file.url, data: csvContent };
   }
 
-  private async exportToExcel(jobs: any[], filename: string, includeLogs?: boolean) {
+  private async exportToExcel(jobs: Partial<ExportableJob>[], filename: string, includeLogs?: boolean) {
     const workbook = new ExcelJS.Workbook();
     
     // Main jobs sheet
@@ -318,9 +353,9 @@ export class JobExportService {
 
       // Add data
       jobs.forEach(job => {
-        const row: any = {};
+        const row: Record<string, JsonValue> = {};
         headers.forEach(header => {
-          const value = job[header];
+          const value = (job as Record<string, JsonValue>)[header];
           if (value instanceof Date) {
             row[header] = value.toISOString();
           } else if (typeof value === "object" && value !== null) {
@@ -367,7 +402,14 @@ export class JobExportService {
     // Add logs sheet if requested
     if (includeLogs) {
       const logsSheet = workbook.addWorksheet("Logs");
-      const allLogs: any[] = [];
+      const allLogs: Array<{
+        jobId: string;
+        jobName: string;
+        level: string;
+        message: string;
+        data: JsonObject | null;
+        createdAt: Date | string;
+      }> = [];
 
       jobs.forEach(job => {
         if (job.logs && Array.isArray(job.logs)) {
@@ -486,14 +528,16 @@ export class JobExportService {
     return widthMap[key] || 15;
   }
 
-  private calculateSummary(jobs: any[]) {
+  private calculateSummary(jobs: Partial<ExportableJob>[]) {
     const totalJobs = jobs.length;
-    const statusCounts = jobs.reduce((acc, job) => {
-      acc[job.status] = (acc[job.status] || 0) + 1;
+    const statusCounts = jobs.reduce<Record<string, number>>((acc, job) => {
+      if (job.status) {
+        acc[job.status] = (acc[job.status] || 0) + 1;
+      }
       return acc;
     }, {});
 
-    const queueCounts = jobs.reduce((acc, job) => {
+    const queueCounts = jobs.reduce<Record<string, number>>((acc, job) => {
       if (job.queue) {
         acc[job.queue] = (acc[job.queue] || 0) + 1;
       }
@@ -503,7 +547,7 @@ export class JobExportService {
     const avgDuration =
       jobs
         .filter(j => j.duration)
-        .reduce((sum, j) => sum + j.duration, 0) /
+        .reduce((sum, j) => sum + (j.duration || 0), 0) /
         (jobs.filter(j => j.duration).length || 1);
 
     const totalRecordsProcessed = jobs.reduce(
@@ -519,7 +563,7 @@ export class JobExportService {
       activeJobs: statusCounts.active || 0,
       avgDurationMs: Math.round(avgDuration),
       totalRecordsProcessed,
-      ...Object.entries(queueCounts).reduce((acc, [queue, count]) => {
+      ...Object.entries(queueCounts).reduce<Record<string, number>>((acc, [queue, count]) => {
         acc[`queue_${queue}`] = count;
         return acc;
       }, {}),

@@ -19,17 +19,17 @@ export interface ActivityMetadata {
   method?: string;
   duration?: number;
   statusCode?: number;
-  query?: Record<string, unknown>;
-  params?: Record<string, unknown>;
+  query?: SanitizedValue;
+  params?: SanitizedValue;
   bodySize?: number;
   userAgent?: string;
   category?: string;
   importance?: string;
   error?: string;
   errorStack?: string;
-  [key: string]: unknown;
+  [key: string]: string | number | boolean | Record<string, any> | SanitizedValue | undefined;
 }
 
 export interface SanitizedValue {
-  [key: string]: string | number | boolean | null | SanitizedValue | SanitizedValue[];
+  [key: string]: string | number | boolean | null | string[] | SanitizedValue | SanitizedValue[];
 }

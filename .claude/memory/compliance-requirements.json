@@ -1,0 +1,229 @@
+{
+  "regulations": {
+    "CMS_Hospital_Price_Transparency": {
+      "effectiveDate": "2021-01-01",
+      "lastUpdated": "2024-01-01",
+      "authority": "Centers for Medicare & Medicaid Services",
+      "citation": "45 CFR Parts 180",
+      "requirements": {
+        "machineReadableFile": {
+          "format": ["CSV", "JSON", "XML"],
+          "accessibility": {
+            "public": true,
+            "noBarriers": "No registration, login, or personal information required",
+            "directLink": "Must be accessible via direct URL",
+            "searchEngines": "Must be indexable"
+          },
+          "naming": {
+            "pattern": "<hospital_name>_standardcharges.<extension>",
+            "required": "Hospital name must be in filename",
+            "caseInsensitive": true
+          },
+          "location": {
+            "rootDirectory": "Recommended at website root",
+            "txtFile": "Should be listed in robots.txt",
+            "siteMap": "Should be in sitemap.xml"
+          },
+          "content": {
+            "required": [
+              "Description of item or service",
+              "Gross charge",
+              "Discounted cash price",
+              "Payer-specific negotiated charges",
+              "De-identified minimum negotiated charge",
+              "De-identified maximum negotiated charge"
+            ],
+            "additional": [
+              "Billing code (CPT, HCPCS, DRG, etc.)",
+              "Revenue code",
+              "Payer name",
+              "Plan name"
+            ]
+          },
+          "updateFrequency": {
+            "minimum": "Annually",
+            "requirement": "Must update when charges change"
+          }
+        },
+        "consumerFriendlyDisplay": {
+          "services": {
+            "count": 300,
+            "selection": "70 CMS-specified + 230 hospital-selected",
+            "criteria": "Most commonly provided shoppable services"
+          },
+          "format": {
+            "options": ["Internet-based tool", "Downloadable file"],
+            "requirements": "User-friendly, searchable"
+          },
+          "information": [
+            "Plain language description",
+            "Estimated amount patient pays",
+            "Location (inpatient/outpatient)"
+          ]
+        }
+      },
+      "penalties": {
+        "amount": {
+          "daily": "$300",
+          "annual": "$109,500",
+          "scaledByBeds": "For hospitals > 30 beds: $10 per bed per day",
+          "maximum": "$2,007,500 annually"
+        },
+        "enforcement": {
+          "warnings": "Written warning for first violation",
+          "correctionPeriod": "Hospital has opportunity to correct",
+          "publicPosting": "CMS may post violations publicly"
+        }
+      }
+    },
+    "Transparency_in_Coverage": {
+      "effectiveDate": "2022-07-01",
+      "appliesTo": "Group health plans and insurers",
+      "requirements": {
+        "inNetworkFile": {
+          "content": "Negotiated rates for all covered items",
+          "format": "JSON following CMS schema",
+          "updateFrequency": "Monthly"
+        },
+        "outOfNetworkFile": {
+          "content": "Allowed amounts and billed charges",
+          "historicalData": "90 days",
+          "format": "JSON following CMS schema"
+        }
+      }
+    },
+    "No_Surprises_Act": {
+      "effectiveDate": "2022-01-01",
+      "relevantProvisions": {
+        "goodFaithEstimate": {
+          "when": "Uninsured or self-pay patients",
+          "timing": "Before scheduled service",
+          "content": "Expected charges for service"
+        },
+        "advancedEOB": {
+          "when": "Upon request",
+          "timing": "Before scheduled service",
+          "content": "Expected cost sharing"
+        }
+      }
+    }
+  },
+  "dataPrivacy": {
+    "HIPAA": {
+      "relevance": "Price data itself not PHI, but must not include patient information",
+      "concerns": [
+        "No patient identifiers in files",
+        "Aggregate data only",
+        "No rare disease pricing that could identify patients"
+      ]
+    },
+    "stateRegulations": {
+      "California": {
+        "SB343": "Hospital financial transparency",
+        "additionalRequirements": "CDM in spreadsheet format"
+      },
+      "Colorado": {
+        "HB21-1198": "Additional price transparency requirements"
+      },
+      "Texas": {
+        "SB1137": "Machine-readable hospital pricing"
+      }
+    }
+  },
+  "technicalStandards": {
+    "CMS_JSON_Schema": {
+      "version": "2.0",
+      "url": "https://github.com/CMSgov/price-transparency-guide",
+      "updates": "Check quarterly for schema updates",
+      "validation": {
+        "required": true,
+        "tools": "JSON Schema validators"
+      }
+    },
+    "fileSize": {
+      "recommendation": "Split files > 1GB",
+      "compression": "GZIP allowed but not required",
+      "encoding": "UTF-8 preferred"
+    },
+    "accessibility": {
+      "WCAG": "Not required for MRF",
+      "apiAccess": "Not required but beneficial",
+      "rateLimit": "Cannot restrict access frequency"
+    }
+  },
+  "bestPractices": {
+    "implementation": [
+      "Version control for files",
+      "Changelog documenting updates",
+      "Consistent file naming",
+      "Automated validation before publishing",
+      "Monitor for failed downloads",
+      "Regular audits for compliance"
+    ],
+    "documentation": [
+      "Data dictionary explaining fields",
+      "Contact information for questions",
+      "Update schedule",
+      "Known limitations"
+    ],
+    "quality": [
+      "Regular data quality checks",
+      "Consistent payer naming",
+      "Complete code sets",
+      "Accurate service descriptions",
+      "No placeholder prices in production"
+    ]
+  },
+  "auditChecklist": {
+    "fileAccessibility": [
+      "✓ Direct URL access without login",
+      "✓ No CAPTCHA or barriers",
+      "✓ Proper MIME type headers",
+      "✓ No JavaScript required to access"
+    ],
+    "contentCompleteness": [
+      "✓ All required data elements present",
+      "✓ At least 70 CMS shoppable services",
+      "✓ All payers included",
+      "✓ Current year data"
+    ],
+    "technical": [
+      "✓ Valid file format",
+      "✓ Proper character encoding",
+      "✓ Parseable without errors",
+      "✓ Reasonable file size"
+    ],
+    "updates": [
+      "✓ Annual update completed",
+      "✓ Changes reflected promptly",
+      "✓ Version/date indicated",
+      "✓ Historical files archived"
+    ]
+  },
+  "commonViolations": {
+    "accessibility": [
+      "File behind login wall",
+      "CAPTCHA required",
+      "JavaScript-only access",
+      "Blocking automated access"
+    ],
+    "content": [
+      "Missing negotiated rates",
+      "Placeholder prices throughout",
+      "Incomplete payer list",
+      "Missing required services"
+    ],
+    "format": [
+      "PDF instead of machine-readable",
+      "Corrupted files",
+      "Invalid JSON structure",
+      "Mixed formats in single file"
+    ],
+    "maintenance": [
+      "Outdated files (>1 year)",
+      "Broken links",
+      "Files removed without notice",
+      "No update history"
+    ]
+  }
+}

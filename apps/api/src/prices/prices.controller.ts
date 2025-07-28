@@ -16,11 +16,6 @@ import {
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { PricesService } from "./prices.service";
-import {
-  PriceFilterQueryDto,
-  PriceComparisonQueryDto,
-  AnalyticsQueryDto,
-} from "../common/dto/query.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { RequirePermissions } from "../auth/decorators/permissions.decorator";
@@ -104,8 +99,8 @@ export class PricesController {
       });
     } catch (error) {
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -167,8 +162,8 @@ export class PricesController {
       return await this.pricesService.comparePrices({ service, state, limit });
     } catch (error) {
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -224,8 +219,8 @@ export class PricesController {
       return await this.pricesService.getPricingAnalytics({ service, state });
     } catch (error) {
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -336,12 +331,12 @@ export class PricesController {
         offset: offset ? Number(offset) : undefined,
       });
     } catch (error) {
-      if (error.status === HttpStatus.BAD_REQUEST) {
+      if ((error as { status?: number }).status === HttpStatus.BAD_REQUEST) {
         throw error;
       }
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -430,12 +425,12 @@ export class PricesController {
         offset: offset ? Number(offset) : undefined,
       });
     } catch (error) {
-      if (error.status === HttpStatus.NOT_FOUND) {
+      if ((error as { status?: number }).status === HttpStatus.NOT_FOUND) {
         throw error;
       }
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {
@@ -479,8 +474,8 @@ export class PricesController {
   @ApiParam({ name: "id", description: "Price ID" })
   async getPriceById(@Param("id") id: string) {
     try {
-      const result = await this.pricesService.getPriceById(id);
-      if (!result) {
+      const _result = await this.pricesService.getPriceById(id);
+      if (!_result) {
         throw new HttpException(
           {
             message: "Price not found",
@@ -490,14 +485,14 @@ export class PricesController {
           HttpStatus.NOT_FOUND,
         );
       }
-      return result;
+      return _result;
     } catch (error) {
-      if (error.status === HttpStatus.NOT_FOUND) {
+      if ((error as { status?: number }).status === HttpStatus.NOT_FOUND) {
         throw error;
       }
       if (
-        error.message?.includes("ECONNREFUSED") ||
-        error.message?.includes("connect")
+        (error as Error).message?.includes("ECONNREFUSED") ||
+        (error as Error).message?.includes("connect")
       ) {
         throw new HttpException(
           {

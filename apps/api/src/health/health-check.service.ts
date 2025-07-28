@@ -24,7 +24,7 @@ export interface ComponentHealth {
   status: "up" | "down" | "degraded";
   message?: string;
   latency?: number;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -97,15 +97,15 @@ export class HealthCheckService {
         latency,
         message: latency < 1000 ? "Database responding normally" : "Database slow",
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Database health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       
       return {
         status: "down",
-        message: `Database error: ${error.message}`,
+        message: `Database error: ${(_error as Error).message}`,
         latency: Date.now() - start,
       };
     }
@@ -143,15 +143,15 @@ export class HealthCheckService {
         message: "Redis responding normally",
         details: connectionStatus,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Redis health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       
       return {
         status: "down",
-        message: `Redis error: ${error.message}`,
+        message: `Redis error: ${(_error as Error).message}`,
         latency: Date.now() - start,
       };
     }
@@ -164,7 +164,7 @@ export class HealthCheckService {
     const start = Date.now();
     try {
       // Try to list files in a test directory
-      const files = await this.storageService.listFiles("health-check/", 1);
+      await this.storageService.listFiles("health-check/", 1);
       
       const latency = Date.now() - start;
       
@@ -173,15 +173,15 @@ export class HealthCheckService {
         latency,
         message: "Storage accessible",
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Storage health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       
       return {
         status: "down",
-        message: `Storage error: ${error.message}`,
+        message: `Storage error: ${(_error as Error).message}`,
         latency: Date.now() - start,
       };
     }
@@ -221,15 +221,15 @@ export class HealthCheckService {
           parser: parserCounts,
         },
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Queue health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       
       return {
         status: "down",
-        message: `Queue error: ${error.message}`,
+        message: `Queue error: ${(_error as Error).message}`,
       };
     }
   }
@@ -279,15 +279,15 @@ export class HealthCheckService {
         message,
         details: statsByStatus,
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Job health check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       
       return {
         status: "down",
-        message: `Job check error: ${error.message}`,
+        message: `Job check error: ${(_error as Error).message}`,
       };
     }
   }
@@ -295,7 +295,7 @@ export class HealthCheckService {
   /**
    * Quick liveness check
    */
-  async isAlive(): Promise<boolean> {
+  isAlive(): boolean {
     return true; // Application is running
   }
 
@@ -311,10 +311,10 @@ export class HealthCheckService {
       ]);
       
       return dbCheck.status !== "down" && redisCheck.status !== "down";
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Readiness check failed",
-        error: error.message,
+        error: (_error as Error).message,
       });
       return false;
     }

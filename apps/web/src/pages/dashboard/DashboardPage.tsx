@@ -65,9 +65,10 @@ export function DashboardPage() {
     try {
       const response = await apiClient.get("/dashboard/stats");
       setStats(response.data);
-    } catch (error: any) {
+    } catch (error) {
       // Check if it's a 404 or other expected error
-      if (error.response?.status === 404) {
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError.response?.status === 404) {
         // Dashboard stats endpoint not available yet, use defaults
         setStats({
           hospitals: { total: 0, active: 0, withPrices: 0 },

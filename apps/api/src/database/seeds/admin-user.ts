@@ -59,9 +59,9 @@ async function seedAdminUser() {
     console.log(`Email: ${adminEmail}`);
     console.log(`Password: ${adminPassword}`);
     console.log("========================\n");
-  } catch (error) {
-    console.error("Error seeding admin user:", error);
-    throw error;
+  } catch (_error) {
+    console.error("Error", _error);
+    throw _error;
   } finally {
     await client.end();
   }

@@ -61,7 +61,7 @@ export class AdminController {
       const role = await this.rbacService.createRole(createRoleDto);
       return role;
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException((error as Error).message, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -102,7 +102,7 @@ export class AdminController {
         await this.rbacService.createPermission(createPermissionDto);
       return permission;
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException((error as Error).message, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -117,11 +117,11 @@ export class AdminController {
       const assignment = await this.rbacService.assignRoleToUser(
         assignRoleDto.userId,
         assignRoleDto.roleId,
-        req.user.id,
+        _req.user.id,
       );
       return assignment;
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException((error as Error).message, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -152,11 +152,11 @@ export class AdminController {
       const assignment = await this.rbacService.assignPermissionToRole(
         assignDto.roleId,
         assignDto.permissionId,
-        req.user.id,
+        _req.user.id,
       );
       return assignment;
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException((error as Error).message, HttpStatus.BAD_REQUEST);
     }
   }
 

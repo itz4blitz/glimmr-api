@@ -109,9 +109,10 @@ interface JobSchedulerProps {
 export function JobScheduler({ queues }: JobSchedulerProps) {
   const [templates, setTemplates] = useState<JobTemplate[]>([]);
   const [scheduledJobs, setScheduledJobs] = useState<ScheduledJob[]>([]);
-  // const [selectedTemplate, setSelectedTemplate] = useState<JobTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<JobTemplate | null>(null);
   const [selectedScheduledJob, setSelectedScheduledJob] = useState<ScheduledJob | null>(null);
   const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false);
+  const [isEditTemplateOpen, setIsEditTemplateOpen] = useState(false);
   const [isScheduleJobOpen, setIsScheduleJobOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("templates");
@@ -212,15 +213,41 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
     }
   };
 
-  // const updateTemplate = async (id: string, updates: Partial<JobTemplate>) => {
-  //   try {
-  //     const response = await apiClient.put(`/jobs/templates/${id}`, updates);
-  //     setTemplates(templates.map((t) => (t.id === id ? response.data : t)));
-  //     toast.success("Template updated successfully");
-  //   } catch (error) {
-  //     toast.error(`Failed to update template: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  //   }
-  // };
+  const updateTemplate = async () => {
+    if (!editingTemplate) return;
+    
+    try {
+      setIsLoading(true);
+      const payload = JSON.parse(templateForm.payload);
+      
+      const response = await apiClient.put(`/jobs/templates/${editingTemplate.id}`, {
+        name: templateForm.name,
+        queueName: templateForm.queueName,
+        description: templateForm.description,
+        payload,
+        options: {
+          priority: templateForm.priority,
+          attempts: templateForm.attempts,
+          backoff: {
+            type: templateForm.backoffType,
+            delay: templateForm.backoffDelay,
+          },
+          removeOnComplete: templateForm.removeOnComplete,
+          removeOnFail: templateForm.removeOnFail,
+        },
+      });
+      
+      setTemplates(templates.map((t) => (t.id === editingTemplate.id ? response.data : t)));
+      setIsEditTemplateOpen(false);
+      setEditingTemplate(null);
+      resetTemplateForm();
+      toast.success("Template updated successfully");
+    } catch (error) {
+      toast.error(`Failed to update template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const deleteTemplate = async (id: string) => {
     try {
@@ -334,6 +361,23 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
       removeOnComplete: true,
       removeOnFail: false,
     });
+  };
+
+  const openEditTemplate = (template: JobTemplate) => {
+    setEditingTemplate(template);
+    setTemplateForm({
+      name: template.name,
+      queueName: template.queueName,
+      description: template.description,
+      payload: JSON.stringify(template.payload, null, 2),
+      priority: template.options.priority || 0,
+      attempts: template.options.attempts || 3,
+      backoffType: template.options.backoff?.type || "exponential",
+      backoffDelay: template.options.backoff?.delay || 1000,
+      removeOnComplete: template.options.removeOnComplete ?? true,
+      removeOnFail: template.options.removeOnFail ?? false,
+    });
+    setIsEditTemplateOpen(true);
   };
 
   const resetScheduleForm = () => {
@@ -575,6 +619,191 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
                     </Button>
                     <Button onClick={createTemplate} disabled={isLoading}>
                       {isLoading ? "Creating..." : "Create Template"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Edit Template Dialog */}
+              <Dialog open={isEditTemplateOpen} onOpenChange={setIsEditTemplateOpen}>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Edit Job Template</DialogTitle>
+                    <DialogDescription>
+                      Update the job template configuration
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-template-name">Template Name</Label>
+                        <Input
+                          id="edit-template-name"
+                          value={templateForm.name}
+                          onChange={(e) =>
+                            setTemplateForm({ ...templateForm, name: e.target.value })
+                          }
+                          placeholder="e.g., Process Daily Reports"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-queue">Queue</Label>
+                        <Select
+                          value={templateForm.queueName}
+                          onValueChange={(value) =>
+                            setTemplateForm({ ...templateForm, queueName: value })
+                          }
+                        >
+                          <SelectTrigger id="edit-queue">
+                            <SelectValue placeholder="Select a queue" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {queues.map((queue) => (
+                              <SelectItem key={queue.name} value={queue.name}>
+                                {queue.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-description">Description</Label>
+                      <Textarea
+                        id="edit-description"
+                        value={templateForm.description}
+                        onChange={(e) =>
+                          setTemplateForm({ ...templateForm, description: e.target.value })
+                        }
+                        placeholder="Describe what this job does..."
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-payload">Payload (JSON)</Label>
+                      <Textarea
+                        id="edit-payload"
+                        value={templateForm.payload}
+                        onChange={(e) =>
+                          setTemplateForm({ ...templateForm, payload: e.target.value })
+                        }
+                        placeholder='{"key": "value"}'
+                        rows={5}
+                        className="font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-priority">Priority</Label>
+                        <Input
+                          id="edit-priority"
+                          type="number"
+                          value={templateForm.priority}
+                          onChange={(e) =>
+                            setTemplateForm({
+                              ...templateForm,
+                              priority: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-attempts">Max Attempts</Label>
+                        <Input
+                          id="edit-attempts"
+                          type="number"
+                          value={templateForm.attempts}
+                          onChange={(e) =>
+                            setTemplateForm({
+                              ...templateForm,
+                              attempts: parseInt(e.target.value) || 1,
+                            })
+                          }
+                          min="1"
+                          max="10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-backoff-type">Backoff Type</Label>
+                        <Select
+                          value={templateForm.backoffType}
+                          onValueChange={(value: "fixed" | "exponential") =>
+                            setTemplateForm({ ...templateForm, backoffType: value })
+                          }
+                        >
+                          <SelectTrigger id="edit-backoff-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed">Fixed</SelectItem>
+                            <SelectItem value="exponential">Exponential</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-backoff-delay">Backoff Delay (ms)</Label>
+                        <Input
+                          id="edit-backoff-delay"
+                          type="number"
+                          value={templateForm.backoffDelay}
+                          onChange={(e) =>
+                            setTemplateForm({
+                              ...templateForm,
+                              backoffDelay: parseInt(e.target.value) || 1000,
+                            })
+                          }
+                          min="100"
+                          step="100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="edit-remove-complete"
+                          checked={templateForm.removeOnComplete}
+                          onCheckedChange={(checked) =>
+                            setTemplateForm({ ...templateForm, removeOnComplete: checked })
+                          }
+                        />
+                        <Label htmlFor="edit-remove-complete">
+                          Remove job on completion
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="edit-remove-fail"
+                          checked={templateForm.removeOnFail}
+                          onCheckedChange={(checked) =>
+                            setTemplateForm({ ...templateForm, removeOnFail: checked })
+                          }
+                        />
+                        <Label htmlFor="edit-remove-fail">Remove job on failure</Label>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditTemplateOpen(false);
+                        setEditingTemplate(null);
+                        resetTemplateForm();
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={updateTemplate} disabled={isLoading}>
+                      {isLoading ? "Updating..." : "Update Template"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -863,10 +1092,7 @@ export function JobScheduler({ queues }: JobSchedulerProps) {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      // TODO: Implement edit functionality
-                                      toast.info("Edit functionality not yet implemented");
-                                    }}
+                                    onClick={() => openEditTemplate(template)}
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>

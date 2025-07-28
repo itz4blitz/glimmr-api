@@ -8,8 +8,8 @@ import {
   mkdirSync,
   statSync,
 } from "fs";
-import { unlink, stat } from "fs/promises";
-import { join, dirname } from "path";
+import { unlink, stat, readdir } from "fs/promises";
+import { join, dirname, extname } from "path";
 import { pipeline } from "stream/promises";
 import {
   S3Client,
@@ -36,6 +36,8 @@ export interface StorageFile {
   size: number;
   lastModified: Date;
   url?: string;
+  etag?: string;
+  contentType?: string;
 }
 
 export interface UploadOptions {
@@ -191,23 +193,23 @@ export class StorageService {
             `Upload not implemented for storage type: ${this.config.type}`,
           );
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
           storageType: this.config.type,
         },
         "File upload failed",
       );
-      throw error;
+      throw _error;
     }
   }
 
   /**
    * Upload a file from local path
    */
-  async uploadFromFile(
+  uploadFromFile(
     key: string,
     filePath: string,
     options: UploadOptions = {},
@@ -244,16 +246,16 @@ export class StorageService {
             `Download not implemented for storage type: ${this.config.type}`,
           );
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
           storageType: this.config.type,
         },
         "File download failed",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -276,7 +278,7 @@ export class StorageService {
   /**
    * Get file information
    */
-  async getFileInfo(key: string): Promise<StorageFile | null> {
+  getFileInfo(key: string): Promise<StorageFile | null> {
     try {
       switch (this.config.type) {
         case "local":
@@ -289,11 +291,11 @@ export class StorageService {
             `Get file info not implemented for storage type: ${this.config.type}`,
           );
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
           storageType: this.config.type,
         },
         "Failed to get file info",
@@ -326,11 +328,11 @@ export class StorageService {
             `Delete not implemented for storage type: ${this.config.type}`,
           );
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
           storageType: this.config.type,
         },
         "File deletion failed",
@@ -358,11 +360,11 @@ export class StorageService {
             `List files not implemented for storage type: ${this.config.type}`,
           );
       }
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           prefix,
-          error: error.message,
+          error: (_error as Error).message,
           storageType: this.config.type,
         },
         "Failed to list files",
@@ -378,11 +380,11 @@ export class StorageService {
     try {
       const fileInfo = await this.getFileInfo(key);
       return fileInfo !== null;
-    } catch (error) {
+    } catch (_error) {
       this.logger.debug(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
         },
         "File existence check failed",
       );
@@ -394,7 +396,7 @@ export class StorageService {
   private async uploadToLocal(
     key: string,
     stream: NodeJS.ReadableStream,
-    options: UploadOptions,
+    _options: UploadOptions,
   ): Promise<StorageFile> {
     const filePath = join(this.config.basePath, key);
     const dir = dirname(filePath);
@@ -451,12 +453,12 @@ export class StorageService {
     try {
       await unlink(filePath);
       return true;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
           filePath,
-          error: error.message,
+          error: (_error as Error).message,
         },
         "Failed to delete local file",
       );
@@ -472,17 +474,17 @@ export class StorageService {
       throw new Error("Local file listing called on non-local storage type");
     }
 
-    const basePath = this.config.local?.basePath;
+    const basePath = this.config.basePath;
     if (!basePath) {
       throw new Error("Local storage base path not configured");
     }
 
-    const fullPath = path.join(basePath, prefix);
+    const fullPath = join(basePath, prefix);
     const files: StorageFile[] = [];
 
     try {
       // Check if directory exists
-      if (!fs.existsSync(fullPath)) {
+      if (!existsSync(fullPath)) {
         this.logger.info({
           msg: "Directory does not exist for listing",
           path: fullPath,
@@ -492,28 +494,28 @@ export class StorageService {
 
       // Read directory recursively
       const readDirRecursive = async (dir: string, currentPrefix: string = ""): Promise<void> => {
-        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        const entries = await readdir(dir, { withFileTypes: true });
         
         for (const entry of entries) {
           if (files.length >= limit) {
             break;
           }
 
-          const entryPath = path.join(dir, entry.name);
-          const relativePath = path.join(currentPrefix, entry.name);
+          const entryPath = join(dir, entry.name);
+          const relativePath = join(currentPrefix, entry.name);
 
           if (entry.isDirectory()) {
             await readDirRecursive(entryPath, relativePath);
           } else if (entry.isFile()) {
-            const stats = await fs.promises.stat(entryPath);
-            const key = path.join(prefix, relativePath).replace(/\\/g, "/"); // Normalize path separators
+            const stats = await stat(entryPath);
+            const key = join(prefix, relativePath).replace(/\\/g, "/"); // Normalize path separators
 
             files.push({
               key,
               size: stats.size,
               lastModified: stats.mtime,
               etag: `"${stats.mtime.getTime()}-${stats.size}"`, // Simple etag based on mtime and size
-              contentType: this.getContentTypeFromExtension(path.extname(entry.name)),
+              contentType: this.getContentTypeFromExtension(extname(entry.name)),
             });
           }
         }
@@ -529,13 +531,13 @@ export class StorageService {
       });
 
       return files.slice(0, limit);
-    } catch (error) {
+    } catch (_error) {
       this.logger.error({
         msg: "Failed to list local files",
-        error: error.message,
+        error: (_error as Error).message,
         path: fullPath,
       });
-      throw error;
+      throw _error;
     }
   }
 
@@ -587,16 +589,16 @@ export class StorageService {
         lastModified: new Date(),
         url: this.getS3Url(key),
       };
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
           bucket: this.config.bucket,
         },
         "S3 upload failed",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -633,17 +635,17 @@ export class StorageService {
       );
 
       return stream;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
           bucket: this.config.bucket,
-          error: error.message,
-          code: error.Code,
+          error: (_error as Error).message,
+          code: (_error as Error & { Code?: string }).Code,
         },
         "S3 download failed",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -666,18 +668,18 @@ export class StorageService {
         lastModified: response.LastModified || new Date(),
         url: this.getS3Url(key),
       };
-    } catch (error) {
-      if (error.name === "NotFound") {
+    } catch (_error) {
+      if ((_error as Error & { name?: string }).name === "NotFound") {
         return null;
       }
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
         },
         "S3 head object failed",
       );
-      throw error;
+      throw _error;
     }
   }
 
@@ -694,11 +696,11 @@ export class StorageService {
 
       await this.s3Client.send(command);
       return true;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           key,
-          error: error.message,
+          error: (_error as Error).message,
         },
         "S3 delete failed",
       );
@@ -738,16 +740,16 @@ export class StorageService {
       }
 
       return files;
-    } catch (error) {
+    } catch (_error) {
       this.logger.error(
         {
           prefix,
           limit,
-          error: error.message,
+          error: (_error as Error).message,
         },
         "S3 list objects failed",
       );
-      throw error;
+      throw _error;
     }
   }
 

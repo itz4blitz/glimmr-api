@@ -1,9 +1,7 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
+import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
+import { Job, Queue } from "bullmq";
 import { Injectable } from "@nestjs/common";
 import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
 import { DatabaseService } from "../../database/database.service";
 import { QUEUE_NAMES } from "../queues/queue.config";
 import {
@@ -75,10 +73,19 @@ export class PriceNormalizationProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<PriceNormalizationJobData>): Promise<any> {
+  async process(job: Job<PriceNormalizationJobData>): Promise<{
+    success: boolean;
+    processedCount: number;
+    qualityBreakdown: {
+      high: number;
+      medium: number;
+      low: number;
+    };
+    duration: number;
+  }> {
     const { hospitalId, fileId, priceIds, batchIndex, totalBatches } = job.data;
     const startTime = Date.now();
-    let jobRecord: any;
+    let jobRecord: typeof jobsTable.$inferSelect;
 
     this.logger.info({
       msg: "Starting price normalization",
@@ -205,7 +212,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
             "Failed to normalize price",
             {
               priceId: price.id,
-              error: error.message,
+              error: (error as Error).message,
             },
           );
         }
@@ -285,20 +292,20 @@ export class PriceNormalizationProcessor extends WorkerHost {
       this.logger.error({
         msg: "Price normalization failed",
         jobId: job.id,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
         duration,
       });
 
       if (jobRecord) {
-        await this.updateJobFailure(jobRecord.id, error, duration);
+        await this.updateJobFailure(jobRecord.id, error as Error, duration);
       }
 
       throw error;
     }
   }
 
-  private async normalizePrice(price: any): Promise<NormalizedPrice> {
+  private async normalizePrice(price: typeof prices.$inferSelect): Promise<NormalizedPrice> {
     const normalized: NormalizedPrice = {
       id: price.id,
       codeType: price.codeType || "unknown",
@@ -322,7 +329,12 @@ export class PriceNormalizationProcessor extends WorkerHost {
     }
 
     // Parse payer rates
-    let payerRates: any = {};
+    let payerRates: Record<string, {
+      rate?: number;
+      negotiatedRate?: number;
+      billingClass?: string;
+      methodology?: string;
+    }> = {};
     if (price.payerSpecificNegotiatedCharges) {
       try {
         payerRates = JSON.parse(price.payerSpecificNegotiatedCharges);
@@ -335,7 +347,12 @@ export class PriceNormalizationProcessor extends WorkerHost {
     // Calculate min/max negotiated rates
     if (normalized.hasNegotiatedRates) {
       const rates = Object.values(payerRates)
-        .map((r: any) => r.rate || r.negotiatedRate || r)
+        .map((r: {
+          rate?: number;
+          negotiatedRate?: number;
+          billingClass?: string;
+          methodology?: string;
+        } | number) => typeof r === 'object' ? (r.rate || r.negotiatedRate) : r)
         .filter((r): r is number => typeof r === "number" && r > 0);
 
       if (rates.length > 0) {
@@ -346,10 +363,10 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
     // Use explicit min/max if no payer rates
     if (!normalized.minNegotiatedCharge && price.minimumNegotiatedCharge) {
-      normalized.minNegotiatedCharge = price.minimumNegotiatedCharge;
+      normalized.minNegotiatedCharge = parseFloat(price.minimumNegotiatedCharge);
     }
     if (!normalized.maxNegotiatedCharge && price.maximumNegotiatedCharge) {
-      normalized.maxNegotiatedCharge = price.maximumNegotiatedCharge;
+      normalized.maxNegotiatedCharge = parseFloat(price.maximumNegotiatedCharge);
     }
 
     // Assess data quality
@@ -423,7 +440,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
   }
 
   private assessDataQuality(
-    price: any,
+    price: typeof prices.$inferSelect,
     normalized: NormalizedPrice,
   ): "high" | "medium" | "low" {
     let qualityScore = 0;
@@ -443,7 +460,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
     // Has gross charge
     maxScore += 2;
-    if (price.grossCharge && price.grossCharge > 0) {
+    if (price.grossCharge && parseFloat(price.grossCharge) > 0) {
       qualityScore += 2;
     }
 
@@ -455,7 +472,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
     // Has cash price
     maxScore += 1;
-    if (price.discountedCashPrice && price.discountedCashPrice > 0) {
+    if (price.discountedCashPrice && parseFloat(price.discountedCashPrice) > 0) {
       qualityScore += 1;
     }
 
@@ -522,7 +539,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
     jobId: string,
     level: string,
     message: string,
-    data?: any,
+    data?: unknown,
   ): Promise<void> {
     try {
       await this.databaseService.db.insert(jobLogs).values({
@@ -534,7 +551,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
     } catch (error) {
       this.logger.error({
         msg: "Failed to log job event",
-        error: error.message,
+        error: (error as Error).message,
         jobId,
         level,
         message,
@@ -544,7 +561,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
   private async updateJobSuccess(
     jobId: string,
-    outputData: any,
+    outputData: Record<string, unknown>,
   ): Promise<void> {
     const db = this.databaseService.db;
     await db
@@ -552,11 +569,11 @@ export class PriceNormalizationProcessor extends WorkerHost {
       .set({
         status: "completed",
         completedAt: new Date(),
-        duration: outputData.duration,
+        duration: outputData.duration as number,
         outputData: JSON.stringify(outputData),
         progressPercentage: 100,
-        recordsProcessed: outputData.processedCount,
-        recordsUpdated: outputData.processedCount,
+        recordsProcessed: outputData.processedCount as number,
+        recordsUpdated: outputData.processedCount as number,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
@@ -577,15 +594,15 @@ export class PriceNormalizationProcessor extends WorkerHost {
         status: "failed",
         completedAt: new Date(),
         duration,
-        errorMessage: error.message,
-        errorStack: error.stack,
+        errorMessage: (error as Error).message,
+        errorStack: (error as Error).stack,
         updatedAt: new Date(),
       })
       .where(eq(jobsTable.id, jobId));
 
     await this.logJobEvent(jobId, "error", "Job failed", {
-      error: error.message,
-      stack: error.stack,
+      error: (error as Error).message,
+      stack: (error as Error).stack,
       duration,
     });
   }

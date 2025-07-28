@@ -60,7 +60,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         error: ERROR_CODES.VALIDATION_ERROR,
         timestamp,
         path,
-        details: this.formatValidationErrors(exception.response?.message),
+        details: this.formatValidationErrors((exception as HttpException).getResponse()),
         traceId,
       };
     }
@@ -75,7 +75,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         path,
         details:
           process.env.NODE_ENV === "development"
-            ? { originalError: exception.message }
+            ? { originalError: (exception as Error).message }
             : undefined,
         traceId,
       };
@@ -88,40 +88,43 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       message: isProduction
         ? "Internal server error"
-        : exception.message || "Unknown error",
+        : (exception as Error).message || "Unknown error",
       error: ERROR_CODES.INTERNAL_SERVER_ERROR,
       timestamp,
       path,
       details: isProduction
         ? undefined
         : {
-            stack: exception.stack,
-            name: exception.name,
+            stack: (exception as Error).stack,
+            name: (exception as Error).name,
           },
       traceId,
     };
   }
 
-  private extractMessage(exceptionResponse: any): string {
+  private extractMessage(exceptionResponse: unknown): string {
     if (typeof exceptionResponse === "string") {
       return exceptionResponse;
     }
 
-    if (exceptionResponse?.message) {
-      if (Array.isArray(exceptionResponse.message)) {
-        return exceptionResponse.message.join(", ");
+    if (exceptionResponse && typeof exceptionResponse === "object" && "message" in exceptionResponse) {
+      const message = exceptionResponse.message;
+      if (Array.isArray(message)) {
+        return message.join(", ");
       }
-      return exceptionResponse.message;
+      if (typeof message === "string") {
+        return message;
+      }
     }
 
     return "An error occurred";
   }
 
   private extractDetails(
-    exceptionResponse: any,
-  ): Record<string, any> | undefined {
+    exceptionResponse: unknown,
+  ): Record<string, unknown> | undefined {
     if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
-      const { message, statusCode, error, ...details } = exceptionResponse;
+      const { message: _message, statusCode: _statusCode, error: _error, ...details } = exceptionResponse as Record<string, unknown>;
       return Object.keys(details).length > 0 ? details : undefined;
     }
     return undefined;
@@ -154,7 +157,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
   }
 
-  private isValidationError(exception: any): boolean {
+  private isValidationError(exception: unknown): boolean {
     if (!(exception instanceof HttpException)) {
       return false;
     }
@@ -168,41 +171,44 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return false;
     }
 
-    const responseObj = response as any;
+    const responseObj = response as { message?: unknown };
     return responseObj.message && Array.isArray(responseObj.message);
   }
 
-  private isDatabaseError(exception: any): boolean {
+  private isDatabaseError(exception: unknown): boolean {
+    const error = exception as { code?: string; name?: string };
     return (
-      exception?.code &&
-      (exception.code.startsWith("23") || // PostgreSQL constraint violations
-        exception.code.startsWith("42") || // PostgreSQL syntax errors
-        exception.code === "ECONNREFUSED" || // Connection refused
-        exception.code === "ENOTFOUND" || // DNS resolution failed
-        exception.name === "QueryFailedError" || // TypeORM/Drizzle query errors
-        exception.name === "ConnectionError")
+      !!error?.code &&
+      (error.code.startsWith("23") || // PostgreSQL constraint violations
+        error.code.startsWith("42") || // PostgreSQL syntax errors
+        error.code === "ECONNREFUSED" || // Connection refused
+        error.code === "ENOTFOUND" || // DNS resolution failed
+        error.name === "QueryFailedError" || // TypeORM/Drizzle query errors
+        error.name === "ConnectionError")
     );
   }
 
   private formatValidationErrors(
-    errors: any[],
-  ): Record<string, any> | undefined {
-    if (!Array.isArray(errors)) {
-      return undefined;
+    response: unknown,
+  ): Record<string, unknown> | undefined {
+    if (response && typeof response === "object" && "message" in response) {
+      const message = response.message;
+      if (Array.isArray(message)) {
+        return {
+          validationErrors: message.map((error) => {
+            if (typeof error === "string") {
+              return { message: error };
+            }
+            return error;
+          }),
+        };
+      }
     }
-
-    return {
-      validationErrors: errors.map((error) => {
-        if (typeof error === "string") {
-          return { message: error };
-        }
-        return error;
-      }),
-    };
+    return undefined;
   }
 
   private logError(
-    exception: any,
+    exception: unknown,
     errorResponse: ErrorResponseDto,
     request: Request,
   ): void {
@@ -219,20 +225,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (errorResponse.statusCode >= 500) {
       this.logger.error({
         msg: "Internal server error",
-        error: exception.message,
-        stack: exception.stack,
+        error: exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? exception.stack : undefined,
         ...context,
       });
     } else if (errorResponse.statusCode >= 400) {
       this.logger.warn({
         msg: "Client error",
-        error: exception.message,
+        error: exception instanceof Error ? exception.message : String(exception),
         ...context,
       });
     } else {
       this.logger.debug({
         msg: "Exception handled",
-        error: exception.message,
+        error: exception instanceof Error ? exception.message : String(exception),
         ...context,
       });
     }

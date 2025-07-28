@@ -94,7 +94,7 @@ export class ActivityLoggingService {
   /**
    * Sanitize sensitive data from objects
    */
-  private sanitizeData(data: unknown): unknown {
+  private sanitizeData(data: any): any {
     if (!data) return data;
 
     const sensitiveKeys = [
@@ -161,8 +161,8 @@ export class ActivityLoggingService {
       // this.eventEmitter.emit('activity.logged', activityLog);
 
       this.logger.debug({ activityLog }, "Activity logged");
-    } catch (error) {
-      this.logger.error({ error, data }, "Failed to log activity");
+    } catch (_error) {
+      this.logger.error({ error: _error, data }, "Failed to log activity");
     }
   }
 

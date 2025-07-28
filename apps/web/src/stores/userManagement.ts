@@ -410,6 +410,7 @@ export const useUserManagementStore = create<UserManagementState>()(
           });
           set({ userActivity: response.activities || [] });
         } catch (error) {
+          console.error('Failed to load user activity:', error);
           toast.error("Failed to load user activity");
           set({ userActivity: [] });
         }

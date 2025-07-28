@@ -29,7 +29,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 import { Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
+import axios from "axios";
 
 const createUserSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -73,18 +75,28 @@ export function CreateUserDialog({
   const onSubmit = async (data: CreateUserFormData) => {
     setIsLoading(true);
     try {
-      // Here you would call your API to create the user
-      console.log('Creating user with data:', data);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Create user through the auth endpoint
+      await api.post('/auth/register', {
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        isActive: data.isActive,
+        emailVerified: data.emailVerified,
+        sendWelcomeEmail: data.sendWelcomeEmail,
+      });
 
       toast.success("User created successfully!");
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to create user:', error);
-      toast.error("Failed to create user. Please try again.");
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to create user. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }

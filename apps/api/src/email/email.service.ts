@@ -61,12 +61,12 @@ export class EmailService {
         success: true,
         message: "Email service connection verified successfully",
       };
-    } catch (error) {
-      this.logger.error("Email service connection failed", error.stack);
+    } catch (_error) {
+      this.logger.error("Email service connection failed", (_error as Error).stack);
       return {
         success: false,
         message: "Email service connection failed",
-        error: error.message,
+        error: (_error as Error).message,
       };
     }
   }
@@ -86,20 +86,20 @@ export class EmailService {
         html: options.html,
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
+      const _result = await this.transporter.sendMail(mailOptions);
 
       this.logger.log(`Email sent successfully to ${mailOptions.to}`);
 
       return {
         success: true,
-        message: `Email sent successfully. Message ID: ${result.messageId}`,
+        message: `Email sent successfully. Message ID: ${_result.messageId}`,
       };
-    } catch (error) {
-      this.logger.error(`Failed to send email to ${options.to}`, error.stack);
+    } catch (_error) {
+      this.logger.error(`Failed to send email to ${options.to}`, (_error as Error).stack);
       return {
         success: false,
         message: "Failed to send email",
-        error: error.message,
+        error: (_error as Error).message,
       };
     }
   }

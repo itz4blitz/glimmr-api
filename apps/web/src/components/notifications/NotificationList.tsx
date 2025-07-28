@@ -58,6 +58,7 @@ export function NotificationList({
       const response = await apiClient.get("/notifications?limit=20");
       setNotifications(response.data);
     } catch (error) {
+      console.error('Failed to load notifications:', error);
       toast.error("Failed to load notifications");
     } finally {
       setLoading(false);
@@ -78,6 +79,7 @@ export function NotificationList({
 
       onNotificationRead?.();
     } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -89,6 +91,7 @@ export function NotificationList({
       onNotificationRead?.();
       toast.success("All notifications marked as read");
     } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
       toast.error("Failed to mark notifications as read");
     }
   };
@@ -100,6 +103,7 @@ export function NotificationList({
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       toast.success("Notification deleted");
     } catch (error) {
+      console.error('Failed to delete notification:', error);
       toast.error("Failed to delete notification");
     }
   };

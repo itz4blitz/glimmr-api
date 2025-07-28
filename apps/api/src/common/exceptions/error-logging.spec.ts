@@ -17,7 +17,6 @@ describe("Error Logging", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockArgumentsHost: Partial<ArgumentsHost>;
-  let _loggerSpy: jest.SpyInstance;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -52,7 +51,7 @@ describe("Error Logging", () => {
     };
 
     // Spy on logger methods
-    loggerSpy = jest.spyOn(Logger.prototype, "error").mockImplementation();
+    jest.spyOn(Logger.prototype, "error").mockImplementation();
     jest.spyOn(Logger.prototype, "warn").mockImplementation();
     jest.spyOn(Logger.prototype, "debug").mockImplementation();
   });

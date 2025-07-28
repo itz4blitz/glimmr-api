@@ -5,7 +5,7 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
-  IsEnum,
+  IsEnum as _IsEnum,
   IsDateString,
   IsObject,
   ValidateNested,
@@ -301,7 +301,7 @@ export class CreateJobScheduleDto {
   })
   @IsOptional()
   @IsObject()
-  jobConfig?: Record<string, any>;
+  jobConfig?: Record<string, unknown>;
 
   @ApiProperty({
     description: "Whether the schedule is enabled",
@@ -441,7 +441,7 @@ export class UpdateJobScheduleDto {
   })
   @IsOptional()
   @IsObject()
-  jobConfig?: Record<string, any>;
+  jobConfig?: Record<string, unknown>;
 
   @ApiProperty({
     description: "Whether the schedule is enabled",

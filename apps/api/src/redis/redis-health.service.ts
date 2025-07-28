@@ -33,10 +33,10 @@ export class RedisHealthIndicator {
         port: this.redis.options.port,
         db: this.redis.options.db,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         status: "disconnected",
-        error: error.message,
+        error: (_error as Error).message,
         host: this.redis.options.host,
         port: this.redis.options.port,
       };
