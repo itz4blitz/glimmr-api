@@ -41,59 +41,56 @@ jobs:
           
       - name: 📦 Deploy Infrastructure
         run: |
-          # Create deployment script
-          cat > deploy.sh << 'EOF'
+          echo "🚀 Starting deployment..."
+
+          # Create directories on server
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "mkdir -p /opt/glimmr/{traefik,authentik,airbyte}"
+
+          # Copy configurations to server
+          scp -r infrastructure/traefik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/traefik/
+          scp -r infrastructure/authentik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/authentik/
+          scp -r infrastructure/airbyte/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/airbyte/
+
+          # Create deployment script on server
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} 'cat > ~/deploy.sh << "EOF"
           #!/bin/bash
           set -e
-          
-          echo "🚀 Starting deployment..."
-          
-          # Backup existing configs
-          mkdir -p /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S) 2>/dev/null || echo "Cannot create backup dir"
-          cp -r /opt/glimmr/* /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S)/ 2>/dev/null || echo "No existing configs to backup"
 
-          # Create directories
-          mkdir -p /opt/glimmr/{traefik,authentik,airbyte}
+          echo "🚀 Starting deployment on server..."
 
-          # Copy new configurations
-          cp -r infrastructure/traefik/* /opt/glimmr/traefik/
-          cp -r infrastructure/authentik/* /opt/glimmr/authentik/
-          cp -r infrastructure/airbyte/* /opt/glimmr/airbyte/
-          
-          # Create networks if they don't exist
+          # Create networks if they don'\''t exist
           docker network create glimmr-frontend 2>/dev/null || echo "Network glimmr-frontend exists"
           docker network create glimmr-backend 2>/dev/null || echo "Network glimmr-backend exists"
-          
+
           # Deploy services (only if .env files exist)
           cd /opt/glimmr
-          
+
           if [ -f traefik/.env ]; then
             echo "📊 Deploying Traefik..."
             cd traefik && docker compose up -d && cd ..
           else
             echo "⚠️  Skipping Traefik - no .env file"
           fi
-          
+
           if [ -f authentik/.env ]; then
             echo "🔐 Deploying Authentik..."
             cd authentik && docker compose up -d && cd ..
           else
             echo "⚠️  Skipping Authentik - no .env file"
           fi
-          
+
           if [ -f airbyte/.env ]; then
             echo "📊 Deploying Airbyte..."
             cd airbyte && docker compose up -d && cd ..
           else
             echo "⚠️  Skipping Airbyte - no .env file"
           fi
-          
+
           echo "✅ Deployment complete!"
           docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-          EOF
-          
-          # Copy and execute deployment script
-          scp deploy.sh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:~/
+          EOF'
+
+          # Execute deployment script
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "chmod +x ~/deploy.sh && ~/deploy.sh"
           
       - name: 🔍 Verify Deployment
