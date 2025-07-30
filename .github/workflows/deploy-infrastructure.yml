@@ -73,7 +73,13 @@ jobs:
 
           # Auto-generate .env files
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo 'CF_API_KEY=${{ secrets.CF_API_KEY }}' > /opt/glimmr/traefik/.env"
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cp /opt/glimmr/airbyte/.env.example /opt/glimmr/airbyte/.env 2>/dev/null || echo 'Airbyte .env created'"
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cat > /opt/glimmr/airbyte/.env << 'EOF'
+          VERSION=0.50.33
+          LOCAL_ROOT=/tmp/airbyte_local
+          HACK_LOCAL_ROOT_PARENT=/tmp
+          BASIC_AUTH_USERNAME=airbyte
+          BASIC_AUTH_PASSWORD=glimmr2024
+          EOF"
 
           # Create deployment script on server
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} 'cat > ~/deploy.sh << "EOF"
