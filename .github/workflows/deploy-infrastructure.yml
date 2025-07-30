@@ -49,19 +49,16 @@ jobs:
           echo "🚀 Starting deployment..."
           
           # Backup existing configs
-          sudo mkdir -p /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S)
-          sudo cp -r /opt/glimmr/* /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S)/ 2>/dev/null || echo "No existing configs to backup"
-          
+          mkdir -p /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S) 2>/dev/null || echo "Cannot create backup dir"
+          cp -r /opt/glimmr/* /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S)/ 2>/dev/null || echo "No existing configs to backup"
+
           # Create directories
-          sudo mkdir -p /opt/glimmr/{traefik,authentik,airbyte}
-          
+          mkdir -p /opt/glimmr/{traefik,authentik,airbyte}
+
           # Copy new configurations
-          sudo cp -r infrastructure/traefik/* /opt/glimmr/traefik/
-          sudo cp -r infrastructure/authentik/* /opt/glimmr/authentik/
-          sudo cp -r infrastructure/airbyte/* /opt/glimmr/airbyte/
-          
-          # Set permissions
-          sudo chown -R blitz:blitz /opt/glimmr
+          cp -r infrastructure/traefik/* /opt/glimmr/traefik/
+          cp -r infrastructure/authentik/* /opt/glimmr/authentik/
+          cp -r infrastructure/airbyte/* /opt/glimmr/airbyte/
           
           # Create networks if they don't exist
           docker network create glimmr-frontend 2>/dev/null || echo "Network glimmr-frontend exists"
