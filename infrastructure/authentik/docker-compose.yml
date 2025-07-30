@@ -1,0 +1,107 @@
+version: '3.8'
+services:
+  authentik-postgres:
+    image: postgres:16-alpine
+    container_name: authentik-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d authentik -U authentik"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - authentik-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+    networks:
+      - glimmr-backend
+  authentik-redis:
+    image: redis:alpine
+    container_name: authentik-redis
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - authentik-redis:/data
+    networks:
+      - glimmr-backend
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.6.3
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD}
+      AUTHENTIK_BOOTSTRAP_EMAIL: justinscroggins@outlook.com
+      # CSRF and Cookie settings for reverse proxy
+      AUTHENTIK_CSRF_TRUSTED_ORIGINS: https://auth.glimmr.health
+      AUTHENTIK_COOKIE_DOMAIN: glimmr.health
+      AUTHENTIK_INSECURE: "true"
+    volumes:
+      - authentik-media:/media
+      - authentik-custom-templates:/templates
+    networks:
+      - glimmr-frontend
+      - glimmr-backend
+    depends_on:
+      - authentik-postgres
+      - authentik-redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.rule=Host(`auth.glimmr.health`)"
+      - "traefik.http.routers.authentik.entrypoints=websecure"
+      - "traefik.http.routers.authentik.tls=true"
+      - "traefik.http.routers.authentik.tls.certresolver=cloudflare"
+      - "traefik.http.routers.authentik.middlewares=cloudflare-realip"
+      - "traefik.http.routers.authentik.service=authentik-service"
+      - "traefik.http.services.authentik-service.loadbalancer.server.port=9000"
+      - "traefik.docker.network=glimmr-frontend"
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.6.3
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      # Worker also needs these settings
+      AUTHENTIK_CSRF_TRUSTED_ORIGINS: https://auth.glimmr.health
+      AUTHENTIK_COOKIE_DOMAIN: glimmr.health
+      AUTHENTIK_INSECURE: "true"
+    volumes:
+      - authentik-media:/media
+      - authentik-custom-templates:/templates
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - glimmr-backend
+    depends_on:
+      - authentik-postgres
+      - authentik-redis
+volumes:
+  authentik-postgres:
+  authentik-redis:
+  authentik-media:
+  authentik-custom-templates:
+networks:
+  glimmr-frontend:
+    external: true
+  glimmr-backend:
+    external: true

@@ -1,0 +1,19 @@
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}
+
+system.enableLoggerRateLimiting:
+  - value: true
+    constraints: {}
+
+frontend.enableClientVersionCheck:
+  - value: true
+    constraints: {}
+
+history.persistenceMaxQPS:
+  - value: 3000
+    constraints: {}
+
+history.persistenceGlobalMaxQPS:
+  - value: 4000
+    constraints: {}
