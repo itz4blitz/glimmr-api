@@ -71,8 +71,15 @@ jobs:
           scp -r infrastructure/authentik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/authentik/
           scp -r infrastructure/airbyte/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/airbyte/
 
-          # Auto-generate .env files
+          # Auto-generate .env files with secure credentials
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo 'CF_API_KEY=${{ secrets.CF_API_KEY }}' > /opt/glimmr/traefik/.env"
+
+          # Create Authentik .env with secure random passwords
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "
+          echo 'PG_PASS='\$(openssl rand -base64 32 | tr -d '\n') > /opt/glimmr/authentik/.env
+          echo 'AUTHENTIK_SECRET_KEY='\$(openssl rand -base64 60 | tr -d '\n') >> /opt/glimmr/authentik/.env
+          echo 'AUTHENTIK_BOOTSTRAP_PASSWORD='\$(openssl rand -base64 24 | tr -d '\n') >> /opt/glimmr/authentik/.env
+          "
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cat > /opt/glimmr/airbyte/.env << 'EOF'
           # Airbyte version
           VERSION=0.50.33
@@ -81,20 +88,21 @@ jobs:
           LOCAL_ROOT=/tmp/airbyte_local
           HACK_LOCAL_ROOT_PARENT=/tmp
 
-          # Basic auth for Airbyte UI
-          BASIC_AUTH_USERNAME=airbyte
-          BASIC_AUTH_PASSWORD=glimmr2024
+          # Basic auth for Airbyte UI (SECURE)
+          BASIC_AUTH_USERNAME=admin
+          BASIC_AUTH_PASSWORD=\$(openssl rand -base64 24 | tr -d '\n')
 
-          # Database configuration
-          DATABASE_USER=docker
-          DATABASE_PASSWORD=docker
+          # Database configuration (SECURE)
+          DATABASE_USER=airbyte
+          DATABASE_PASSWORD=\$(openssl rand -base64 32 | tr -d '\n')
           DATABASE_HOST=airbyte-db
           DATABASE_PORT=5432
           DATABASE_DB=airbyte
 
-          # Configuration database
-          CONFIG_DATABASE_USER=docker
-          CONFIG_DATABASE_PASSWORD=docker
+          # Configuration database (SECURE)
+          CONFIG_DATABASE_USER=airbyte
+          CONFIG_DATABASE_PASSWORD=\$(openssl rand -base64 32 | tr -d '\n')
+          CONFIG_DATABASE_DB=airbyte
           CONFIG_DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
 
           # Workspace and data directories
@@ -111,6 +119,17 @@ jobs:
 
           # Worker configuration
           WORKER_ENVIRONMENT=docker
+
+          # Additional required variables
+          TRACKING_STRATEGY=segment
+          CONFIG_ROOT=/data
+          LOG_LEVEL=INFO
+
+          # Temporal configuration
+          TEMPORAL_HOST=airbyte-temporal:7233
+
+          # Connector registry
+          CONNECTOR_REGISTRY_SEED_PROVIDER=local
           EOF"
 
           # Create deployment script on server
