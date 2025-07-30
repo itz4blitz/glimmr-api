@@ -8,9 +8,9 @@ Glimmr Health is a **healthcare price transparency platform** that compares what
 
 ```
 Hospital Websites → Playwright Scrapers → Database → Airbyte → Analytics → API
-Insurance Files → Airbyte Connectors → Database → Processing → Price Comparisons
+Hospital MRF Files → Airbyte Connectors → Database → Processing → Price Comparisons
     ↓                    ↓                ↓           ↓            ↓
-  PRA Data         Raw Storage      Normalization  Analysis   Customer API
+PRA + Payer Data    Raw Storage      Normalization  Analysis   Customer API
 ```
 
 ## 💰 **Market Opportunity**
@@ -53,10 +53,10 @@ Insurance Files → Airbyte Connectors → Database → Processing → Price Com
 - **What it is**: Open-source data integration platform
 - **Business value**:
   - Processes hospital PRA (Price Transparency) files automatically
-  - Ingests insurance FMR (Fair Market Rate) data
+  - Ingests hospital Machine Readable Files (MRF) with payer data
   - Normalizes healthcare pricing data across formats
   - Scales to handle thousands of hospitals
-- **Use cases**: Hospital CSV → Database, Insurance APIs → Analytics, Price Comparisons → Customer API
+- **Use cases**: Hospital CSV → Database, MRF Files → Analytics, Price Comparisons → Customer API
 
 ## 🚀 **Deployment & Operations**
 
@@ -150,8 +150,8 @@ Insurance Files → Airbyte Connectors → Database → Processing → Price Com
 1. **Playwright scrapers** collect hospital PRA files daily
 2. **Raw data** stored in database with validation
 3. **Airbyte** processes and normalizes healthcare pricing data
-4. **Insurance FMR files** ingested via Airbyte connectors
-5. **Analytics engine** compares hospital vs insurance pricing
+4. **Hospital Machine Readable Files (MRF)** with payer data ingested via Airbyte
+5. **Analytics engine** compares hospital charges vs actual payer rates
 6. **API** serves price comparison data to customers
 7. **Authentik** secures access to sensitive healthcare data
 8. **GitHub Actions** deploys updates with zero downtime
@@ -167,7 +167,7 @@ Insurance Files → Airbyte Connectors → Database → Processing → Price Com
 
 ### **Phase 2: Scale (3-6 months)**
 - 📅 Expand to 500+ hospitals nationwide
-- 📅 Insurance FMR data integration
+- 📅 Hospital Machine Readable Files (MRF) with payer data integration
 - 📅 Advanced price analytics and insights
 - 📅 Enterprise API with authentication
 - 📅 Geographic and specialty filtering
