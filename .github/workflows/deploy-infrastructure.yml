@@ -39,6 +39,26 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
           
+      - name: 🌐 Setup DNS Records
+        run: |
+          echo "🌐 Creating DNS records automatically..."
+
+          # Create DNS records via Cloudflare API
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"type":"A","name":"traefik.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
+
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"type":"A","name":"auth.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
+
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"type":"A","name":"airbyte.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
+
       - name: 📦 Deploy Infrastructure
         run: |
           echo "🚀 Starting deployment..."
@@ -50,6 +70,10 @@ jobs:
           scp -r infrastructure/traefik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/traefik/
           scp -r infrastructure/authentik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/authentik/
           scp -r infrastructure/airbyte/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/airbyte/
+
+          # Auto-generate .env files
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo 'CF_API_KEY=${{ secrets.CF_API_KEY }}' > /opt/glimmr/traefik/.env"
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cp /opt/glimmr/airbyte/.env.example /opt/glimmr/airbyte/.env 2>/dev/null || echo 'Airbyte .env created'"
 
           # Create deployment script on server
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} 'cat > ~/deploy.sh << "EOF"
