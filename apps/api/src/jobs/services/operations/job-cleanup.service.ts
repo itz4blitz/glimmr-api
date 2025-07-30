@@ -332,38 +332,44 @@ export class JobCleanupService {
   }
 
   async getCleanupStats(): Promise<{
-    queues: Record<string, {
-      counts?: {
-        waiting: number;
-        active: number;
-        completed: number;
-        failed: number;
-        delayed: number;
-        total: number;
-      };
-      policy?: CleanupPolicy | null;
-      paused?: boolean;
-      lastCleanup?: null;
-      error?: string;
-    }>;
+    queues: Record<
+      string,
+      {
+        counts?: {
+          waiting: number;
+          active: number;
+          completed: number;
+          failed: number;
+          delayed: number;
+          total: number;
+        };
+        policy?: CleanupPolicy | null;
+        paused?: boolean;
+        lastCleanup?: null;
+        error?: string;
+      }
+    >;
     timestamp: string;
     defaultPolicies: Record<string, CleanupPolicy>;
   }> {
     const queueMap = this.getQueueMap();
-    const stats: Record<string, {
-      counts?: {
-        waiting: number;
-        active: number;
-        completed: number;
-        failed: number;
-        delayed: number;
-        total: number;
-      };
-      policy?: CleanupPolicy | null;
-      paused?: boolean;
-      lastCleanup?: null;
-      error?: string;
-    }> = {};
+    const stats: Record<
+      string,
+      {
+        counts?: {
+          waiting: number;
+          active: number;
+          completed: number;
+          failed: number;
+          delayed: number;
+          total: number;
+        };
+        policy?: CleanupPolicy | null;
+        paused?: boolean;
+        lastCleanup?: null;
+        error?: string;
+      }
+    > = {};
 
     for (const [queueName, queue] of Object.entries(queueMap)) {
       try {
@@ -411,9 +417,7 @@ export class JobCleanupService {
     };
   }
 
-  private summarizeCleanupResults(
-    results: CleanupResult[],
-  ): {
+  private summarizeCleanupResults(results: CleanupResult[]): {
     totalQueuesProcessed: number;
     totalJobsDeleted: number;
     errorCount: number;

@@ -39,7 +39,9 @@ export class JobAdvancedFilterDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @IsIn(["waiting", "active", "completed", "failed", "delayed", "paused"], { each: true })
+  @IsIn(["waiting", "active", "completed", "failed", "delayed", "paused"], {
+    each: true,
+  })
   status?: string[];
 
   @ApiProperty({

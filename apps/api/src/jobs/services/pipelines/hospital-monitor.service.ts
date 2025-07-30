@@ -4,7 +4,10 @@ import { Queue } from "bullmq";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { DatabaseService } from "../../../database/database.service";
-import { hospitals, priceTransparencyFiles } from "../../../database/schema/index";
+import {
+  hospitals,
+  priceTransparencyFiles,
+} from "../../../database/schema/index";
 import { eq, and, isNotNull, gte } from "drizzle-orm";
 import { QUEUE_NAMES } from "../../queues/queue.config";
 import { PRAUnifiedScanJobData } from "../../processors/pra-unified-scan.processor";
@@ -258,14 +261,16 @@ export class HospitalMonitorService {
       }
 
       const files = JSON.parse(hospital[0].priceTransparencyFiles || "[]");
-      const file = files.find((f: {
-        fileid: string;
-        url: string;
-        filename: string;
-        filesuffix: string;
-        size: string;
-        retrieved: string;
-      }) => f.fileid === fileId);
+      const file = files.find(
+        (f: {
+          fileid: string;
+          url: string;
+          filename: string;
+          filesuffix: string;
+          size: string;
+          retrieved: string;
+        }) => f.fileid === fileId,
+      );
 
       if (!file) {
         throw new Error(`File not found: ${fileId}`);

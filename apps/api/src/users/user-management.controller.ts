@@ -34,9 +34,7 @@ import {
   UserSearchFilters,
   UserListOptions,
 } from "./user-management.service";
-import {
-  ProfileService,
-} from "./profile.service";
+import { ProfileService } from "./profile.service";
 
 // DTOs for API documentation and validation
 export class UpdateUserDto {
@@ -392,7 +390,11 @@ export class UserManagementController {
 
         results.push({ userId, success: true, data: result });
       } catch (error) {
-        errors.push({ userId, success: false, error: error instanceof Error ? error.message : String(error) });
+        errors.push({
+          userId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

@@ -207,7 +207,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
         if (i < statesToScan.length - 1) {
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Increased delay
         }
-        
+
         // Extend job lock periodically
         if (job.token && i % 5 === 0) {
           try {
@@ -276,10 +276,14 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
     } catch (error) {
       const duration = Date.now() - startTime;
 
-      await this.logToDatabase("error", `Scan failed: ${(error as Error).message}`, {
-        error: (error as Error).message,
-        stack: (error as Error).stack,
-      });
+      await this.logToDatabase(
+        "error",
+        `Scan failed: ${(error as Error).message}`,
+        {
+          error: (error as Error).message,
+          stack: (error as Error).stack,
+        },
+      );
 
       // Update job record as failed
       if (this.dbJobId) {
@@ -532,21 +536,24 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
     return results;
   }
 
-  private hasHospitalChanged(existing: typeof hospitals.$inferSelect, updated: {
-    name?: string;
-    address?: string;
-    city?: string;
-    zip?: string;
-    phone?: string;
-    url?: string;
-    ccn?: string;
-    id?: string;
-    state?: string;
-    beds?: string;
-    lat?: string | number;
-    long?: string | number;
-    files?: unknown[];
-  }): boolean {
+  private hasHospitalChanged(
+    existing: typeof hospitals.$inferSelect,
+    updated: {
+      name?: string;
+      address?: string;
+      city?: string;
+      zip?: string;
+      phone?: string;
+      url?: string;
+      ccn?: string;
+      id?: string;
+      state?: string;
+      beds?: string;
+      lat?: string | number;
+      long?: string | number;
+      files?: unknown[];
+    },
+  ): boolean {
     // Check key fields for changes
     const fieldsToCheck = [
       { existing: "name", updated: "name" },
@@ -748,7 +755,7 @@ export class PRAUnifiedScanProcessor extends WorkerHost {
           delay: 10000, // Increased initial delay
         },
         removeOnComplete: 10,
-        removeOnFail: 30
+        removeOnFail: 30,
       },
     );
   }

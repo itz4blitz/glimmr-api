@@ -40,3 +40,7 @@ yarn-error.log*
 # Temporary downloads
 apps/api/temp/
 *.log
+
+
+#Ignore vscode AI rules
+.github/copilot-instructions.md

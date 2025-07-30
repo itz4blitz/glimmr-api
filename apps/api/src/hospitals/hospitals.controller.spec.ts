@@ -417,7 +417,6 @@ describe("HospitalsController", () => {
     });
   });
 
-
   describe("Error Handling Edge Cases", () => {
     it("should handle concurrent requests properly", async () => {
       const mockResponses = [

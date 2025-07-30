@@ -567,8 +567,10 @@ describe("AppModule - Rate Limiting Configuration", () => {
     it("should serialize error properly", () => {
       const mockError = new Error("Test error");
       mockError.name = "TestError";
-      (mockError as Error & { code?: string; statusCode?: number }).code = "TEST_CODE";
-      (mockError as Error & { code?: string; statusCode?: number }).statusCode = 400;
+      (mockError as Error & { code?: string; statusCode?: number }).code =
+        "TEST_CODE";
+      (mockError as Error & { code?: string; statusCode?: number }).statusCode =
+        400;
 
       const errSerializer = (err: any) => ({
         type: err.constructor.name,

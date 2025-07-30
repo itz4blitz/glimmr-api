@@ -626,23 +626,17 @@
         "hospitals_external_id_unique": {
           "name": "hospitals_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_id"
-          ]
+          "columns": ["external_id"]
         },
         "hospitals_npi_number_unique": {
           "name": "hospitals_npi_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "npi_number"
-          ]
+          "columns": ["npi_number"]
         },
         "hospitals_cms_provider_number_unique": {
           "name": "hospitals_cms_provider_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "cms_provider_number"
-          ]
+          "columns": ["cms_provider_number"]
         }
       },
       "policies": {},
@@ -1008,12 +1002,8 @@
           "name": "prices_hospital_id_hospitals_id_fk",
           "tableFrom": "prices",
           "tableTo": "hospitals",
-          "columnsFrom": [
-            "hospital_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["hospital_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1221,12 +1211,8 @@
           "name": "price_transparency_files_hospital_id_hospitals_id_fk",
           "tableFrom": "price_transparency_files",
           "tableTo": "hospitals",
-          "columnsFrom": [
-            "hospital_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["hospital_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1236,9 +1222,7 @@
         "price_transparency_files_external_file_id_unique": {
           "name": "price_transparency_files_external_file_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_file_id"
-          ]
+          "columns": ["external_file_id"]
         }
       },
       "policies": {},
@@ -1361,12 +1345,8 @@
           "name": "job_logs_job_id_jobs_id_fk",
           "tableFrom": "job_logs",
           "tableTo": "jobs",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["job_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1844,16 +1824,12 @@
         "users_username_unique": {
           "name": "users_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         },
         "users_api_key_unique": {
           "name": "users_api_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "api_key"
-          ]
+          "columns": ["api_key"]
         }
       },
       "policies": {},

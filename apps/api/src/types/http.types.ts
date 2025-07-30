@@ -3,17 +3,18 @@
  * These types replace generic 'unknown' types in HTTP handling
  */
 
-import { Request } from 'express';
-import { IncomingMessage } from 'http';
-import { JsonValue, JsonObject } from './common.types';
+import { Request } from "express";
+import { IncomingMessage } from "http";
+import { JsonValue, JsonObject } from "./common.types";
 
 /**
  * Extended request with proper typing
  */
-export interface ExtendedRequest extends Omit<Request, 'id' | 'query' | 'params' | 'body'> {
+export interface ExtendedRequest
+  extends Omit<Request, "id" | "query" | "params" | "body"> {
   id?: string;
   headers: Record<string, string | string[] | undefined>;
-  socket: Request['socket'] & {
+  socket: Request["socket"] & {
     remoteAddress?: string;
   };
   query: Record<string, string | string[] | undefined>;
@@ -24,7 +25,7 @@ export interface ExtendedRequest extends Omit<Request, 'id' | 'query' | 'params'
 /**
  * Logger request interface
  */
-export interface LoggerRequest extends Omit<IncomingMessage, 'id'> {
+export interface LoggerRequest extends Omit<IncomingMessage, "id"> {
   id?: string;
   headers: Record<string, string | string[] | undefined>;
 }
@@ -75,9 +76,9 @@ export interface ResponseMethods {
  * Passport done callback signature
  */
 export type PassportDoneCallback<TUser = any> = (
-  error: Error | null, 
+  error: Error | null,
   user?: TUser | false,
-  info?: { message: string } | string
+  info?: { message: string } | string,
 ) => void;
 
 /**
@@ -121,14 +122,14 @@ export interface RequestMetadata {
  * Type guards
  */
 export function isExtendedRequest(req: any): req is ExtendedRequest {
-  return req && typeof req === 'object' && 'method' in req && 'url' in req;
+  return req && typeof req === "object" && "method" in req && "url" in req;
 }
 
 export function isHttpErrorResponse(value: any): value is HttpErrorResponse {
   return (
     value &&
-    typeof value === 'object' &&
-    typeof value.statusCode === 'number' &&
-    typeof value.message === 'string'
+    typeof value === "object" &&
+    typeof value.statusCode === "number" &&
+    typeof value.message === "string"
   );
 }

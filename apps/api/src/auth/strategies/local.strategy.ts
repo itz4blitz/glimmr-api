@@ -18,7 +18,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     request: Request,
     email: string,
     password: string,
-  ): Promise<Pick<User, 'id' | 'email' | 'role'>> {
+  ): Promise<Pick<User, "id" | "email" | "role">> {
     const user = await this.authService.validateUser(email, password, request);
     if (!user || !user.id || !user.email || !user.role) {
       throw new UnauthorizedException("Invalid credentials");

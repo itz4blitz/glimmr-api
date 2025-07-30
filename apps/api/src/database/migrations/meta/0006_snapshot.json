@@ -234,9 +234,7 @@
         "job_templates_name_unique": {
           "name": "job_templates_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       }
     }

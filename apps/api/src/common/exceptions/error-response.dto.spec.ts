@@ -237,7 +237,7 @@ describe("ErrorResponseDto", () => {
 
       expect(dto.details).toEqual(complexDetails);
       expect(dto.details.validationErrors).toHaveLength(2);
-      
+
       // Type-safe access to nested properties
       const detailsWithMetadata = dto.details as {
         validationErrors: Array<{ field: string; message: string }>;

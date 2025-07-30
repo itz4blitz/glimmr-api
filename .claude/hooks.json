@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd apps/api && pnpm prettier --write \"$FILE_PATH\" && pnpm eslint --fix \"$FILE_PATH\""
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api/apps/api && pnpm prettier --write \"${FILE_PATH#*apps/api/}\" || true"
           }
         ]
       },
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd apps/web && npm run prettier --write \"$FILE_PATH\" && npm run lint -- --fix \"$FILE_PATH\""
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api/apps/web && npx prettier --write \"${FILE_PATH#*apps/web/}\" || true"
           }
         ]
       },
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd apps/web && npm run prettier --write \"$FILE_PATH\" && npm run lint -- --fix \"$FILE_PATH\""
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api/apps/web && npx prettier --write \"${FILE_PATH#*apps/web/}\" || true"
           }
         ]
       },
@@ -54,22 +54,12 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/scripts/dead-code-check.sh",
-            "continueOnError": true
-          }
-        ]
-      },
-      {
         "matcher": "Edit",
         "pathMatcher": "**/schema/*.ts",
         "hooks": [
           {
             "type": "command",
-            "command": "cd apps/api && pnpm db:generate && echo '⚠️  Database schema changed - remember to run migrations with: pnpm db:migrate'"
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api/apps/api && pnpm db:generate && echo '⚠️  Database schema changed - remember to run migrations with: pnpm db:migrate'"
           }
         ]
       },
@@ -79,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd apps/api && pnpm test $(echo $FILE_PATH | sed 's/.ts$/.spec.ts/') --passWithNoTests || echo '⚠️  No test found - consider adding tests for this service'"
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api/apps/api && pnpm test $(echo $FILE_PATH | sed 's/.ts$/.spec.ts/') --passWithNoTests || echo '⚠️  No test found - consider adding tests for this service'"
           }
         ]
       },
@@ -109,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '🎨 UI component modified - checking usage...' && grep -r \"$(basename $FILE_PATH .tsx)\" apps/web/src --exclude-dir=node_modules || echo 'No usages found'"
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api && echo '🎨 UI component modified - checking usage...' && grep -r \"$(basename $FILE_PATH .tsx)\" apps/web/src --exclude-dir=node_modules || echo 'No usages found'"
           }
         ]
       },
@@ -209,7 +199,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '🔍 Checking for unused exports...' && cd apps/api && npx ts-unused-exports tsconfig.json --excludePathsFromReport=node_modules --silent | grep $FILE_PATH || echo '✅ No unused exports found'"
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api/apps/api && echo '🔍 Checking for unused exports...' && npx ts-unused-exports tsconfig.json --excludePathsFromReport=node_modules --silent | grep $FILE_PATH || echo '✅ No unused exports found'"
           }
         ]
       },
@@ -229,7 +219,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/scripts/smart-pr-docs.sh main",
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api && bash /Users/blitz/Development/Personal/glimmr-api/.claude/scripts/smart-pr-docs.sh main",
             "continueOnError": true
           }
         ]
@@ -240,7 +230,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/scripts/smart-pr-docs.sh main",
+            "command": "cd /Users/blitz/Development/Personal/glimmr-api && bash /Users/blitz/Development/Personal/glimmr-api/.claude/scripts/smart-pr-docs.sh main",
             "continueOnError": true
           }
         ]

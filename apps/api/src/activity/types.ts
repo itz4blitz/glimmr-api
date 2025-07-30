@@ -1,5 +1,5 @@
-import { Request } from 'express';
-import { users } from '../database/schema';
+import { Request } from "express";
+import { users } from "../database/schema";
 
 export interface AuthenticatedUser {
   id: number;
@@ -12,7 +12,7 @@ export interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
 }
 
-export type UserWithoutPassword = Omit<typeof users.$inferSelect, 'password'>;
+export type UserWithoutPassword = Omit<typeof users.$inferSelect, "password">;
 
 export interface ActivityMetadata {
   endpoint?: string;
@@ -27,9 +27,22 @@ export interface ActivityMetadata {
   importance?: string;
   error?: string;
   errorStack?: string;
-  [key: string]: string | number | boolean | Record<string, any> | SanitizedValue | undefined;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | Record<string, any>
+    | SanitizedValue
+    | undefined;
 }
 
 export interface SanitizedValue {
-  [key: string]: string | number | boolean | null | string[] | SanitizedValue | SanitizedValue[];
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | null
+    | string[]
+    | SanitizedValue
+    | SanitizedValue[];
 }

@@ -4,7 +4,10 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { DatabaseService } from "../../../database/database.service";
 import { QUEUE_NAMES } from "../../queues/queue.config";
-import { jobs as jobsTable, priceTransparencyFiles } from "../../../database/schema";
+import {
+  jobs as jobsTable,
+  priceTransparencyFiles,
+} from "../../../database/schema";
 import { eq, and, lt, inArray, isNull } from "drizzle-orm";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
@@ -71,7 +74,6 @@ export class JobMonitorService implements OnModuleInit {
 
       await this.checkOrphanedFiles();
       await this.retryFailedDownloads();
-
     } catch (_error) {
       this.logger.error({
         msg: "Error in stale job monitor",
@@ -85,7 +87,9 @@ export class JobMonitorService implements OnModuleInit {
    */
   private async checkOrphanedFiles(): Promise<void> {
     const db = this.databaseService.db;
-    const orphanedThreshold = new Date(Date.now() - this.ORPHANED_FILE_THRESHOLD);
+    const orphanedThreshold = new Date(
+      Date.now() - this.ORPHANED_FILE_THRESHOLD,
+    );
 
     // Find files stuck in pending/processing state
     const orphanedFiles = await db
@@ -93,7 +97,10 @@ export class JobMonitorService implements OnModuleInit {
       .from(priceTransparencyFiles)
       .where(
         and(
-          inArray(priceTransparencyFiles.processingStatus, ["pending", "processing"]),
+          inArray(priceTransparencyFiles.processingStatus, [
+            "pending",
+            "processing",
+          ]),
           lt(priceTransparencyFiles.updatedAt, orphanedThreshold),
           isNull(priceTransparencyFiles.storageKey), // No file downloaded yet
         ),
@@ -159,7 +166,7 @@ export class JobMonitorService implements OnModuleInit {
    */
   private async retryFailedDownloads(): Promise<void> {
     const db = this.databaseService.db;
-    
+
     // Find recently failed files that haven't exceeded retry limit
     const failedFiles = await db
       .select()
@@ -254,7 +261,9 @@ export class JobMonitorService implements OnModuleInit {
     ];
 
     const lowerError = errorMessage.toLowerCase();
-    return retryableErrors.some((err) => lowerError.includes(err.toLowerCase()));
+    return retryableErrors.some((err) =>
+      lowerError.includes(err.toLowerCase()),
+    );
   }
 
   /**
@@ -338,12 +347,8 @@ export class JobMonitorService implements OnModuleInit {
     const parserQueueHealth = await this.parserQueue.getJobCounts();
 
     const metrics = {
-      jobs: Object.fromEntries(
-        jobStats.map((s) => [s.status, s.count]),
-      ),
-      files: Object.fromEntries(
-        fileStats.map((s) => [s.status, s.count]),
-      ),
+      jobs: Object.fromEntries(jobStats.map((s) => [s.status, s.count])),
+      files: Object.fromEntries(fileStats.map((s) => [s.status, s.count])),
       queues: {
         download: {
           active: downloadQueueHealth.active || 0,
@@ -365,8 +370,10 @@ export class JobMonitorService implements OnModuleInit {
     };
 
     // Determine if system is healthy
-    const staleJobCount = jobStats.find((s) => s.status === "running")?.count || 0;
-    const failedJobCount = jobStats.find((s) => s.status === "failed")?.count || 0;
+    const staleJobCount =
+      jobStats.find((s) => s.status === "running")?.count || 0;
+    const failedJobCount =
+      jobStats.find((s) => s.status === "failed")?.count || 0;
     const healthy = staleJobCount < 10 && failedJobCount < 50;
 
     return { healthy, metrics };

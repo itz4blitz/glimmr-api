@@ -590,16 +590,12 @@
         "hospitals_npi_number_unique": {
           "name": "hospitals_npi_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "npi_number"
-          ]
+          "columns": ["npi_number"]
         },
         "hospitals_cms_provider_number_unique": {
           "name": "hospitals_cms_provider_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "cms_provider_number"
-          ]
+          "columns": ["cms_provider_number"]
         }
       },
       "policies": {},
@@ -913,12 +909,8 @@
           "name": "prices_hospital_id_hospitals_id_fk",
           "tableFrom": "prices",
           "tableTo": "hospitals",
-          "columnsFrom": [
-            "hospital_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["hospital_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1045,12 +1037,8 @@
           "name": "job_logs_job_id_jobs_id_fk",
           "tableFrom": "job_logs",
           "tableTo": "jobs",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["job_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

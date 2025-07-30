@@ -4,7 +4,11 @@ import { Queue, Job } from "bullmq";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { QUEUE_NAMES } from "../../queues/queue.config";
 import { DatabaseService } from "../../../database/database.service";
-import { JsonObject, JsonValue, FilterParams } from "../../../types/common.types";
+import {
+  JsonObject,
+  JsonValue,
+  FilterParams,
+} from "../../../types/common.types";
 import { BaseJobData, JobState } from "../../../types/job.types";
 import {
   jobs,
@@ -13,7 +17,18 @@ import {
   jobSchedules,
   jobTemplates,
 } from "../../../database/schema";
-import { eq, sql, desc, and, or, inArray, asc, gte, lte, count } from "drizzle-orm";
+import {
+  eq,
+  sql,
+  desc,
+  and,
+  or,
+  inArray,
+  asc,
+  gte,
+  lte,
+  count,
+} from "drizzle-orm";
 
 // Type definitions for job data (processors removed)
 export interface PriceFileDownloadJobData {
@@ -161,23 +176,28 @@ export class JobsService {
     return queueJobs;
   }
 
-  private async formatJobs(jobs: Job[], queueName: string): Promise<Array<{
-    id: string;
-    name: string;
-    queueName: string;
-    status: string;
-    progress: number | object;
-    data: BaseJobData;
-    opts: JsonObject;
-    createdAt: string;
-    processedOn: string | null;
-    finishedOn: string | null;
-    duration: number | null;
-    returnvalue: JsonValue;
-    failedReason: string;
-    attemptsMade: number;
-    delay: number;
-  }>> {
+  private async formatJobs(
+    jobs: Job[],
+    queueName: string,
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      queueName: string;
+      status: string;
+      progress: number | object;
+      data: BaseJobData;
+      opts: JsonObject;
+      createdAt: string;
+      processedOn: string | null;
+      finishedOn: string | null;
+      duration: number | null;
+      returnvalue: JsonValue;
+      failedReason: string;
+      attemptsMade: number;
+      delay: number;
+    }>
+  > {
     const formattedJobs = [];
 
     for (const job of jobs) {
@@ -221,15 +241,31 @@ export class JobsService {
 
     for (const { name, queue } of allQueues) {
       try {
-        const [waiting, active, completed, failed, delayed] = await Promise.all(
-          [
+        this.logger.debug({ msg: `Getting stats for queue: ${name}` });
+        
+        // Add timeout to prevent BullMQ calls from hanging
+        const timeout = 5000; // 5 seconds
+        const [waiting, active, completed, failed, delayed] = await Promise.race([
+          Promise.all([
             queue.getWaiting(),
             queue.getActive(),
             queue.getCompleted(),
             queue.getFailed(),
             queue.getDelayed(),
-          ],
-        );
+          ]),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('BullMQ timeout')), timeout)
+          )
+        ]);
+        this.logger.debug({ 
+          msg: `Stats retrieved for queue: ${name}`, 
+          counts: { 
+            waiting: waiting.length, 
+            active: active.length, 
+            completed: completed.length, 
+            failed: failed.length 
+          } 
+        });
 
         // Calculate real processing metrics from recent jobs
         let processingRate = 0;
@@ -266,6 +302,56 @@ export class JobsService {
           }
         }
 
+        // Generate historical data points from recent jobs
+        const historicalData = [];
+        this.logger.debug({ 
+          msg: `Generating historical data for queue: ${name}`, 
+          completedCount: completed.length, 
+          failedCount: failed.length 
+        });
+        
+        if (completed.length > 0 || failed.length > 0) {
+          const allJobs = [...completed, ...failed].sort(
+            (a, b) => (b.finishedOn || 0) - (a.finishedOn || 0),
+          );
+          const now = Date.now();
+          const points = 10;
+
+          for (let i = points - 1; i >= 0; i--) {
+            const timePoint = now - i * 6 * 60 * 1000; // 6-minute intervals
+            const windowStart = timePoint - 3 * 60 * 1000;
+            const windowEnd = timePoint + 3 * 60 * 1000;
+
+            const jobsInWindow = allJobs.filter(
+              (job) =>
+                job.finishedOn &&
+                job.finishedOn >= windowStart &&
+                job.finishedOn <= windowEnd,
+            );
+
+            const completedInWindow = jobsInWindow.filter(
+              (job) => !job.failedReason,
+            ).length;
+            const failedInWindow = jobsInWindow.filter(
+              (job) => job.failedReason,
+            ).length;
+            const throughput = completedInWindow + failedInWindow;
+
+            historicalData.push({
+              timestamp: timePoint,
+              completed: completedInWindow,
+              failed: failedInWindow,
+              throughput,
+            });
+          }
+        }
+        
+        this.logger.debug({ 
+          msg: `Historical data generated for queue: ${name}`, 
+          historicalDataLength: historicalData.length,
+          historicalData: historicalData.slice(0, 2) // Just show first 2 points
+        });
+
         const queueStat = {
           name,
           waiting: waiting.length,
@@ -277,6 +363,7 @@ export class JobsService {
           processingRate: Math.round(processingRate * 100) / 100, // Round to 2 decimals
           avgProcessingTime: Math.round(avgProcessingTime), // Round to nearest ms
           lastProcessed,
+          historicalData,
         };
 
         queueStats.push(queueStat);
@@ -291,10 +378,26 @@ export class JobsService {
         failedJobs += queueStat.failed;
       } catch (_error) {
         this.logger.error({
-          msg: "Failed to get queue stats",
+          msg: "Failed to get queue stats - providing fallback data",
           queueName: name,
           error: (_error as Error).message,
+          stack: (_error as Error).stack,
         });
+
+        // Generate fallback historical data with zeros to prevent undefined
+        const fallbackHistoricalData = [];
+        const now = Date.now();
+        const points = 10;
+        
+        for (let i = points - 1; i >= 0; i--) {
+          const timePoint = now - i * 6 * 60 * 1000; // 6-minute intervals
+          fallbackHistoricalData.push({
+            timestamp: timePoint,
+            completed: 0,
+            failed: 0,
+            throughput: 0,
+          });
+        }
 
         queueStats.push({
           name,
@@ -307,6 +410,7 @@ export class JobsService {
           processingRate: 0,
           avgProcessingTime: 0,
           lastProcessed: null,
+          historicalData: fallbackHistoricalData, // Provide fallback data instead of undefined
           error: (_error as Error).message,
         });
       }
@@ -364,16 +468,20 @@ export class JobsService {
         batchSize: importData.batchSize ?? 50,
       };
 
-      const job = await this.praUnifiedScanQueue.add("hospital-import", jobData, {
-        priority: importData.priority ?? 5,
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 30000,
+      const job = await this.praUnifiedScanQueue.add(
+        "hospital-import",
+        jobData,
+        {
+          priority: importData.priority ?? 5,
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 30000,
+          },
+          removeOnComplete: 10,
+          removeOnFail: 20,
         },
-        removeOnComplete: 10,
-        removeOnFail: 20,
-      });
+      );
 
       // Record the job in database
       await this.databaseService.db.insert(jobs).values({
@@ -474,16 +582,22 @@ export class JobsService {
             progress: job.progress,
             data: job.data,
             opts: job.opts,
-            logs: logs.map((log: string | { timestamp: string; level: string; message: string }) => {
-              if (typeof log === "string") {
-                return {
-                  timestamp: new Date().toISOString(),
-                  level: "info",
-                  message: log,
-                };
-              }
-              return log;
-            }),
+            logs: logs.map(
+              (
+                log:
+                  | string
+                  | { timestamp: string; level: string; message: string },
+              ) => {
+                if (typeof log === "string") {
+                  return {
+                    timestamp: new Date().toISOString(),
+                    level: "info",
+                    message: log,
+                  };
+                }
+                return log;
+              },
+            ),
             createdAt: new Date(job.timestamp).toISOString(),
             processedOn: job.processedOn
               ? new Date(job.processedOn).toISOString()
@@ -547,16 +661,20 @@ export class JobsService {
       };
 
       // Queue the download job
-      const job = await this.praFileDownloadQueue.add("download-price-file", jobData, {
-        priority: downloadData.priority ?? 5,
-        attempts: 5,
-        backoff: {
-          type: "exponential",
-          delay: 60000, // Start with 1 minute delay
+      const job = await this.praFileDownloadQueue.add(
+        "download-price-file",
+        jobData,
+        {
+          priority: downloadData.priority ?? 5,
+          attempts: 5,
+          backoff: {
+            type: "exponential",
+            delay: 60000, // Start with 1 minute delay
+          },
+          removeOnComplete: 10,
+          removeOnFail: 30,
         },
-        removeOnComplete: 10,
-        removeOnFail: 30,
-      });
+      );
 
       // Record the job in database
       await this.databaseService.db.insert(jobs).values({
@@ -613,9 +731,14 @@ export class JobsService {
 
     try {
       const jobData: AnalyticsRefreshJobData = {
-        metricTypes: options.metricTypes || ["summary", "trends", "comparisons"],
+        metricTypes: options.metricTypes || [
+          "summary",
+          "trends",
+          "comparisons",
+        ],
         forceRefresh: options.forceRefresh ?? false,
-        reportingPeriod: options.reportingPeriod || new Date().toISOString().slice(0, 7), // Current month
+        reportingPeriod:
+          options.reportingPeriod || new Date().toISOString().slice(0, 7), // Current month
         batchSize: options.batchSize ?? 1000,
         timeRange: {
           start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(), // Last 90 days
@@ -624,16 +747,20 @@ export class JobsService {
       };
 
       // Queue the analytics refresh job
-      const job = await this.analyticsRefreshQueue.add("refresh-analytics", jobData, {
-        priority: options.priority ?? 3,
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 30000,
+      const job = await this.analyticsRefreshQueue.add(
+        "refresh-analytics",
+        jobData,
+        {
+          priority: options.priority ?? 3,
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 30000,
+          },
+          removeOnComplete: 5,
+          removeOnFail: 10,
         },
-        removeOnComplete: 5,
-        removeOnFail: 10,
-      });
+      );
 
       // Record the job in database
       await this.databaseService.db.insert(jobs).values({
@@ -1348,16 +1475,19 @@ export class JobsService {
     return config;
   }
 
-  async updateQueueConfig(queueName: string, updates: {
-    concurrency?: number;
-    maxJobsPerWorker?: number;
-    defaultJobOptions?: JsonObject;
-    maxConcurrency?: number;
-    retryAttempts?: number;
-    retryDelay?: number;
-    stalledInterval?: number;
-    maxStalledCount?: number;
-  }) {
+  async updateQueueConfig(
+    queueName: string,
+    updates: {
+      concurrency?: number;
+      maxJobsPerWorker?: number;
+      defaultJobOptions?: JsonObject;
+      maxConcurrency?: number;
+      retryAttempts?: number;
+      retryDelay?: number;
+      stalledInterval?: number;
+      maxStalledCount?: number;
+    },
+  ) {
     const { concurrency, maxJobsPerWorker, defaultJobOptions, ...dbUpdates } =
       updates;
 
@@ -2034,17 +2164,16 @@ export class JobsService {
     };
   }
 
-  private calculateQueueHealth(
-    counts: {
-      active: number;
-      waiting: number;
-      completed: number;
-      failed: number;
-      stalled?: number;
-    },
-  ): "healthy" | "warning" | "critical" {
+  private calculateQueueHealth(counts: {
+    active: number;
+    waiting: number;
+    completed: number;
+    failed: number;
+    stalled?: number;
+  }): "healthy" | "warning" | "critical" {
     const failureRate = counts.failed / (counts.completed + counts.failed || 1);
-    const stalledRate = (counts.stalled || 0) / (counts.active + (counts.stalled || 0) || 1);
+    const stalledRate =
+      (counts.stalled || 0) / (counts.active + (counts.stalled || 0) || 1);
 
     if (failureRate > 0.3 || stalledRate > 0.5) return "critical";
     if (failureRate > 0.1 || stalledRate > 0.2 || counts.waiting > 1000)
@@ -2166,14 +2295,17 @@ export class JobsService {
     return schedule;
   }
 
-  async updateJobSchedule(scheduleId: string, updates: {
-    name?: string;
-    description?: string;
-    cronExpression?: string;
-    timezone?: string;
-    isEnabled?: boolean;
-    config?: JsonObject;
-  }) {
+  async updateJobSchedule(
+    scheduleId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      cronExpression?: string;
+      timezone?: string;
+      isEnabled?: boolean;
+      config?: JsonObject;
+    },
+  ) {
     const db = this.databaseService.db;
 
     const [updated] = await db
@@ -2509,24 +2641,29 @@ export class JobsService {
     // Apply sorting
     const sortField = filters.sortBy || "createdAt";
     const sortOrder = filters.sortOrder || "desc";
-    
+
     let orderByColumn;
     switch (sortField) {
       case "completedAt":
-        orderByColumn = sortOrder === "desc" ? desc(jobs.completedAt) : asc(jobs.completedAt);
+        orderByColumn =
+          sortOrder === "desc" ? desc(jobs.completedAt) : asc(jobs.completedAt);
         break;
       case "duration":
-        orderByColumn = sortOrder === "desc" ? desc(jobs.duration) : asc(jobs.duration);
+        orderByColumn =
+          sortOrder === "desc" ? desc(jobs.duration) : asc(jobs.duration);
         break;
       case "priority":
-        orderByColumn = sortOrder === "desc" ? desc(jobs.priority) : asc(jobs.priority);
+        orderByColumn =
+          sortOrder === "desc" ? desc(jobs.priority) : asc(jobs.priority);
         break;
       case "name":
-        orderByColumn = sortOrder === "desc" ? desc(jobs.jobName) : asc(jobs.jobName);
+        orderByColumn =
+          sortOrder === "desc" ? desc(jobs.jobName) : asc(jobs.jobName);
         break;
       case "createdAt":
       default:
-        orderByColumn = sortOrder === "desc" ? desc(jobs.createdAt) : asc(jobs.createdAt);
+        orderByColumn =
+          sortOrder === "desc" ? desc(jobs.createdAt) : asc(jobs.createdAt);
     }
 
     // Build query with ordering
@@ -2549,8 +2686,8 @@ export class JobsService {
 
     // Get real-time queue data for active jobs
     const activeJobIds = results
-      .filter(j => j.status === "active" || j.status === "waiting")
-      .map(j => j.id);
+      .filter((j) => j.status === "active" || j.status === "waiting")
+      .map((j) => j.id);
 
     const enrichedResults = await Promise.all(
       results.map(async (job) => {
@@ -2577,7 +2714,10 @@ export class JobsService {
 
         return {
           ...job,
-          data: filters.includeData && job.inputData ? JSON.parse(job.inputData) : undefined,
+          data:
+            filters.includeData && job.inputData
+              ? JSON.parse(job.inputData)
+              : undefined,
         };
       }),
     );
@@ -2609,14 +2749,14 @@ export class JobsService {
       try {
         // Find job across all queues
         let found = false;
-        
+
         for (const { name, queue } of this.getAllQueues()) {
           try {
             const job = await queue.getJob(jobId);
             if (job) {
               found = true;
               const state = await job.getState();
-              
+
               if (state === "failed") {
                 await job.retry();
                 results.successful.push({ jobId, queue: name });
@@ -2674,17 +2814,21 @@ export class JobsService {
       try {
         // Find job across all queues
         let found = false;
-        
+
         for (const { name, queue } of this.getAllQueues()) {
           try {
             const job = await queue.getJob(jobId);
             if (job) {
               found = true;
               const state = await job.getState();
-              
+
               if (["waiting", "delayed", "active"].includes(state)) {
                 await job.remove();
-                results.successful.push({ jobId, queue: name, previousState: state });
+                results.successful.push({
+                  jobId,
+                  queue: name,
+                  previousState: state,
+                });
               } else {
                 results.failed.push({
                   jobId,
@@ -2821,7 +2965,9 @@ export class JobsService {
         queueName,
         error: (_error as Error).message,
       });
-      throw new Error(`Failed to reset queue logs: ${(_error as Error).message}`);
+      throw new Error(
+        `Failed to reset queue logs: ${(_error as Error).message}`,
+      );
     }
   }
 }

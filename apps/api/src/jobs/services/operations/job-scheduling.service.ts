@@ -14,7 +14,10 @@ import {
   JobTemplate,
 } from "../../../database/schema";
 import { eq, and, lte, asc } from "drizzle-orm";
-import { CreateJobScheduleDto, UpdateJobScheduleDto } from "../../dto/job-operations.dto";
+import {
+  CreateJobScheduleDto,
+  UpdateJobScheduleDto,
+} from "../../dto/job-operations.dto";
 import { QUEUE_NAMES } from "../../queues/queue.config";
 import parser from "cron-parser";
 
@@ -111,7 +114,10 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Calculate next run time
-    const nextRunAt = this.calculateNextRunTime(dto.cronExpression, dto.timezone);
+    const nextRunAt = this.calculateNextRunTime(
+      dto.cronExpression,
+      dto.timezone,
+    );
 
     // Create schedule in database
     const [schedule] = await db
@@ -154,7 +160,11 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     return schedule;
   }
 
-  async updateSchedule(scheduleId: string, dto: UpdateJobScheduleDto, userId?: string) {
+  async updateSchedule(
+    scheduleId: string,
+    dto: UpdateJobScheduleDto,
+    userId?: string,
+  ) {
     const db = this.databaseService.db;
 
     // Get existing schedule
@@ -188,21 +198,25 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     // Update schedule in database
     const updateData: Partial<typeof jobSchedules.$inferInsert> = {};
-    
+
     // Copy allowed fields from dto
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.cronExpression !== undefined) updateData.cronExpression = dto.cronExpression;
+    if (dto.cronExpression !== undefined)
+      updateData.cronExpression = dto.cronExpression;
     if (dto.timezone !== undefined) updateData.timezone = dto.timezone;
     if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.timeout !== undefined) updateData.timeout = dto.timeout;
-    if (dto.retryAttempts !== undefined) updateData.retryAttempts = dto.retryAttempts;
+    if (dto.retryAttempts !== undefined)
+      updateData.retryAttempts = dto.retryAttempts;
     if (dto.retryDelay !== undefined) updateData.retryDelay = dto.retryDelay;
     if (dto.jobConfig !== undefined) updateData.jobConfig = dto.jobConfig;
     if (dto.isEnabled !== undefined) updateData.isEnabled = dto.isEnabled;
-    if (dto.maxConsecutiveFailures !== undefined) updateData.maxConsecutiveFailures = dto.maxConsecutiveFailures;
-    if (dto.disableOnMaxFailures !== undefined) updateData.disableOnMaxFailures = dto.disableOnMaxFailures;
-    
+    if (dto.maxConsecutiveFailures !== undefined)
+      updateData.maxConsecutiveFailures = dto.maxConsecutiveFailures;
+    if (dto.disableOnMaxFailures !== undefined)
+      updateData.disableOnMaxFailures = dto.disableOnMaxFailures;
+
     const [updatedSchedule] = await db
       .update(jobSchedules)
       .set({
@@ -349,7 +363,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     // Execute the scheduled job
     const jobId = await this.executeScheduledJob(
       result.schedule as JobSchedule,
-      result.template as JobTemplate
+      result.template as JobTemplate,
     );
 
     this.logger.info({
@@ -400,7 +414,14 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async startSchedule(schedule: Partial<JobSchedule> & { id: string; cronExpression: string; timezone: string; name: string }) {
+  private async startSchedule(
+    schedule: Partial<JobSchedule> & {
+      id: string;
+      cronExpression: string;
+      timezone: string;
+      name: string;
+    },
+  ) {
     if (this.activeSchedules.has(schedule.id as string)) {
       return; // Already running
     }
@@ -480,7 +501,7 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
       // Execute the job
       const jobId = await this.executeScheduledJob(
         result.schedule as JobSchedule,
-        result.template as JobTemplate
+        result.template as JobTemplate,
       );
 
       // Update schedule with execution info
@@ -518,16 +539,21 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async executeScheduledJob(schedule: JobSchedule, template: JobTemplate): Promise<string> {
+  private async executeScheduledJob(
+    schedule: JobSchedule,
+    template: JobTemplate,
+  ): Promise<string> {
     const queue = this.getQueueByName(template.queueName);
     if (!queue) {
       throw new Error(`Queue not found: ${template.queueName}`);
     }
 
     // Merge job configuration
-    const scheduleConfig = (schedule.jobConfig as Record<string, unknown>) || {};
-    const templateConfig = (template.defaultConfig as Record<string, unknown>) || {};
-      
+    const scheduleConfig =
+      (schedule.jobConfig as Record<string, unknown>) || {};
+    const templateConfig =
+      (template.defaultConfig as Record<string, unknown>) || {};
+
     const jobConfig = {
       ...templateConfig,
       ...scheduleConfig,
@@ -541,10 +567,14 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     // Create job options
     const jobOptions = {
       priority: (schedule.priority ?? template.defaultPriority ?? 0) as number,
-      attempts: (schedule.retryAttempts ?? template.defaultRetryAttempts ?? 3) as number,
+      attempts: (schedule.retryAttempts ??
+        template.defaultRetryAttempts ??
+        3) as number,
       backoff: {
         type: "exponential" as const,
-        delay: (schedule.retryDelay ?? template.defaultRetryDelay ?? 60000) as number,
+        delay: (schedule.retryDelay ??
+          template.defaultRetryDelay ??
+          60000) as number,
       },
       removeOnComplete: 10,
       removeOnFail: 20,
@@ -552,7 +582,8 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
 
     // Add timeout if specified
     if (schedule.timeout || template.defaultTimeout) {
-      (jobOptions as any).timeout = (schedule.timeout || template.defaultTimeout) as number;
+      (jobOptions as any).timeout = (schedule.timeout ||
+        template.defaultTimeout) as number;
     }
 
     // Queue the job
@@ -626,7 +657,10 @@ export class JobSchedulingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private calculateNextRunTime(cronExpression: string, timezone?: string): Date {
+  private calculateNextRunTime(
+    cronExpression: string,
+    timezone?: string,
+  ): Date {
     try {
       const options = {
         currentDate: new Date(),

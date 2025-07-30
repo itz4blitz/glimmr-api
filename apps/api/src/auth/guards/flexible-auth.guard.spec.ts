@@ -10,10 +10,14 @@ describe("FlexibleAuthGuard", () => {
   let jwtService: jest.Mocked<JwtService>;
   let authService: jest.Mocked<AuthService>;
 
-  const mockExecutionContext = (headers: Record<string, string> = {}): ExecutionContext => {
+  const mockExecutionContext = (
+    headers: Record<string, string> = {},
+  ): ExecutionContext => {
     const mockRequest = {
       headers,
-      user: undefined as { id: string; username: string; role: string } | undefined,
+      user: undefined as
+        | { id: string; username: string; role: string }
+        | undefined,
     };
 
     return {

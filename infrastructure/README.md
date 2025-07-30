@@ -15,44 +15,51 @@ infrastructure/
     └── .env.example
 ```
 
-## 🔧 Setup Instructions
+## 🚀 Automated Deployment (Recommended)
 
-### 1. Prerequisites
+### 1. GitHub Actions Setup
 
-- Docker and Docker Compose installed
-- Domain names configured (auth.glimmr.health, traefik.glimmr.health)
-- Cloudflare API credentials for SSL certificates
+1. **Add SSH Key to GitHub Secrets:**
+   ```bash
+   # Generate SSH key pair
+   ssh-keygen -t ed25519 -C "github-actions@glimmr.health"
 
-### 2. Environment Configuration
+   # Add private key to GitHub Secrets as SSH_PRIVATE_KEY
+   # Add public key to server: ~/.ssh/authorized_keys
+   ```
+
+2. **Push to Main Branch:**
+   ```bash
+   git push origin main
+   # Automatically deploys infrastructure changes!
+   ```
+
+### 2. Manual Setup (One-time)
 
 ```bash
-# Copy and configure environment files
-cp infrastructure/authentik/.env.example infrastructure/authentik/.env
+# On your server (104.243.44.8)
+sudo mkdir -p /opt/glimmr/{traefik,authentik,airbyte,argocd}
+sudo chown -R blitz:blitz /opt/glimmr
 
-# Edit the .env file with your actual values:
-# - Generate PG_PASS: openssl rand -base64 32
-# - Generate AUTHENTIK_SECRET_KEY: openssl rand -base64 60
-# - Set AUTHENTIK_BOOTSTRAP_PASSWORD to your desired admin password
+# Create environment files from templates
+cp infrastructure/environments/production/.env.template /opt/glimmr/.env
+# Edit /opt/glimmr/.env with your actual secrets
+
+# Create service-specific .env files
+cp /opt/glimmr/.env /opt/glimmr/traefik/.env
+cp /opt/glimmr/.env /opt/glimmr/authentik/.env
+cp /opt/glimmr/.env /opt/glimmr/airbyte/.env
 ```
 
-### 3. Network Setup
+### 3. GitOps with ArgoCD (Advanced)
 
 ```bash
-# Create Docker networks
-docker network create glimmr-frontend
-docker network create glimmr-backend
-```
-
-### 4. Deployment
-
-```bash
-# Deploy Traefik first
-cd infrastructure/traefik
+# Deploy ArgoCD for GitOps
+cd /opt/glimmr/argocd
 docker compose up -d
 
-# Deploy Authentik
-cd ../authentik
-docker compose up -d
+# Access ArgoCD at https://argocd.glimmr.health
+# Default login: admin / (get password from container logs)
 ```
 
 ## 🌐 Access Points

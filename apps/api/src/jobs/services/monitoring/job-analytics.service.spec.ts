@@ -31,12 +31,20 @@ describe("JobAnalyticsService", () => {
   beforeEach(async () => {
     // Create mock queues
     mockQueues = {
-      [QUEUE_NAMES.PRICE_FILE_PARSER]: createMockQueue(QUEUE_NAMES.PRICE_FILE_PARSER),
+      [QUEUE_NAMES.PRICE_FILE_PARSER]: createMockQueue(
+        QUEUE_NAMES.PRICE_FILE_PARSER,
+      ),
       [QUEUE_NAMES.PRICE_UPDATE]: createMockQueue(QUEUE_NAMES.PRICE_UPDATE),
       [QUEUE_NAMES.EXPORT_DATA]: createMockQueue(QUEUE_NAMES.EXPORT_DATA),
-      [QUEUE_NAMES.ANALYTICS_REFRESH]: createMockQueue(QUEUE_NAMES.ANALYTICS_REFRESH),
-      [QUEUE_NAMES.PRA_UNIFIED_SCAN]: createMockQueue(QUEUE_NAMES.PRA_UNIFIED_SCAN),
-      [QUEUE_NAMES.PRA_FILE_DOWNLOAD]: createMockQueue(QUEUE_NAMES.PRA_FILE_DOWNLOAD),
+      [QUEUE_NAMES.ANALYTICS_REFRESH]: createMockQueue(
+        QUEUE_NAMES.ANALYTICS_REFRESH,
+      ),
+      [QUEUE_NAMES.PRA_UNIFIED_SCAN]: createMockQueue(
+        QUEUE_NAMES.PRA_UNIFIED_SCAN,
+      ),
+      [QUEUE_NAMES.PRA_FILE_DOWNLOAD]: createMockQueue(
+        QUEUE_NAMES.PRA_FILE_DOWNLOAD,
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -122,7 +130,7 @@ describe("JobAnalyticsService", () => {
 
     it("should filter by specific queues", async () => {
       const mockQueues = ["price-file-parser", "analytics-refresh"];
-      
+
       await service.getSuccessTrends({ queues: mockQueues });
 
       expect(databaseService.db.select).toHaveBeenCalled();
@@ -131,12 +139,16 @@ describe("JobAnalyticsService", () => {
 
     it("should handle different time ranges correctly", async () => {
       const timeRanges = ["1h", "6h", "12h", "24h", "7d", "30d"];
-      
+
       for (const timeRange of timeRanges) {
-        await service.getSuccessTrends({ timeRange: timeRange as '1h' | '6h' | '12h' | '24h' | '7d' | '30d' });
+        await service.getSuccessTrends({
+          timeRange: timeRange as "1h" | "6h" | "12h" | "24h" | "7d" | "30d",
+        });
       }
 
-      expect(databaseService.db.select).toHaveBeenCalledTimes(timeRanges.length);
+      expect(databaseService.db.select).toHaveBeenCalledTimes(
+        timeRanges.length,
+      );
     });
 
     it("should merge historical and real-time data", async () => {
@@ -167,8 +179,9 @@ describe("JobAnalyticsService", () => {
         }),
       });
 
-      (mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock)
-        .mockResolvedValue(mockRealtimeJobs);
+      (
+        mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock
+      ).mockResolvedValue(mockRealtimeJobs);
 
       const result = await service.getSuccessTrends({});
 
@@ -178,9 +191,24 @@ describe("JobAnalyticsService", () => {
 
     it("should calculate correct success rates", async () => {
       const mockData = [
-        { queue: "test", status: "completed", completedAt: new Date(), duration: 1000 },
-        { queue: "test", status: "completed", completedAt: new Date(), duration: 2000 },
-        { queue: "test", status: "failed", completedAt: new Date(), duration: 3000 },
+        {
+          queue: "test",
+          status: "completed",
+          completedAt: new Date(),
+          duration: 1000,
+        },
+        {
+          queue: "test",
+          status: "completed",
+          completedAt: new Date(),
+          duration: 2000,
+        },
+        {
+          queue: "test",
+          status: "failed",
+          completedAt: new Date(),
+          duration: 3000,
+        },
       ];
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
@@ -220,8 +248,10 @@ describe("JobAnalyticsService", () => {
         throw new Error("Database error");
       });
 
-      await expect(service.getSuccessTrends({})).rejects.toThrow("Database error");
-      
+      await expect(service.getSuccessTrends({})).rejects.toThrow(
+        "Database error",
+      );
+
       expect(logger.error).toHaveBeenCalledWith({
         msg: "Failed to get success trends",
         error: "Database error",
@@ -231,13 +261,15 @@ describe("JobAnalyticsService", () => {
 
   describe("getPerformanceMetrics", () => {
     it("should return performance metrics for all queues", async () => {
-      const mockCompletedJobs = Array(50).fill(null).map((_, i) => ({
-        id: `job-${i}`,
-        finishedOn: Date.now() - i * 60000,
-        processedOn: Date.now() - i * 60000 - 5000,
-      }));
+      const mockCompletedJobs = Array(50)
+        .fill(null)
+        .map((_, i) => ({
+          id: `job-${i}`,
+          finishedOn: Date.now() - i * 60000,
+          processedOn: Date.now() - i * 60000 - 5000,
+        }));
 
-      Object.values(mockQueues).forEach(queue => {
+      Object.values(mockQueues).forEach((queue) => {
         (queue.getCompleted as jest.Mock).mockResolvedValue(mockCompletedJobs);
         (queue.getActive as jest.Mock).mockResolvedValue([]);
         (queue.getWaiting as jest.Mock).mockResolvedValue([]);
@@ -264,26 +296,34 @@ describe("JobAnalyticsService", () => {
     });
 
     it("should filter by specific queues", async () => {
-      const selectedQueues = [QUEUE_NAMES.PRICE_FILE_PARSER, QUEUE_NAMES.ANALYTICS_REFRESH];
-      
-      const result = await service.getPerformanceMetrics({ queues: selectedQueues });
+      const selectedQueues = [
+        QUEUE_NAMES.PRICE_FILE_PARSER,
+        QUEUE_NAMES.ANALYTICS_REFRESH,
+      ];
+
+      const result = await service.getPerformanceMetrics({
+        queues: selectedQueues,
+      });
 
       expect(result.queues).toHaveLength(2);
-      expect(result.queues.map(q => q.queue)).toEqual(selectedQueues);
+      expect(result.queues.map((q) => q.queue)).toEqual(selectedQueues);
     });
 
     it("should calculate throughput correctly", async () => {
       const now = Date.now();
       const oneHourAgo = now - 60 * 60 * 1000;
-      
-      const mockJobs = Array(60).fill(null).map((_, i) => ({
-        id: `job-${i}`,
-        finishedOn: oneHourAgo + i * 60000, // One job per minute
-        processedOn: oneHourAgo + i * 60000 - 5000,
-      }));
 
-      (mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock)
-        .mockResolvedValue(mockJobs);
+      const mockJobs = Array(60)
+        .fill(null)
+        .map((_, i) => ({
+          id: `job-${i}`,
+          finishedOn: oneHourAgo + i * 60000, // One job per minute
+          processedOn: oneHourAgo + i * 60000 - 5000,
+        }));
+
+      (
+        mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock
+      ).mockResolvedValue(mockJobs);
 
       const result = await service.getPerformanceMetrics({
         queues: [QUEUE_NAMES.PRICE_FILE_PARSER],
@@ -295,7 +335,7 @@ describe("JobAnalyticsService", () => {
     });
 
     it("should handle queues with no completed jobs", async () => {
-      Object.values(mockQueues).forEach(queue => {
+      Object.values(mockQueues).forEach((queue) => {
         (queue.getCompleted as jest.Mock).mockResolvedValue([]);
         (queue.getFailed as jest.Mock).mockResolvedValue([]);
       });
@@ -303,7 +343,7 @@ describe("JobAnalyticsService", () => {
       const result = await service.getPerformanceMetrics({});
 
       expect(result.queues).toBeDefined();
-      result.queues.forEach(queueMetric => {
+      result.queues.forEach((queueMetric) => {
         expect(queueMetric.throughput).toBe(0);
         expect(queueMetric.avgProcessingTime).toBe(0);
         expect(queueMetric.failureRate).toBe(0);
@@ -311,8 +351,9 @@ describe("JobAnalyticsService", () => {
     });
 
     it("should handle queue errors gracefully", async () => {
-      (mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock)
-        .mockRejectedValue(new Error("Queue error"));
+      (
+        mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock
+      ).mockRejectedValue(new Error("Queue error"));
 
       const result = await service.getPerformanceMetrics({
         queues: [QUEUE_NAMES.PRICE_FILE_PARSER],
@@ -370,8 +411,9 @@ describe("JobAnalyticsService", () => {
         }),
       });
 
-      (mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getFailed as jest.Mock)
-        .mockResolvedValue(mockQueueFailures);
+      (
+        mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getFailed as jest.Mock
+      ).mockResolvedValue(mockQueueFailures);
 
       const result = await service.getFailureAnalysis({});
 
@@ -405,10 +447,10 @@ describe("JobAnalyticsService", () => {
       const result = await service.getFailureAnalysis({});
 
       const queue1Failures = result.analysis.failuresByQueue.find(
-        q => q.queue === "queue1"
+        (q) => q.queue === "queue1",
       );
       const queue2Failures = result.analysis.failuresByQueue.find(
-        q => q.queue === "queue2"
+        (q) => q.queue === "queue2",
       );
 
       expect(queue1Failures?.count).toBe(2);
@@ -418,20 +460,23 @@ describe("JobAnalyticsService", () => {
     it("should generate appropriate recommendations", async () => {
       const mockFailures = [
         // Many timeout failures
-        ...Array(15).fill(null).map((_, i) => ({
-          id: `timeout-${i}`,
-          jobName: "slow-job",
-          queue: "price-file-parser",
-          errorMessage: "Timeout: Operation timed out after 30s",
-          completedAt: new Date(),
-          duration: 30000,
-        })),
+        ...Array(15)
+          .fill(null)
+          .map((_, i) => ({
+            id: `timeout-${i}`,
+            jobName: "slow-job",
+            queue: "price-file-parser",
+            errorMessage: "Timeout: Operation timed out after 30s",
+            completedAt: new Date(),
+            duration: 30000,
+          })),
         // Memory failures
         {
           id: "mem-1",
           jobName: "memory-intensive",
           queue: "analytics-refresh",
-          errorMessage: "FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory",
+          errorMessage:
+            "FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory",
           completedAt: new Date(),
           duration: 5000,
         },
@@ -446,21 +491,21 @@ describe("JobAnalyticsService", () => {
       const result = await service.getFailureAnalysis({});
 
       const recommendations = result.analysis.recommendations;
-      
+
       expect(recommendations).toContainEqual(
         expect.objectContaining({
           type: "timeout",
           severity: "high",
           message: "High number of timeout failures detected",
-        })
+        }),
       );
-      
+
       expect(recommendations).toContainEqual(
         expect.objectContaining({
           type: "memory",
           severity: "critical",
           message: "Memory-related failures detected",
-        })
+        }),
       );
     });
 
@@ -483,13 +528,13 @@ describe("JobAnalyticsService", () => {
       const result = await service.getFailureAnalysis({});
 
       const topFailingJobs = result.analysis.topFailingJobs;
-      
+
       expect(topFailingJobs[0]).toEqual({
         queue: "q1",
         jobName: "job-a",
         count: 3,
       });
-      
+
       expect(topFailingJobs[1]).toEqual({
         queue: "q2",
         jobName: "job-b",
@@ -499,14 +544,16 @@ describe("JobAnalyticsService", () => {
 
     it("should handle time-based failure grouping", async () => {
       const now = new Date();
-      const mockFailures = Array(24).fill(null).map((_, i) => ({
-        id: `job-${i}`,
-        jobName: "test-job",
-        queue: "test-queue",
-        errorMessage: "Test error",
-        completedAt: new Date(now.getTime() - i * 60 * 60 * 1000), // One per hour
-        duration: 1000,
-      }));
+      const mockFailures = Array(24)
+        .fill(null)
+        .map((_, i) => ({
+          id: `job-${i}`,
+          jobName: "test-job",
+          queue: "test-queue",
+          errorMessage: "Test error",
+          completedAt: new Date(now.getTime() - i * 60 * 60 * 1000), // One per hour
+          duration: 1000,
+        }));
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -536,7 +583,7 @@ describe("JobAnalyticsService", () => {
           from: jest.fn().mockResolvedValue(mockLogCount),
         });
 
-      Object.values(mockQueues).forEach(queue => {
+      Object.values(mockQueues).forEach((queue) => {
         (queue.getJobCounts as jest.Mock).mockResolvedValue({
           active: 5,
           waiting: 10,
@@ -603,7 +650,7 @@ describe("JobAnalyticsService", () => {
           type: "cpu",
           severity: "high",
           message: expect.stringContaining("CPU usage is high"),
-        })
+        }),
       );
 
       expect(result.alerts).toContainEqual(
@@ -611,7 +658,7 @@ describe("JobAnalyticsService", () => {
           type: "memory",
           severity: "critical",
           message: expect.stringContaining("Memory usage is critical"),
-        })
+        }),
       );
 
       expect(result.alerts).toContainEqual(
@@ -619,13 +666,13 @@ describe("JobAnalyticsService", () => {
           type: "redis",
           severity: "high",
           message: "Redis memory usage is approaching limit",
-        })
+        }),
       );
     });
 
     it("should handle database errors in resource monitoring", async () => {
       (databaseService.db.select as jest.Mock).mockRejectedValue(
-        new Error("Database unavailable")
+        new Error("Database unavailable"),
       );
 
       const result = await service.getResourceUsage({});
@@ -644,7 +691,7 @@ describe("JobAnalyticsService", () => {
         delayed: 5,
       };
 
-      Object.values(mockQueues).forEach(queue => {
+      Object.values(mockQueues).forEach((queue) => {
         (queue.getJobCounts as jest.Mock).mockResolvedValue(mockCounts);
         (queue.getWorkers as jest.Mock).mockResolvedValue([{}, {}, {}]); // 3 workers
       });
@@ -654,7 +701,7 @@ describe("JobAnalyticsService", () => {
       expect(result.usage.queues).toBeDefined();
       expect(result.usage.queues).toHaveLength(6);
       if (Array.isArray(result.usage.queues)) {
-        result.usage.queues.forEach(queueUsage => {
+        result.usage.queues.forEach((queueUsage) => {
           expect(queueUsage).toMatchObject({
             queue: expect.any(String),
             jobs: 65, // active + waiting + delayed
@@ -667,7 +714,7 @@ describe("JobAnalyticsService", () => {
 
     it("should generate queue alerts for high job counts", async () => {
       // Mock very high job counts
-      Object.values(mockQueues).forEach(queue => {
+      Object.values(mockQueues).forEach((queue) => {
         (queue.getJobCounts as jest.Mock).mockResolvedValue({
           active: 1000,
           waiting: 2000,
@@ -682,15 +729,17 @@ describe("JobAnalyticsService", () => {
           type: "queue",
           severity: "medium",
           message: expect.stringContaining("High number of queued jobs"),
-        })
+        }),
       );
     });
   });
 
   describe("Edge cases and error handling", () => {
     it("should handle invalid time range format", async () => {
-      const result = await service.getSuccessTrends({ timeRange: "invalid" as '1h' | '6h' | '12h' | '24h' | '7d' | '30d' });
-      
+      const result = await service.getSuccessTrends({
+        timeRange: "invalid" as "1h" | "6h" | "12h" | "24h" | "7d" | "30d",
+      });
+
       // Should default to 24h
       expect(result.timeRange).toBe("invalid");
       expect(result.interval).toBe("hour");
@@ -698,19 +747,21 @@ describe("JobAnalyticsService", () => {
 
     it("should handle concurrent queue access errors", async () => {
       // Simulate some queues failing while others succeed
-      (mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock)
-        .mockRejectedValue(new Error("Queue locked"));
-      
-      (mockQueues[QUEUE_NAMES.ANALYTICS_REFRESH].getCompleted as jest.Mock)
-        .mockResolvedValue([]);
+      (
+        mockQueues[QUEUE_NAMES.PRICE_FILE_PARSER].getCompleted as jest.Mock
+      ).mockRejectedValue(new Error("Queue locked"));
+
+      (
+        mockQueues[QUEUE_NAMES.ANALYTICS_REFRESH].getCompleted as jest.Mock
+      ).mockResolvedValue([]);
 
       const result = await service.getPerformanceMetrics({});
 
       // Should still return results for working queues
       expect(result.queues).toHaveLength(6);
-      
+
       const failedQueue = result.queues.find(
-        q => q.queue === QUEUE_NAMES.PRICE_FILE_PARSER
+        (q) => q.queue === QUEUE_NAMES.PRICE_FILE_PARSER,
       );
       expect(failedQueue).toMatchObject({
         throughput: 0,
@@ -721,13 +772,15 @@ describe("JobAnalyticsService", () => {
 
     it("should handle very large datasets efficiently", async () => {
       // Mock 10,000 jobs
-      const largeDataset = Array(10000).fill(null).map((_, i) => ({
-        id: `job-${i}`,
-        queue: i % 2 === 0 ? "queue1" : "queue2",
-        status: i % 10 === 0 ? "failed" : "completed",
-        completedAt: new Date(Date.now() - i * 1000),
-        duration: Math.random() * 10000,
-      }));
+      const largeDataset = Array(10000)
+        .fill(null)
+        .map((_, i) => ({
+          id: `job-${i}`,
+          queue: i % 2 === 0 ? "queue1" : "queue2",
+          status: i % 10 === 0 ? "failed" : "completed",
+          completedAt: new Date(Date.now() - i * 1000),
+          duration: Math.random() * 10000,
+        }));
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -815,7 +868,7 @@ describe("JobAnalyticsService", () => {
         }),
       });
 
-      Object.values(mockQueues).forEach(queue => {
+      Object.values(mockQueues).forEach((queue) => {
         (queue.getCompleted as jest.Mock).mockResolvedValue([]);
         (queue.getFailed as jest.Mock).mockResolvedValue([]);
       });
@@ -824,7 +877,7 @@ describe("JobAnalyticsService", () => {
 
       // Should handle division by zero gracefully
       expect(result.queues).toBeDefined();
-      result.queues.forEach(queueMetric => {
+      result.queues.forEach((queueMetric) => {
         expect(queueMetric.failureRate).toBe(0);
         expect(isNaN(queueMetric.failureRate)).toBe(false);
       });

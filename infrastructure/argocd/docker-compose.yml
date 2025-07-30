@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  argocd-server:
+    image: quay.io/argoproj/argocd:v2.8.4
+    container_name: argocd-server
+    restart: unless-stopped
+    command: [argocd-server, --insecure]
+    environment:
+      - ARGOCD_SERVER_INSECURE=true
+    volumes:
+      - argocd-server:/home/argocd
+    networks:
+      - glimmr-frontend
+      - glimmr-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.argocd.rule=Host(`argocd.glimmr.health`)"
+      - "traefik.http.routers.argocd.tls=true"
+      - "traefik.http.routers.argocd.tls.certresolver=cloudflare"
+      - "traefik.http.routers.argocd.middlewares=cloudflare-realip"
+      - "traefik.http.services.argocd.loadbalancer.server.port=8080"
+      - "traefik.docker.network=glimmr-frontend"
+
+  argocd-repo-server:
+    image: quay.io/argoproj/argocd:v2.8.4
+    container_name: argocd-repo-server
+    restart: unless-stopped
+    command: [argocd-repo-server]
+    volumes:
+      - argocd-repo:/home/argocd
+    networks:
+      - glimmr-backend
+
+  argocd-application-controller:
+    image: quay.io/argoproj/argocd:v2.8.4
+    container_name: argocd-application-controller
+    restart: unless-stopped
+    command: [argocd-application-controller]
+    volumes:
+      - argocd-controller:/home/argocd
+    networks:
+      - glimmr-backend
+
+  argocd-redis:
+    image: redis:7-alpine
+    container_name: argocd-redis
+    restart: unless-stopped
+    volumes:
+      - argocd-redis:/data
+    networks:
+      - glimmr-backend
+
+volumes:
+  argocd-server:
+  argocd-repo:
+  argocd-controller:
+  argocd-redis:
+
+networks:
+  glimmr-frontend:
+    external: true
+  glimmr-backend:
+    external: true

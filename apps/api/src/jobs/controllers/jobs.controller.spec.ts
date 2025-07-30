@@ -317,7 +317,6 @@ describe("JobsController", () => {
     });
   });
 
-
   describe("startPriceUpdate", () => {
     const mockJobResult = {
       jobId: "price-job-123",
@@ -449,7 +448,6 @@ describe("JobsController", () => {
       await expect(controller.getJobById("nonexistent")).rejects.toThrow(error);
     });
   });
-
 
   describe("triggerPriceFileDownload", () => {
     it("should trigger download with force reprocess", async () => {
@@ -755,8 +753,6 @@ describe("JobsController", () => {
   });
 
   describe("Error Handling and Edge Cases", () => {
-
-
     it("should handle service timeouts", async () => {
       const timeoutError = new Error("Service timeout");
       timeoutError.name = "TimeoutError";
@@ -785,8 +781,6 @@ describe("JobsController", () => {
 
       expect(jobsService.getJobById).toHaveBeenCalledWith(longJobId);
     });
-
-
 
     it("should handle Unicode characters in hospital and file IDs", async () => {
       const unicodeHospitalId = "hôpital-123";

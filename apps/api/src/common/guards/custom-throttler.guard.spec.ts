@@ -113,7 +113,11 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
+      const key = guard["generateKey"](
+        mockExecutionContext as unknown as ExecutionContext,
+        suffix,
+        name,
+      );
 
       expect(key).toBe("throttle:default:GET:/test:ip:127.0.0.1:test-suffix");
     });
@@ -123,7 +127,11 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "expensive";
 
-      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
+      const key = guard["generateKey"](
+        mockExecutionContext as unknown as ExecutionContext,
+        suffix,
+        name,
+      );
 
       expect(key).toBe("throttle:expensive:GET:/test:user:user123:test-suffix");
     });
@@ -134,7 +142,11 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
+      const key = guard["generateKey"](
+        mockExecutionContext as unknown as ExecutionContext,
+        suffix,
+        name,
+      );
 
       expect(key).toBe(
         "throttle:default:GET:/fallback:ip:127.0.0.1:test-suffix",
@@ -146,7 +158,11 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "test-suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
+      const key = guard["generateKey"](
+        mockExecutionContext as unknown as ExecutionContext,
+        suffix,
+        name,
+      );
 
       expect(key).toBe("throttle:default:POST:/test:ip:127.0.0.1:test-suffix");
     });
@@ -233,7 +249,9 @@ describe("CustomThrottlerGuard", () => {
         mockRequest.path = path;
         mockRequest.url = path;
 
-        const result = await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
+        const result = await guard.canActivate(
+          mockExecutionContext as unknown as ExecutionContext,
+        );
 
         expect(result).toBe(true);
         // Verify parent canActivate was NOT called for health endpoints
@@ -251,7 +269,9 @@ describe("CustomThrottlerGuard", () => {
       mockRequest.path = "/api/v1/hospitals";
       mockRequest.url = "/api/v1/hospitals";
 
-      const result = await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
+      const result = await guard.canActivate(
+        mockExecutionContext as unknown as ExecutionContext,
+      );
 
       expect(result).toBe(true);
       expect(ThrottlerGuard.prototype.canActivate).toHaveBeenCalledWith(
@@ -260,7 +280,9 @@ describe("CustomThrottlerGuard", () => {
     });
 
     it("should add rate limit headers to response", async () => {
-      await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
+      await guard.canActivate(
+        mockExecutionContext as unknown as ExecutionContext,
+      );
 
       expect(mockResponse.setHeader).toHaveBeenCalledWith(
         "X-RateLimit-Limit",
@@ -277,7 +299,9 @@ describe("CustomThrottlerGuard", () => {
         .spyOn(ThrottlerGuard.prototype, "canActivate")
         .mockResolvedValue(false);
 
-      const result = await guard.canActivate(mockExecutionContext as unknown as ExecutionContext);
+      const result = await guard.canActivate(
+        mockExecutionContext as unknown as ExecutionContext,
+      );
 
       expect(result).toBe(false);
       expect(mockResponse.setHeader).toHaveBeenCalled();
@@ -289,9 +313,9 @@ describe("CustomThrottlerGuard", () => {
         .spyOn(ThrottlerGuard.prototype, "canActivate")
         .mockRejectedValue(error);
 
-      await expect(guard.canActivate(mockExecutionContext as unknown as ExecutionContext)).rejects.toThrow(
-        "Rate limit exceeded",
-      );
+      await expect(
+        guard.canActivate(mockExecutionContext as unknown as ExecutionContext),
+      ).rejects.toThrow("Rate limit exceeded");
     });
   });
 
@@ -327,7 +351,9 @@ describe("CustomThrottlerGuard", () => {
         .spyOn(ThrottlerGuard.prototype, "canActivate")
         .mockResolvedValue(true);
 
-      await expect(guard.canActivate(malformedContext as unknown as ExecutionContext)).resolves.toBe(true);
+      await expect(
+        guard.canActivate(malformedContext as unknown as ExecutionContext),
+      ).resolves.toBe(true);
     });
 
     it("should handle request without headers object", () => {
@@ -336,7 +362,9 @@ describe("CustomThrottlerGuard", () => {
         headers: undefined,
       };
 
-      const clientId = guard["getClientId"](requestWithoutHeaders as unknown as Request);
+      const clientId = guard["getClientId"](
+        requestWithoutHeaders as unknown as Request,
+      );
       expect(clientId).toBe("ip:127.0.0.1");
     });
 
@@ -346,7 +374,9 @@ describe("CustomThrottlerGuard", () => {
         socket: undefined,
       };
 
-      const clientId = guard["getClientId"](requestWithoutSocket as unknown as Request);
+      const clientId = guard["getClientId"](
+        requestWithoutSocket as unknown as Request,
+      );
       expect(clientId).toBe("ip:undefined");
     });
   });
@@ -357,7 +387,11 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "suffix";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
+      const key = guard["generateKey"](
+        mockExecutionContext as unknown as ExecutionContext,
+        suffix,
+        name,
+      );
 
       expect(key).toBe(
         "throttle:default:GET:/api/v1/test-endpoint/:id:ip:127.0.0.1:suffix",
@@ -368,7 +402,11 @@ describe("CustomThrottlerGuard", () => {
       const suffix = "";
       const name = "default";
 
-      const key = guard["generateKey"](mockExecutionContext as unknown as ExecutionContext, suffix, name);
+      const key = guard["generateKey"](
+        mockExecutionContext as unknown as ExecutionContext,
+        suffix,
+        name,
+      );
 
       expect(key).toBe("throttle:default:GET:/test:ip:127.0.0.1:");
     });

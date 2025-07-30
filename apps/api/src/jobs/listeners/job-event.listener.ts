@@ -52,9 +52,10 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
             // Emit WebSocket event
             this.jobsGateway.emitJobCompleted(name, jobId, {
               jobName: job.name,
-              duration: job.finishedOn && job.processedOn
-                ? job.finishedOn - job.processedOn
-                : null,
+              duration:
+                job.finishedOn && job.processedOn
+                  ? job.finishedOn - job.processedOn
+                  : null,
               returnvalue,
             });
 
@@ -93,7 +94,11 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
           const job = await queue.getJob(jobId);
           if (job) {
             // Emit WebSocket event
-            this.jobsGateway.emitJobFailed(name, jobId, failedReason || 'Unknown error');
+            this.jobsGateway.emitJobFailed(
+              name,
+              jobId,
+              failedReason || "Unknown error",
+            );
 
             // Create notification if user is specified
             if (job.data.userId) {
@@ -239,7 +244,7 @@ export class JobEventListener implements OnModuleInit, OnModuleDestroy {
       try {
         const counts = await queue.getJobCounts();
         const isPaused = await queue.isPaused();
-        
+
         this.jobsGateway.emitQueueStats(name, {
           counts,
           isPaused,

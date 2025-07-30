@@ -27,7 +27,7 @@ describe("JobsGateway", () => {
       handshake: {
         auth: { token: "Bearer valid-token" },
         headers: {},
-      } as unknown as Socket['handshake'],
+      } as unknown as Socket["handshake"],
       join: jest.fn(),
       leave: jest.fn(),
       disconnect: jest.fn(),
@@ -86,7 +86,10 @@ describe("JobsGateway", () => {
       const mockPayload = { sub: "user-123", roles: ["admin"] };
       (jwtService.verifyAsync as jest.Mock).mockResolvedValue(mockPayload);
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
 
       expect(jwtService.verifyAsync).toHaveBeenCalledWith("valid-token", {
@@ -108,7 +111,7 @@ describe("JobsGateway", () => {
     it("should reject connection without token", async () => {
       const socketWithoutAuth = {
         ...mockSocket,
-        handshake: { auth: {}, headers: {} } as Socket['handshake'],
+        handshake: { auth: {}, headers: {} } as Socket["handshake"],
       } as Socket;
 
       await gateway.handleConnection(socketWithoutAuth);
@@ -122,7 +125,10 @@ describe("JobsGateway", () => {
         new Error("Invalid token"),
       );
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
 
       expect(authenticatedSocket.disconnect).toHaveBeenCalled();
@@ -139,7 +145,7 @@ describe("JobsGateway", () => {
         handshake: {
           auth: {},
           headers: { authorization: "Bearer header-token" },
-        } as unknown as Socket['handshake'],
+        } as unknown as Socket["handshake"],
       } as Socket & { userId?: string; roles?: string[] };
 
       const mockPayload = { sub: "user-456", roles: ["api-user"] };
@@ -157,7 +163,10 @@ describe("JobsGateway", () => {
       const mockPayload = { sub: "user-789" }; // No roles
       (jwtService.verifyAsync as jest.Mock).mockResolvedValue(mockPayload);
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
 
       expect(authenticatedSocket.userId).toBe("user-789");
@@ -168,7 +177,10 @@ describe("JobsGateway", () => {
       const mockPayload = { sub: "user-123", roles: ["admin"] };
       (jwtService.verifyAsync as jest.Mock).mockResolvedValue(mockPayload);
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
 
       expect(gateway.getConnectedClientsCount()).toBe(1);
@@ -188,7 +200,10 @@ describe("JobsGateway", () => {
       const mockPayload = { sub: "user-123", roles: ["admin"] };
       (jwtService.verifyAsync as jest.Mock).mockResolvedValue(mockPayload);
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
       expect(gateway.getConnectedClientsCount()).toBe(1);
 
@@ -204,8 +219,11 @@ describe("JobsGateway", () => {
     });
 
     it("should handle disconnect of unknown client", () => {
-      const unknownSocket = { ...mockSocket, id: "unknown-id" } as Socket & { userId?: string; roles?: string[] };
-      
+      const unknownSocket = { ...mockSocket, id: "unknown-id" } as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
+
       // Should not throw
       expect(() => gateway.handleDisconnect(unknownSocket)).not.toThrow();
       expect(logger.info).toHaveBeenCalledWith({
@@ -249,7 +267,7 @@ describe("JobsGateway", () => {
 
     it("should allow api-user to subscribe to queue", () => {
       authenticatedSocket.roles = ["api-user"];
-      
+
       const result = gateway.handleSubscribeQueue(
         { queue: "analytics-refresh" },
         authenticatedSocket,
@@ -473,7 +491,7 @@ describe("JobsGateway", () => {
     describe("emitJobCompleted", () => {
       it("should emit job completion", () => {
         const result = { recordsProcessed: 1000, duration: 5000 };
-        
+
         gateway.emitJobCompleted("price-update", "job-789", result);
 
         expect(mockServer.emit).toHaveBeenCalledWith("jobUpdate", {
@@ -490,7 +508,7 @@ describe("JobsGateway", () => {
     describe("emitJobFailed", () => {
       it("should emit job failure with error message", () => {
         const error = new Error("Database connection failed");
-        
+
         gateway.emitJobFailed("pra-file-download", "job-999", error);
 
         expect(mockServer.emit).toHaveBeenCalledWith("jobUpdate", {
@@ -636,7 +654,7 @@ describe("JobsGateway", () => {
     it("should handle multiple simultaneous connections", async () => {
       const mockPayload1 = { sub: "user-1", roles: ["admin"] };
       const mockPayload2 = { sub: "user-2", roles: ["api-user"] };
-      
+
       (jwtService.verifyAsync as jest.Mock)
         .mockResolvedValueOnce(mockPayload1)
         .mockResolvedValueOnce(mockPayload2);
@@ -657,7 +675,7 @@ describe("JobsGateway", () => {
         handshake: {
           auth: { token: "plain-token" }, // No Bearer prefix
           headers: {},
-        } as unknown as Socket['handshake'],
+        } as unknown as Socket["handshake"],
       } as Socket;
 
       const mockPayload = { sub: "user-123", roles: ["admin"] };
@@ -672,12 +690,16 @@ describe("JobsGateway", () => {
 
     it("should handle JWT verification timeout", async () => {
       (jwtService.verifyAsync as jest.Mock).mockImplementation(
-        () => new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout")), 100)
-        )
+        () =>
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 100),
+          ),
       );
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
 
       expect(authenticatedSocket.disconnect).toHaveBeenCalled();
@@ -691,7 +713,10 @@ describe("JobsGateway", () => {
       const malformedPayload = null; // Invalid payload
       (jwtService.verifyAsync as jest.Mock).mockResolvedValue(malformedPayload);
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
 
       expect(authenticatedSocket.disconnect).toHaveBeenCalled();
@@ -724,8 +749,8 @@ describe("JobsGateway", () => {
       });
 
       // Should not throw
-      expect(() => 
-        gateway.emitJobUpdate("test-queue", "job-123", { status: "active" })
+      expect(() =>
+        gateway.emitJobUpdate("test-queue", "job-123", { status: "active" }),
       ).not.toThrow();
     });
 
@@ -733,9 +758,12 @@ describe("JobsGateway", () => {
       const mockPayload = { sub: "user-123", roles: ["admin"] };
       (jwtService.verifyAsync as jest.Mock).mockResolvedValue(mockPayload);
 
-      const authenticatedSocket = mockSocket as Socket & { userId?: string; roles?: string[] };
+      const authenticatedSocket = mockSocket as Socket & {
+        userId?: string;
+        roles?: string[];
+      };
       await gateway.handleConnection(authenticatedSocket);
-      
+
       // Disconnect multiple times
       gateway.handleDisconnect(authenticatedSocket);
       gateway.handleDisconnect(authenticatedSocket);

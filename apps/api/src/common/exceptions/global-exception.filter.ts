@@ -60,7 +60,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         error: ERROR_CODES.VALIDATION_ERROR,
         timestamp,
         path,
-        details: this.formatValidationErrors((exception as HttpException).getResponse()),
+        details: this.formatValidationErrors(
+          (exception as HttpException).getResponse(),
+        ),
         traceId,
       };
     }
@@ -107,7 +109,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return exceptionResponse;
     }
 
-    if (exceptionResponse && typeof exceptionResponse === "object" && "message" in exceptionResponse) {
+    if (
+      exceptionResponse &&
+      typeof exceptionResponse === "object" &&
+      "message" in exceptionResponse
+    ) {
       const message = exceptionResponse.message;
       if (Array.isArray(message)) {
         return message.join(", ");
@@ -124,7 +130,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     exceptionResponse: unknown,
   ): Record<string, unknown> | undefined {
     if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
-      const { message: _message, statusCode: _statusCode, error: _error, ...details } = exceptionResponse as Record<string, unknown>;
+      const {
+        message: _message,
+        statusCode: _statusCode,
+        error: _error,
+        ...details
+      } = exceptionResponse as Record<string, unknown>;
       return Object.keys(details).length > 0 ? details : undefined;
     }
     return undefined;
@@ -225,20 +236,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (errorResponse.statusCode >= 500) {
       this.logger.error({
         msg: "Internal server error",
-        error: exception instanceof Error ? exception.message : String(exception),
+        error:
+          exception instanceof Error ? exception.message : String(exception),
         stack: exception instanceof Error ? exception.stack : undefined,
         ...context,
       });
     } else if (errorResponse.statusCode >= 400) {
       this.logger.warn({
         msg: "Client error",
-        error: exception instanceof Error ? exception.message : String(exception),
+        error:
+          exception instanceof Error ? exception.message : String(exception),
         ...context,
       });
     } else {
       this.logger.debug({
         msg: "Exception handled",
-        error: exception instanceof Error ? exception.message : String(exception),
+        error:
+          exception instanceof Error ? exception.message : String(exception),
         ...context,
       });
     }

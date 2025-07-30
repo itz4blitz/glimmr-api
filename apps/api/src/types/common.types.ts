@@ -7,12 +7,12 @@
  * Generic JSON-serializable value type
  * Represents any value that can be safely serialized to JSON
  */
-export type JsonValue = 
-  | string 
-  | number 
-  | boolean 
-  | null 
-  | JsonObject 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonObject
   | JsonArray;
 
 export interface JsonObject {
@@ -68,13 +68,16 @@ export interface PaginationParams {
  */
 export interface SortParams {
   field: string;
-  order: 'asc' | 'desc';
+  order: "asc" | "desc";
 }
 
 /**
  * Filter parameters
  */
-export type FilterParams = Record<string, string | number | boolean | string[] | number[] | null>;
+export type FilterParams = Record<
+  string,
+  string | number | boolean | string[] | number[] | null
+>;
 
 /**
  * API response wrapper
@@ -111,7 +114,7 @@ export interface FileData {
 /**
  * Export data formats
  */
-export type ExportFormat = 'csv' | 'json' | 'xlsx' | 'pdf';
+export type ExportFormat = "csv" | "json" | "xlsx" | "pdf";
 
 /**
  * Job data types
@@ -130,7 +133,7 @@ export interface JobOptions extends JsonObject {
   delay?: number;
   attempts?: number;
   backoff?: {
-    type: 'fixed' | 'exponential';
+    type: "fixed" | "exponential";
     delay: number;
   };
   removeOnComplete?: boolean | number;
@@ -155,51 +158,63 @@ export type ResourceId = string | number;
 /**
  * Resource type
  */
-export type ResourceType = 
-  | 'user' 
-  | 'hospital' 
-  | 'price' 
-  | 'job' 
-  | 'file' 
-  | 'analytics' 
-  | 'notification'
-  | 'auth'
-  | 'profile';
+export type ResourceType =
+  | "user"
+  | "hospital"
+  | "price"
+  | "job"
+  | "file"
+  | "analytics"
+  | "notification"
+  | "auth"
+  | "profile";
 
 /**
  * HTTP methods
  */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+export type HttpMethod =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "PATCH"
+  | "DELETE"
+  | "HEAD"
+  | "OPTIONS";
 
 /**
  * Sensitive data keys that should be redacted
  */
 export const SENSITIVE_KEYS = [
-  'password',
-  'token',
-  'apiKey',
-  'secret',
-  'authorization',
-  'cookie',
-  'session',
+  "password",
+  "token",
+  "apiKey",
+  "secret",
+  "authorization",
+  "cookie",
+  "session",
 ] as const;
 
 /**
  * Type guard to check if a value is a JsonValue
  */
 export function isJsonValue(value: unknown): value is JsonValue {
-  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
     return true;
   }
-  
+
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
   }
-  
-  if (typeof value === 'object' && value !== null) {
+
+  if (typeof value === "object" && value !== null) {
     return Object.values(value).every(isJsonValue);
   }
-  
+
   return false;
 }
 
@@ -208,20 +223,22 @@ export function isJsonValue(value: unknown): value is JsonValue {
  */
 export function isErrorObject(value: unknown): value is ErrorObject {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'message' in value &&
-    typeof (value as any).message === 'string'
+    "message" in value &&
+    typeof (value as any).message === "string"
   );
 }
 
 /**
  * Safely parse JSON with type checking
  */
-export function parseJsonSafe<T extends JsonValue = JsonValue>(text: string): T | null {
+export function parseJsonSafe<T extends JsonValue = JsonValue>(
+  text: string,
+): T | null {
   try {
     const parsed = JSON.parse(text);
-    return isJsonValue(parsed) ? parsed as T : null;
+    return isJsonValue(parsed) ? (parsed as T) : null;
   } catch {
     return null;
   }

@@ -270,11 +270,17 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
         sanitized[key] = "[REDACTED]";
       } else if (value === null || value === undefined) {
         sanitized[key] = null;
-      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      } else if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
         sanitized[key] = value;
       } else if (Array.isArray(value)) {
-        sanitized[key] = value.map(v => typeof v === 'string' ? v : String(v));
-      } else if (typeof value === 'object') {
+        sanitized[key] = value.map((v) =>
+          typeof v === "string" ? v : String(v),
+        );
+      } else if (typeof value === "object") {
         sanitized[key] = this.sanitizeQuery(value);
       } else {
         sanitized[key] = String(value);
@@ -295,7 +301,11 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
         sanitized[key] = "[REDACTED]";
       } else if (value === null || value === undefined) {
         sanitized[key] = null;
-      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      } else if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
         sanitized[key] = value;
       } else {
         sanitized[key] = String(value);
@@ -324,7 +334,10 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     return pathParts[0] || "api";
   }
 
-  private extractResourceId(path: string, params: Record<string, string>): string | undefined {
+  private extractResourceId(
+    path: string,
+    params: Record<string, string>,
+  ): string | undefined {
     // Common ID parameter names
     const idParams = [
       "id",

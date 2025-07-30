@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { QueueDashboard } from "@/components/admin/queue-dashboard";
 import { QueueLogsModal } from "@/components/admin/QueueLogsModal";
@@ -15,21 +15,21 @@ export function QueueDashboardPage() {
   const [configQueue, setConfigQueue] = useState<string | null>(null);
   const [triggerQueue, setTriggerQueue] = useState<string | null>(null);
 
-  const handleViewLogs = (queueName: string, displayName: string) => {
+  const handleViewLogs = useCallback((queueName: string, displayName: string) => {
     setShowLogsModal({ queueName, displayName });
-  };
+  }, []);
 
-  const handleViewAllLogs = () => {
+  const handleViewAllLogs = useCallback(() => {
     setShowAllLogsModal(true);
-  };
+  }, []);
 
-  const handleConfigure = (queueName: string) => {
+  const handleConfigure = useCallback((queueName: string) => {
     setConfigQueue(queueName);
-  };
+  }, []);
 
-  const handleTriggerJob = (queueName: string) => {
+  const handleTriggerJob = useCallback((queueName: string) => {
     setTriggerQueue(queueName);
-  };
+  }, []);
 
   return (
     <AppLayout>

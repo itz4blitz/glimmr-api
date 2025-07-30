@@ -165,7 +165,6 @@ export class HospitalsController {
     }
   }
 
-
   @Get(":id/price-files")
   @RequirePermissions("hospitals:read")
   @ApiOperation({ summary: "Get price transparency files for a hospital" })

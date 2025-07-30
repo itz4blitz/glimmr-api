@@ -121,7 +121,7 @@ export class JobsGateway
 
   handleDisconnect(client: AuthenticatedSocket) {
     this.connectedClients.delete(client.id);
-    
+
     this.logger.info({
       msg: "Client disconnected",
       clientId: client.id,
@@ -376,7 +376,8 @@ export class JobsGateway
 
   // Helper methods
   private extractToken(client: Socket): string | null {
-    const auth = client.handshake.auth?.token || client.handshake.headers?.authorization;
+    const auth =
+      client.handshake.auth?.token || client.handshake.headers?.authorization;
     if (!auth) return null;
 
     if (auth.startsWith("Bearer ")) {
@@ -386,7 +387,9 @@ export class JobsGateway
     return auth;
   }
 
-  private async verifyToken(token: string): Promise<{ sub?: string; userId?: string; roles?: string[] } | null> {
+  private async verifyToken(
+    token: string,
+  ): Promise<{ sub?: string; userId?: string; roles?: string[] } | null> {
     try {
       const secret = this.configService.get<string>("JWT_SECRET");
       return await this.jwtService.verifyAsync(token, { secret });
@@ -399,9 +402,12 @@ export class JobsGateway
     }
   }
 
-  private hasPermission(client: AuthenticatedSocket, requiredRoles: string[]): boolean {
+  private hasPermission(
+    client: AuthenticatedSocket,
+    requiredRoles: string[],
+  ): boolean {
     if (!client.roles || client.roles.length === 0) return false;
-    return requiredRoles.some(role => client.roles.includes(role));
+    return requiredRoles.some((role) => client.roles.includes(role));
   }
 
   // Get connected clients count
@@ -410,8 +416,12 @@ export class JobsGateway
   }
 
   // Get connected clients info (for monitoring)
-  getConnectedClientsInfo(): Array<{ clientId: string; userId: string; roles: string[] }> {
-    return Array.from(this.connectedClients.values()).map(client => ({
+  getConnectedClientsInfo(): Array<{
+    clientId: string;
+    userId: string;
+    roles: string[];
+  }> {
+    return Array.from(this.connectedClients.values()).map((client) => ({
       clientId: client.id,
       userId: client.userId || "unknown",
       roles: client.roles || [],

@@ -1,5 +1,5 @@
-import { ExecutionContext, Type } from '@nestjs/common';
-import { HttpArgumentsHost } from '@nestjs/common/interfaces';
+import { ExecutionContext, Type } from "@nestjs/common";
+import { HttpArgumentsHost } from "@nestjs/common/interfaces";
 
 export interface MockExecutionContext extends Partial<ExecutionContext> {
   switchToHttp: () => HttpArgumentsHost;

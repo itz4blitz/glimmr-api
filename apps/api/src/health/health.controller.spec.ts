@@ -207,9 +207,9 @@ describe("HealthController", () => {
       const serviceError = new Error("Health service failed");
       mockHealthService.getHealth.mockRejectedValue(serviceError);
 
-      await expect(controller.getHealth(mockResponse as unknown as Response)).rejects.toThrow(
-        serviceError,
-      );
+      await expect(
+        controller.getHealth(mockResponse as unknown as Response),
+      ).rejects.toThrow(serviceError);
 
       expect(mockHealthService.getHealth).toHaveBeenCalledWith();
     });

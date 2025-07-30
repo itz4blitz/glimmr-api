@@ -327,7 +327,8 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
    * Check if an error indicates the context needs to be recreated
    */
   private isContextError(error: Error | { message?: string }): boolean {
-    const errorMessage = (error as { message?: string }).message?.toLowerCase() || "";
+    const errorMessage =
+      (error as { message?: string }).message?.toLowerCase() || "";
     const contextErrorIndicators = [
       "context",
       "connection",
@@ -586,11 +587,16 @@ export class PatientRightsAdvocateService implements OnModuleDestroy {
         "Failed to search hospitals via PRA API",
       );
 
-      if ((_error as { response?: { status?: number } }).response?.status === 429) {
+      if (
+        (_error as { response?: { status?: number } }).response?.status === 429
+      ) {
         throw new RateLimitExceededException("Patient Rights Advocate API");
       }
 
-      if (((_error as { response?: { status?: number } }).response?.status ?? 0) >= 500) {
+      if (
+        ((_error as { response?: { status?: number } }).response?.status ??
+          0) >= 500
+      ) {
         throw new ExternalServiceException(
           "Patient Rights Advocate API",
           "Service currently unavailable",

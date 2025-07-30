@@ -74,7 +74,7 @@ describe("GlobalExceptionFilter", () => {
   beforeEach(async () => {
     filter = new GlobalExceptionFilter(mockLogger as unknown as PinoLogger);
     logger = mockLogger as unknown as PinoLogger;
-    
+
     // Set NODE_ENV to test for consistent behavior
     process.env.NODE_ENV = "test";
   });
@@ -199,7 +199,7 @@ describe("GlobalExceptionFilter", () => {
       expect(mockResponse.status).toHaveBeenCalledWith(
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
-      
+
       expect(mockResponse.json).toHaveBeenCalledWith({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: "Internal server error",
@@ -283,7 +283,10 @@ describe("GlobalExceptionFilter", () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockArgumentsHostWithoutCorrelation as unknown as ArgumentsHost);
+      filter.catch(
+        exception,
+        mockArgumentsHostWithoutCorrelation as unknown as ArgumentsHost,
+      );
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         {
@@ -391,9 +394,9 @@ describe("GlobalExceptionFilter", () => {
       expect(filterWithPrivate.getErrorName(HttpStatus.BAD_GATEWAY)).toBe(
         "Bad Gateway",
       );
-      expect(filterWithPrivate.getErrorName(HttpStatus.SERVICE_UNAVAILABLE)).toBe(
-        "Service Unavailable",
-      );
+      expect(
+        filterWithPrivate.getErrorName(HttpStatus.SERVICE_UNAVAILABLE),
+      ).toBe("Service Unavailable");
       expect(filterWithPrivate.getErrorName(HttpStatus.GATEWAY_TIMEOUT)).toBe(
         "Gateway Timeout",
       );

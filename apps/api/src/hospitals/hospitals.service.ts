@@ -109,7 +109,10 @@ export class HospitalsService {
         operation: "getHospitals",
         filters,
       });
-      throw new DatabaseOperationException("fetch hospitals", (_error as Error).message);
+      throw new DatabaseOperationException(
+        "fetch hospitals",
+        (_error as Error).message,
+      );
     }
   }
 
@@ -171,7 +174,10 @@ export class HospitalsService {
         error: (_error as Error).message,
         operation: "getHospitalById",
       });
-      throw new DatabaseOperationException("fetch hospital", (_error as Error).message);
+      throw new DatabaseOperationException(
+        "fetch hospital",
+        (_error as Error).message,
+      );
     }
   }
 

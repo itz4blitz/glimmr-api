@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { eq, and, or, like, desc, asc, count, sql, inArray } from "drizzle-orm";
 import { DatabaseService } from "../database/database.service";
 import {
@@ -253,7 +250,12 @@ export class UserManagementService {
     }
 
     // Remove sensitive fields that shouldn't be updated directly
-    const { password: _password, apiKey: _apiKey, id: _, ...rawUpdateData } = updateData;
+    const {
+      password: _password,
+      apiKey: _apiKey,
+      id: _,
+      ...rawUpdateData
+    } = updateData;
 
     // Type-safe update data
     const safeUpdateData: Record<string, unknown> = {};

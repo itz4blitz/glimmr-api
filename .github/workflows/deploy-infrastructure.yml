@@ -1,0 +1,125 @@
+name: 🚀 Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths: ['infrastructure/**']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  SERVER_HOST: 104.243.44.8
+  SERVER_USER: blitz
+  DEPLOY_PATH: /opt/glimmr
+
+jobs:
+  deploy:
+    name: 🚀 Deploy to Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: 🔍 Add Server to Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+          
+      - name: 📦 Deploy Infrastructure
+        run: |
+          # Create deployment script
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🚀 Starting deployment..."
+          
+          # Backup existing configs
+          sudo mkdir -p /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S)
+          sudo cp -r /opt/glimmr/* /opt/glimmr-backup/$(date +%Y%m%d-%H%M%S)/ 2>/dev/null || echo "No existing configs to backup"
+          
+          # Create directories
+          sudo mkdir -p /opt/glimmr/{traefik,authentik,airbyte}
+          
+          # Copy new configurations
+          sudo cp -r infrastructure/traefik/* /opt/glimmr/traefik/
+          sudo cp -r infrastructure/authentik/* /opt/glimmr/authentik/
+          sudo cp -r infrastructure/airbyte/* /opt/glimmr/airbyte/
+          
+          # Set permissions
+          sudo chown -R blitz:blitz /opt/glimmr
+          
+          # Create networks if they don't exist
+          docker network create glimmr-frontend 2>/dev/null || echo "Network glimmr-frontend exists"
+          docker network create glimmr-backend 2>/dev/null || echo "Network glimmr-backend exists"
+          
+          # Deploy services (only if .env files exist)
+          cd /opt/glimmr
+          
+          if [ -f traefik/.env ]; then
+            echo "📊 Deploying Traefik..."
+            cd traefik && docker compose up -d && cd ..
+          else
+            echo "⚠️  Skipping Traefik - no .env file"
+          fi
+          
+          if [ -f authentik/.env ]; then
+            echo "🔐 Deploying Authentik..."
+            cd authentik && docker compose up -d && cd ..
+          else
+            echo "⚠️  Skipping Authentik - no .env file"
+          fi
+          
+          if [ -f airbyte/.env ]; then
+            echo "📊 Deploying Airbyte..."
+            cd airbyte && docker compose up -d && cd ..
+          else
+            echo "⚠️  Skipping Airbyte - no .env file"
+          fi
+          
+          echo "✅ Deployment complete!"
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          EOF
+          
+          # Copy and execute deployment script
+          scp deploy.sh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:~/
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "chmod +x ~/deploy.sh && ~/deploy.sh"
+          
+      - name: 🔍 Verify Deployment
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "
+            echo '🔍 Checking service status...'
+            docker ps --filter 'name=traefik' --format 'table {{.Names}}\t{{.Status}}'
+            docker ps --filter 'name=authentik' --format 'table {{.Names}}\t{{.Status}}'
+            docker ps --filter 'name=airbyte' --format 'table {{.Names}}\t{{.Status}}'
+          "
+          
+      - name: 📝 Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Infrastructure deployed to: \`${{ env.SERVER_HOST }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Access Points:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Traefik Dashboard**: https://traefik.glimmr.health" >> $GITHUB_STEP_SUMMARY
+          echo "- **Authentik**: https://auth.glimmr.health" >> $GITHUB_STEP_SUMMARY
+          echo "- **Airbyte**: https://airbyte.glimmr.health" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify services are running" >> $GITHUB_STEP_SUMMARY
+          echo "2. Check SSL certificates" >> $GITHUB_STEP_SUMMARY
+          echo "3. Test authentication flows" >> $GITHUB_STEP_SUMMARY

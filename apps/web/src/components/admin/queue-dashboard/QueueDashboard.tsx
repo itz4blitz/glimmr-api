@@ -107,8 +107,12 @@ export function QueueDashboard({
       setRefreshing(true);
       const response = await api.get("/jobs/stats");
       
+      console.log("API Response:", response.data);
+      
       // Transform the data to match expected format - API returns 'queues' array
       const queueData = response.data.queues || [];
+      console.log("Queue Data:", queueData);
+      
       const transformedData = queueData.map((queue: {
         name: string;
         active?: number;
@@ -119,33 +123,39 @@ export function QueueDashboard({
         paused?: boolean;
         processingRate?: number;
         avgProcessingTime?: number;
-      }) => ({
-        name: queue.name,
-        displayName: queue.name.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-        health: queue.paused ? "paused" : "healthy",
-        counts: {
-          active: queue.active || 0,
-          waiting: queue.waiting || 0,
-          completed: queue.completed || 0,
-          failed: queue.failed || 0,
-          delayed: queue.delayed || 0,
-        },
-        throughput: {
-          rate: queue.processingRate || 0,
-          trend: "stable",
-          percentageChange: 0,
-        },
-        performance: {
-          avgProcessingTime: queue.avgProcessingTime || 0,
-          p95ProcessingTime: (queue.avgProcessingTime || 0) * 1.5,
-          p99ProcessingTime: (queue.avgProcessingTime || 0) * 2,
-          successRate: ((queue.completed || 0) + (queue.failed || 0)) > 0 
-            ? ((queue.completed || 0) / ((queue.completed || 0) + (queue.failed || 0))) * 100 
-            : 0,
-        },
-        historicalData: [], // Real historical data should come from backend
-      }));
+        historicalData?: any[];
+      }) => {
+        console.log(`Queue ${queue.name} historicalData:`, queue.historicalData);
+        
+        return {
+          name: queue.name,
+          displayName: queue.name.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          health: queue.paused ? "paused" : "healthy",
+          counts: {
+            active: queue.active || 0,
+            waiting: queue.waiting || 0,
+            completed: queue.completed || 0,
+            failed: queue.failed || 0,
+            delayed: queue.delayed || 0,
+          },
+          throughput: {
+            rate: queue.processingRate || 0,
+            trend: "stable",
+            percentageChange: 0,
+          },
+          performance: {
+            avgProcessingTime: queue.avgProcessingTime || 0,
+            p95ProcessingTime: (queue.avgProcessingTime || 0) * 1.5,
+            p99ProcessingTime: (queue.avgProcessingTime || 0) * 2,
+            successRate: ((queue.completed || 0) + (queue.failed || 0)) > 0 
+              ? ((queue.completed || 0) / ((queue.completed || 0) + (queue.failed || 0))) * 100 
+              : 0,
+          },
+          historicalData: queue.historicalData || [],
+        };
+      });
       
+      console.log("Transformed Data:", transformedData);
       setQueues(transformedData);
     } catch (error) {
       console.error('Failed to fetch queue statistics:', error);

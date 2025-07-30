@@ -173,5 +173,4 @@ export class AdminController {
     await this.rbacService.removePermissionFromRole(roleId, permissionId);
     return { message: "Permission removed successfully" };
   }
-
 }

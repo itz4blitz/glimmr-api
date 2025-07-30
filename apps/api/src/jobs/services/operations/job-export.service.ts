@@ -4,11 +4,18 @@ import { DatabaseService } from "../../../database/database.service";
 import { StorageService } from "../../../storage/storage.service";
 import { jobs, jobLogs } from "../../../database/schema";
 import { eq, and, or, gte, lte, inArray, sql, desc } from "drizzle-orm";
-import { JobAdvancedFilterDto, JobExportDto } from "../../dto/job-operations.dto";
+import {
+  JobAdvancedFilterDto,
+  JobExportDto,
+} from "../../dto/job-operations.dto";
 import * as ExcelJS from "exceljs";
 import { createObjectCsvStringifier } from "csv-writer";
 import { Readable } from "stream";
-import { JsonObject, JsonValue, ExportFormat } from "../../../types/common.types";
+import {
+  JsonObject,
+  JsonValue,
+  ExportFormat,
+} from "../../../types/common.types";
 
 interface ExportableJob {
   id: string;
@@ -79,7 +86,11 @@ export class JobExportService {
           result = await this.exportToCSV(selectedJobs, filename);
           break;
         case "excel":
-          result = await this.exportToExcel(selectedJobs, filename, exportDto.includeLogs);
+          result = await this.exportToExcel(
+            selectedJobs,
+            filename,
+            exportDto.includeLogs,
+          );
           break;
         case "json":
         default:
@@ -103,7 +114,9 @@ export class JobExportService {
     }
   }
 
-  private async getFilteredJobs(filters?: JobAdvancedFilterDto): Promise<ExportableJob[]> {
+  private async getFilteredJobs(
+    filters?: JobAdvancedFilterDto,
+  ): Promise<ExportableJob[]> {
     const db = this.databaseService.db;
     const conditions = [];
 
@@ -159,7 +172,7 @@ export class JobExportService {
 
     const results = await query;
 
-    return results.map(job => ({
+    return results.map((job) => ({
       id: job.id,
       jobType: job.jobType,
       jobName: job.jobName,
@@ -186,7 +199,10 @@ export class JobExportService {
     }));
   }
 
-  private selectFields(jobs: ExportableJob[], fields?: string[]): Partial<ExportableJob>[] {
+  private selectFields(
+    jobs: ExportableJob[],
+    fields?: string[],
+  ): Partial<ExportableJob>[] {
     if (!fields || fields.length === 0) {
       // Default fields
       fields = [
@@ -204,11 +220,11 @@ export class JobExportService {
       ];
     }
 
-    return jobs.map(job => {
+    return jobs.map((job) => {
       const selected: Partial<ExportableJob> = {};
       const jobRecord = job as any;
       const selectedRecord = selected as any;
-      fields.forEach(field => {
+      fields.forEach((field) => {
         if (field in jobRecord) {
           selectedRecord[field] = jobRecord[field];
         }
@@ -219,7 +235,7 @@ export class JobExportService {
 
   private async attachJobLogs(jobs: Partial<ExportableJob>[]) {
     const db = this.databaseService.db;
-    const jobIds = jobs.map(j => j.id).filter(Boolean);
+    const jobIds = jobs.map((j) => j.id).filter(Boolean);
 
     if (jobIds.length === 0) return;
 
@@ -229,20 +245,23 @@ export class JobExportService {
       .where(inArray(jobLogs.jobId, jobIds))
       .orderBy(jobLogs.createdAt);
 
-    const logsByJobId = logs.reduce<Record<string, ExportableJob["logs"]>>((acc, log) => {
-      if (!acc[log.jobId]) {
-        acc[log.jobId] = [];
-      }
-      acc[log.jobId].push({
-        level: log.level,
-        message: log.message,
-        data: log.data ? JSON.parse(log.data) : null,
-        createdAt: log.createdAt,
-      });
-      return acc;
-    }, {});
+    const logsByJobId = logs.reduce<Record<string, ExportableJob["logs"]>>(
+      (acc, log) => {
+        if (!acc[log.jobId]) {
+          acc[log.jobId] = [];
+        }
+        acc[log.jobId].push({
+          level: log.level,
+          message: log.message,
+          data: log.data ? JSON.parse(log.data) : null,
+          createdAt: log.createdAt,
+        });
+        return acc;
+      },
+      {},
+    );
 
-    jobs.forEach(job => {
+    jobs.forEach((job) => {
       job.logs = logsByJobId[job.id] || [];
     });
   }
@@ -274,8 +293,8 @@ export class JobExportService {
 
     // Get all unique headers from all jobs
     const headers = new Set<string>();
-    jobs.forEach(job => {
-      Object.keys(job).forEach(key => {
+    jobs.forEach((job) => {
+      Object.keys(job).forEach((key) => {
         // Skip complex objects for CSV
         if (
           typeof job[key] !== "object" ||
@@ -291,13 +310,13 @@ export class JobExportService {
 
     // Create CSV stringifier
     const csvStringifier = createObjectCsvStringifier({
-      header: headerArray.map(h => ({ id: h, title: h })),
+      header: headerArray.map((h) => ({ id: h, title: h })),
     });
 
     // Format data for CSV
-    const records = jobs.map(job => {
+    const records = jobs.map((job) => {
       const record: Record<string, string | number> = {};
-      headerArray.forEach(header => {
+      headerArray.forEach((header) => {
         const value = (job as Record<string, JsonValue>)[header];
         if (value instanceof Date) {
           record[header] = value.toISOString();
@@ -313,7 +332,8 @@ export class JobExportService {
     });
 
     const csvContent =
-      csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(records);
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(records);
     const buffer = Buffer.from(csvContent, "utf-8");
 
     // Upload to storage
@@ -326,18 +346,22 @@ export class JobExportService {
     return { url: file.url, data: csvContent };
   }
 
-  private async exportToExcel(jobs: Partial<ExportableJob>[], filename: string, includeLogs?: boolean) {
+  private async exportToExcel(
+    jobs: Partial<ExportableJob>[],
+    filename: string,
+    includeLogs?: boolean,
+  ) {
     const workbook = new ExcelJS.Workbook();
-    
+
     // Main jobs sheet
     const jobsSheet = workbook.addWorksheet("Jobs");
-    
+
     if (jobs.length > 0) {
       // Add headers
       const headers = Object.keys(jobs[0]).filter(
-        key => !includeLogs || key !== "logs",
+        (key) => !includeLogs || key !== "logs",
       );
-      jobsSheet.columns = headers.map(header => ({
+      jobsSheet.columns = headers.map((header) => ({
         header: this.formatHeaderName(header),
         key: header,
         width: this.getColumnWidth(header),
@@ -352,9 +376,9 @@ export class JobExportService {
       };
 
       // Add data
-      jobs.forEach(job => {
+      jobs.forEach((job) => {
         const row: Record<string, JsonValue> = {};
-        headers.forEach(header => {
+        headers.forEach((header) => {
           const value = (job as Record<string, JsonValue>)[header];
           if (value instanceof Date) {
             row[header] = value.toISOString();
@@ -411,9 +435,9 @@ export class JobExportService {
         createdAt: Date | string;
       }> = [];
 
-      jobs.forEach(job => {
+      jobs.forEach((job) => {
         if (job.logs && Array.isArray(job.logs)) {
-          job.logs.forEach(log => {
+          job.logs.forEach((log) => {
             allLogs.push({
               jobId: job.id,
               jobName: job.jobName,
@@ -440,16 +464,17 @@ export class JobExportService {
           fgColor: { argb: "FFE0E0E0" },
         };
 
-        allLogs.forEach(log => {
+        allLogs.forEach((log) => {
           logsSheet.addRow({
             jobId: log.jobId,
             jobName: log.jobName,
             level: log.level,
             message: log.message,
             data: log.data ? JSON.stringify(log.data) : "",
-            createdAt: log.createdAt instanceof Date
-              ? log.createdAt.toISOString()
-              : log.createdAt,
+            createdAt:
+              log.createdAt instanceof Date
+                ? log.createdAt.toISOString()
+                : log.createdAt,
           });
         });
 
@@ -500,7 +525,10 @@ export class JobExportService {
     const file = await this.storageService.uploadFromStream(
       `exports/${filename}`,
       Readable.from(Buffer.from(buffer)),
-      { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      {
+        contentType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
     );
 
     return { url: file.url };
@@ -509,7 +537,7 @@ export class JobExportService {
   private formatHeaderName(key: string): string {
     return key
       .replace(/([A-Z])/g, " $1")
-      .replace(/^./, str => str.toUpperCase())
+      .replace(/^./, (str) => str.toUpperCase())
       .trim();
   }
 
@@ -546,9 +574,9 @@ export class JobExportService {
 
     const avgDuration =
       jobs
-        .filter(j => j.duration)
+        .filter((j) => j.duration)
         .reduce((sum, j) => sum + (j.duration || 0), 0) /
-        (jobs.filter(j => j.duration).length || 1);
+      (jobs.filter((j) => j.duration).length || 1);
 
     const totalRecordsProcessed = jobs.reduce(
       (sum, j) => sum + (j.recordsProcessed || 0),
@@ -563,10 +591,13 @@ export class JobExportService {
       activeJobs: statusCounts.active || 0,
       avgDurationMs: Math.round(avgDuration),
       totalRecordsProcessed,
-      ...Object.entries(queueCounts).reduce<Record<string, number>>((acc, [queue, count]) => {
-        acc[`queue_${queue}`] = count;
-        return acc;
-      }, {}),
+      ...Object.entries(queueCounts).reduce<Record<string, number>>(
+        (acc, [queue, count]) => {
+          acc[`queue_${queue}`] = count;
+          return acc;
+        },
+        {},
+      ),
     };
   }
 }

@@ -546,7 +546,6 @@ export class AnalyticsService {
           : "Small export - ready for immediate processing.",
       };
 
-
       // Initialize progress tracking
       this.updateExportProgress(exportId, {
         exportId,
@@ -930,7 +929,7 @@ export class AnalyticsService {
         .where(eq(hospitals.isActive, true))
         .limit(limit);
       if (hospitalData.length > 0) {
-        const serializedData = hospitalData.map(row => ({
+        const serializedData = hospitalData.map((row) => ({
           ...row,
           createdAt: row.createdAt?.toISOString(),
           updatedAt: row.updatedAt?.toISOString(),
@@ -949,7 +948,7 @@ export class AnalyticsService {
         .where(eq(prices.isActive, true))
         .limit(limit);
       if (priceData.length > 0) {
-        const serializedData = priceData.map(row => ({
+        const serializedData = priceData.map((row) => ({
           ...row,
           createdAt: row.createdAt?.toISOString(),
           updatedAt: row.updatedAt?.toISOString(),
@@ -964,7 +963,7 @@ export class AnalyticsService {
     if (dataset === "analytics" || dataset === "all") {
       const analyticsData = await db.select().from(analytics).limit(limit);
       if (analyticsData.length > 0) {
-        const serializedData = analyticsData.map(row => ({
+        const serializedData = analyticsData.map((row) => ({
           ...row,
           createdAt: row.createdAt?.toISOString(),
           updatedAt: row.updatedAt?.toISOString(),
@@ -1235,10 +1234,7 @@ export class AnalyticsService {
     }
   }
 
-  getMarketPositionInsights(filters: {
-    hospitalId?: string;
-    state?: string;
-  }) {
+  getMarketPositionInsights(filters: { hospitalId?: string; state?: string }) {
     this.logger.info({
       msg: "Generating market position insights",
       filters,

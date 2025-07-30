@@ -62,7 +62,10 @@ export class EmailService {
         message: "Email service connection verified successfully",
       };
     } catch (_error) {
-      this.logger.error("Email service connection failed", (_error as Error).stack);
+      this.logger.error(
+        "Email service connection failed",
+        (_error as Error).stack,
+      );
       return {
         success: false,
         message: "Email service connection failed",
@@ -95,7 +98,10 @@ export class EmailService {
         message: `Email sent successfully. Message ID: ${_result.messageId}`,
       };
     } catch (_error) {
-      this.logger.error(`Failed to send email to ${options.to}`, (_error as Error).stack);
+      this.logger.error(
+        `Failed to send email to ${options.to}`,
+        (_error as Error).stack,
+      );
       return {
         success: false,
         message: "Failed to send email",

@@ -31,9 +31,7 @@ import { CurrentUser } from "../../auth/decorators/current-user.decorator";
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class JobSchedulingController {
-  constructor(
-    private readonly jobSchedulingService: JobSchedulingService,
-  ) {}
+  constructor(private readonly jobSchedulingService: JobSchedulingService) {}
 
   @Post()
   @ApiOperation({ summary: "Create a new job schedule" })
@@ -67,7 +65,10 @@ export class JobSchedulingController {
     @Query("isEnabled") isEnabled?: boolean,
     @Query("queueName") queueName?: string,
   ) {
-    return this.jobSchedulingService.getSchedules({ enabled: isEnabled, templateId: queueName });
+    return this.jobSchedulingService.getSchedules({
+      enabled: isEnabled,
+      templateId: queueName,
+    });
   }
 
   @Get(":id")
@@ -127,32 +128,35 @@ export class JobSchedulingController {
   ) {
     // Since we track lastJobId, we can use the job history from the queue
     const schedule = await this.jobSchedulingService.getSchedule(id);
-    
+
     // Get jobs from the queue that match this schedule's template
-    const jobsService = this.jobSchedulingService['jobsService'];
+    const jobsService = this.jobSchedulingService["jobsService"];
     const jobs = await jobsService.getJobs(schedule.template.queueName, {
-      status: ['completed', 'failed'],
+      status: ["completed", "failed"],
       limit: limit || 10,
       offset: offset || 0,
     });
-    
+
     // Filter jobs that were created by this schedule
-    const scheduleJobs = jobs.filter(job => 
-      job.data?.scheduleId === id || job.opts?.repeat?.key === `schedule:${id}`
+    const scheduleJobs = jobs.filter(
+      (job) =>
+        job.data?.scheduleId === id ||
+        job.opts?.repeat?.key === `schedule:${id}`,
     );
-    
+
     return {
       scheduleId: id,
       scheduleName: schedule.name,
-      jobs: scheduleJobs.map(job => ({
+      jobs: scheduleJobs.map((job) => ({
         id: job.id,
-        status: job.finishedOn ? 'completed' : 'failed',
+        status: job.finishedOn ? "completed" : "failed",
         startedAt: job.processedOn ? new Date(job.processedOn) : null,
         completedAt: job.finishedOn ? new Date(job.finishedOn) : null,
         failedReason: job.failedReason,
-        duration: job.finishedOn && job.processedOn 
-          ? job.finishedOn - job.processedOn 
-          : null,
+        duration:
+          job.finishedOn && job.processedOn
+            ? job.finishedOn - job.processedOn
+            : null,
       })),
       total: scheduleJobs.length,
     };

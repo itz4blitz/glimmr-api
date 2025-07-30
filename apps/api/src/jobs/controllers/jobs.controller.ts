@@ -26,7 +26,10 @@ import { JobsOptions } from "bullmq";
 import { JobsService } from "../services/core/jobs.service";
 import { HospitalMonitorService } from "../services/pipelines/hospital-monitor.service";
 import { PRAPipelineService } from "../services/pipelines/pra-pipeline.service";
-import { JobCleanupService, CleanupPolicy } from "../services/operations/job-cleanup.service";
+import {
+  JobCleanupService,
+  CleanupPolicy,
+} from "../services/operations/job-cleanup.service";
 import { JobAnalyticsService } from "../services/monitoring/job-analytics.service";
 import { JobExportService } from "../services/operations/job-export.service";
 import { JobSchedulingService } from "../services/operations/job-scheduling.service";
@@ -39,7 +42,7 @@ import {
   TriggerPRAScanDto,
   TriggerAnalyticsRefreshDto,
 } from "../dto/hospital-import.dto";
-import { 
+import {
   JobAdvancedFilterDto,
   BulkJobOperationDto,
   CreateJobScheduleDto,
@@ -102,7 +105,6 @@ export class JobsController {
     return this.jobsService.getJobStats();
   }
 
-
   // Removed duplicate getJobLogs - see queue/:queueName/logs endpoint below
 
   @Get("status")
@@ -124,7 +126,6 @@ export class JobsController {
     return this.jobsService.getBullBoardInfo();
   }
 
-
   @Post("price-update")
   @Throttle({ expensive: { limit: 5, ttl: 900000 } })
   @ApiOperation({ summary: "Start price data update job" })
@@ -137,7 +138,6 @@ export class JobsController {
   startPriceUpdate(@Body() updateData: StartPriceUpdateDto) {
     return this.jobsService.startPriceUpdate(updateData);
   }
-
 
   @Post("hospitals/:hospitalId/files/:fileId/download")
   @Throttle({ expensive: { limit: 10, ttl: 900000 } })
@@ -644,12 +644,15 @@ export class JobsController {
       },
     },
   })
-  async triggerDataExport(@Body() body: {
-    format?: string;
-    dataset?: string;
-    limit?: number;
-    filters?: FilterParams;
-  } = {}) {
+  async triggerDataExport(
+    @Body()
+    body: {
+      format?: string;
+      dataset?: string;
+      limit?: number;
+      filters?: FilterParams;
+    } = {},
+  ) {
     const {
       format = "json",
       dataset = "hospitals",
@@ -951,11 +954,13 @@ export class JobsController {
     return this.jobsService.getQueueConfigsWithSchedules();
   }
 
-
   // Advanced filtering and search
   @Get("search")
   @ApiOperation({ summary: "Search jobs with advanced filtering" })
-  @ApiResponse({ status: 200, description: "Filtered jobs retrieved successfully" })
+  @ApiResponse({
+    status: 200,
+    description: "Filtered jobs retrieved successfully",
+  })
   @Roles("admin", "api-user")
   searchJobs(@Query() filters: JobAdvancedFilterDto) {
     return this.jobsService.searchJobs(filters);
@@ -965,7 +970,10 @@ export class JobsController {
   @Post("bulk/retry")
   @ApiOperation({ summary: "Retry multiple failed jobs" })
   @ApiResponse({ status: 200, description: "Bulk retry initiated" })
-  @ApiResponse({ status: 400, description: "Invalid job IDs or jobs not in failed state" })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid job IDs or jobs not in failed state",
+  })
   @ApiBody({ type: BulkJobOperationDto })
   @Roles("admin")
   bulkRetryJobs(@Body() dto: BulkJobOperationDto) {
@@ -975,7 +983,10 @@ export class JobsController {
   @Post("bulk/cancel")
   @ApiOperation({ summary: "Cancel multiple jobs" })
   @ApiResponse({ status: 200, description: "Bulk cancel completed" })
-  @ApiResponse({ status: 400, description: "Invalid job IDs or jobs cannot be cancelled" })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid job IDs or jobs cannot be cancelled",
+  })
   @ApiBody({ type: BulkJobOperationDto })
   @Roles("admin")
   bulkCancelJobs(@Body() dto: BulkJobOperationDto) {
@@ -1054,7 +1065,10 @@ export class JobsController {
   // Analytics endpoints
   @Get("analytics/success-trends")
   @ApiOperation({ summary: "Get job success rate trends" })
-  @ApiResponse({ status: 200, description: "Success trends retrieved successfully" })
+  @ApiResponse({
+    status: 200,
+    description: "Success trends retrieved successfully",
+  })
   @Roles("admin", "api-user")
   getSuccessTrends(@Query() _query: JobAnalyticsQueryDto) {
     return this.jobAnalyticsService.getSuccessTrends(_query);
@@ -1062,7 +1076,10 @@ export class JobsController {
 
   @Get("analytics/performance")
   @ApiOperation({ summary: "Get job performance metrics" })
-  @ApiResponse({ status: 200, description: "Performance metrics retrieved successfully" })
+  @ApiResponse({
+    status: 200,
+    description: "Performance metrics retrieved successfully",
+  })
   @Roles("admin", "api-user")
   getPerformanceMetrics(@Query() _query: JobAnalyticsQueryDto) {
     return this.jobAnalyticsService.getPerformanceMetrics(_query);
@@ -1070,7 +1087,10 @@ export class JobsController {
 
   @Get("analytics/failures")
   @ApiOperation({ summary: "Get job failure analysis" })
-  @ApiResponse({ status: 200, description: "Failure analysis retrieved successfully" })
+  @ApiResponse({
+    status: 200,
+    description: "Failure analysis retrieved successfully",
+  })
   @Roles("admin", "api-user")
   getFailureAnalysis(@Query() _query: JobAnalyticsQueryDto) {
     return this.jobAnalyticsService.getFailureAnalysis(_query);
@@ -1078,7 +1098,10 @@ export class JobsController {
 
   @Get("analytics/resource-usage")
   @ApiOperation({ summary: "Get resource utilization metrics" })
-  @ApiResponse({ status: 200, description: "Resource usage retrieved successfully" })
+  @ApiResponse({
+    status: 200,
+    description: "Resource usage retrieved successfully",
+  })
   @Roles("admin")
   getResourceUsage(@Query() _query: ResourceUsageQueryDto) {
     return this.jobAnalyticsService.getResourceUsage(_query);
@@ -1087,8 +1110,8 @@ export class JobsController {
   // Export endpoint
   @Post("export")
   @ApiOperation({ summary: "Export job data" })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: "Export completed successfully",
     content: {
       "application/json": {
@@ -1153,20 +1176,23 @@ export class JobsController {
     },
   })
   @Roles("admin")
-  createJob(@Body() body: {
-    queue: string;
-    name: string;
-    data: BaseJobData;
-    options?: {
-      priority?: number;
-      delay?: number;
-      attempts?: number;
-      backoff?: {
-        type: string;
-        delay: number;
+  createJob(
+    @Body()
+    body: {
+      queue: string;
+      name: string;
+      data: BaseJobData;
+      options?: {
+        priority?: number;
+        delay?: number;
+        attempts?: number;
+        backoff?: {
+          type: string;
+          delay: number;
+        };
       };
-    };
-  }) {
+    },
+  ) {
     return this.jobsService.createJob(body);
   }
 
@@ -1217,22 +1243,25 @@ export class JobsController {
     },
   })
   @Roles("admin")
-  createBulkJobs(@Body() body: {
-    jobs: Array<{
-      queue: string;
-      name: string;
-      data: BaseJobData;
-      options?: {
-        priority?: number;
-        delay?: number;
-        attempts?: number;
-        backoff?: {
-          type: string;
-          delay: number;
+  createBulkJobs(
+    @Body()
+    body: {
+      jobs: Array<{
+        queue: string;
+        name: string;
+        data: BaseJobData;
+        options?: {
+          priority?: number;
+          delay?: number;
+          attempts?: number;
+          backoff?: {
+            type: string;
+            delay: number;
+          };
         };
-      };
-    }>;
-  }) {
+      }>;
+    },
+  ) {
     return this.jobsService.createBulkJobs(body.jobs);
   }
 

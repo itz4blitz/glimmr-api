@@ -29,7 +29,11 @@ import { ActivityLoggingInterceptor } from "./activity/activity-logging.intercep
 import { RequestContextMiddleware } from "./common/middleware";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middleware";
-import { SerializedRequest, SerializedResponse, SerializedError } from "./common/types/http";
+import {
+  SerializedRequest,
+  SerializedResponse,
+  SerializedError,
+} from "./common/types/http";
 import type { Request } from "express";
 
 @Module({
@@ -104,7 +108,9 @@ import type { Request } from "express";
             },
             customProps: (req) => ({
               userAgent: req.headers["user-agent"],
-              ip: (req as unknown as Request & { ip?: string }).ip ?? req.socket?.remoteAddress,
+              ip:
+                (req as unknown as Request & { ip?: string }).ip ??
+                req.socket?.remoteAddress,
               method: req.method,
               url: req.url,
             }),
@@ -123,7 +129,9 @@ import type { Request } from "express";
                     ? "[REDACTED]"
                     : undefined,
                 },
-                remoteAddress: (req as unknown as Request & { ip?: string }).ip ?? req.socket?.remoteAddress,
+                remoteAddress:
+                  (req as unknown as Request & { ip?: string }).ip ??
+                  req.socket?.remoteAddress,
                 remotePort: req.socket?.remotePort,
               }),
               res: (res): SerializedResponse => ({

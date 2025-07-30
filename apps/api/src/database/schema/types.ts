@@ -1,11 +1,11 @@
 /**
  * Database Type Exports
- * 
+ *
  * This file exports inferred types from Drizzle schemas
  * These types can be used throughout the application
  */
 
-import { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import {
   users,
   userProfiles,
@@ -13,7 +13,7 @@ import {
   userActivityLogs,
   userSessions,
   userFiles,
-} from './index';
+} from "./index";
 
 // User types
 export type SelectUser = InferSelectModel<typeof users>;
@@ -45,11 +45,11 @@ export type SelectUserFile = InferSelectModel<typeof userFiles>;
 export type InsertUserFile = InferInsertModel<typeof userFiles>;
 
 // Export all types for convenience
-export * from './users';
-export * from './user-management';
-export * from './hospitals';
-export * from './prices';
-export * from './analytics';
-export * from './jobs';
-export * from './notifications';
-export * from './rbac';
+export * from "./users";
+export * from "./user-management";
+export * from "./hospitals";
+export * from "./prices";
+export * from "./analytics";
+export * from "./jobs";
+export * from "./notifications";
+export * from "./rbac";

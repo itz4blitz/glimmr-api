@@ -89,7 +89,8 @@ export class ProfileService {
     } catch (_error) {
       this.logger.error({
         msg: "Failed to create upload directories",
-        error: _error instanceof Error ? (_error as Error).message : String(_error),
+        error:
+          _error instanceof Error ? (_error as Error).message : String(_error),
       });
     }
   }
@@ -323,14 +324,18 @@ export class ProfileService {
         this.logger.error({
           msg: "Failed to clean up file after database error",
           filePath,
-          error: unlinkError instanceof Error ? unlinkError.message : String(unlinkError),
+          error:
+            unlinkError instanceof Error
+              ? unlinkError.message
+              : String(unlinkError),
         });
       }
 
       this.logger.error({
         msg: "File upload failed",
         userId,
-        error: _error instanceof Error ? (_error as Error).message : String(_error),
+        error:
+          _error instanceof Error ? (_error as Error).message : String(_error),
       });
 
       throw new BadRequestException("File upload failed");
@@ -373,7 +378,8 @@ export class ProfileService {
       this.logger.error({
         msg: "Failed to delete physical file",
         filePath: fullPath,
-        error: _error instanceof Error ? (_error as Error).message : String(_error),
+        error:
+          _error instanceof Error ? (_error as Error).message : String(_error),
       });
     }
 
@@ -423,7 +429,8 @@ export class ProfileService {
         msg: "Failed to read file",
         fileId: file.id,
         filePath: fullPath,
-        error: _error instanceof Error ? (_error as Error).message : String(_error),
+        error:
+          _error instanceof Error ? (_error as Error).message : String(_error),
       });
       throw new NotFoundException("File not found on disk");
     }

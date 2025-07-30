@@ -37,7 +37,7 @@ export class RbacService {
       name: roleData.name,
       description: roleData.description,
     };
-    
+
     const [role] = await this.db
       .insert(roles)
       .values(validatedRoleData)
@@ -128,7 +128,7 @@ export class RbacService {
       action: permissionData.action,
       description: permissionData.description,
     };
-    
+
     const [permission] = await this.db
       .insert(permissions)
       .values(validatedPermissionData)

@@ -5,7 +5,10 @@ import { Readable } from "stream";
 import { JobExportService } from "./job-export.service";
 import { DatabaseService } from "../../../database/database.service";
 import { StorageService } from "../../../storage/storage.service";
-import { JobExportDto, JobAdvancedFilterDto } from "../../dto/job-operations.dto";
+import {
+  JobExportDto,
+  JobAdvancedFilterDto,
+} from "../../dto/job-operations.dto";
 import { JsonObject } from "../../../types/common.types";
 
 // Mock ExcelJS
@@ -233,7 +236,10 @@ describe("JobExportService", () => {
       expect(storageService.uploadFromStream).toHaveBeenCalledWith(
         expect.stringContaining("exports/job-export-"),
         expect.any(Readable),
-        { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        {
+          contentType:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
       );
     });
 
@@ -264,8 +270,13 @@ describe("JobExportService", () => {
 
       // Check that data only contains selected fields
       if (Array.isArray(result.data)) {
-        result.data.forEach(job => {
-          expect(Object.keys(job)).toEqual(["id", "jobName", "status", "duration"]);
+        result.data.forEach((job) => {
+          expect(Object.keys(job)).toEqual([
+            "id",
+            "jobName",
+            "status",
+            "duration",
+          ]);
         });
       }
     });
@@ -295,7 +306,17 @@ describe("JobExportService", () => {
       const result = await service.exportJobs(exportDto);
 
       if (Array.isArray(result.data)) {
-        const jobWithLogs = result.data.find(job => (job as { id: string }).id === "job-1") as { id: string; logs: Array<{ level: string; message: string; data: any; createdAt: Date }> };
+        const jobWithLogs = result.data.find(
+          (job) => (job as { id: string }).id === "job-1",
+        ) as {
+          id: string;
+          logs: Array<{
+            level: string;
+            message: string;
+            data: any;
+            createdAt: Date;
+          }>;
+        };
         expect(jobWithLogs).toHaveProperty("logs");
         expect(jobWithLogs.logs).toHaveLength(2);
         expect(jobWithLogs.logs[0]).toMatchObject({
@@ -329,7 +350,9 @@ describe("JobExportService", () => {
         new Error("Storage service unavailable"),
       );
 
-      await expect(service.exportJobs({})).rejects.toThrow("Storage service unavailable");
+      await expect(service.exportJobs({})).rejects.toThrow(
+        "Storage service unavailable",
+      );
 
       expect(logger.error).toHaveBeenCalledWith({
         msg: "Failed to export jobs",
@@ -344,16 +367,22 @@ describe("JobExportService", () => {
       const result = await service.exportJobs({ format: "csv" });
 
       expect(result.data).toContain("id,jobName,queue,status");
-      expect(result.data).toContain("job-1,Process Hospital Data,price-file-parser,completed");
-      expect(result.data).toContain("job-2,Refresh Analytics,analytics-refresh,failed");
+      expect(result.data).toContain(
+        "job-1,Process Hospital Data,price-file-parser,completed",
+      );
+      expect(result.data).toContain(
+        "job-2,Refresh Analytics,analytics-refresh,failed",
+      );
     });
 
     it("should handle special characters in CSV", async () => {
-      const jobsWithSpecialChars = [{
-        ...mockJobs[0],
-        jobName: 'Job with "quotes" and, commas',
-        description: 'Description with\nnewlines',
-      }];
+      const jobsWithSpecialChars = [
+        {
+          ...mockJobs[0],
+          jobName: 'Job with "quotes" and, commas',
+          description: "Description with\nnewlines",
+        },
+      ];
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -372,11 +401,13 @@ describe("JobExportService", () => {
     });
 
     it("should handle null and undefined values in CSV", async () => {
-      const jobsWithNulls = [{
-        ...mockJobs[0],
-        errorMessage: null,
-        outputData: undefined,
-      }];
+      const jobsWithNulls = [
+        {
+          ...mockJobs[0],
+          errorMessage: null,
+          outputData: undefined,
+        },
+      ];
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -396,7 +427,7 @@ describe("JobExportService", () => {
     });
 
     it("should format dates properly in CSV", async () => {
-      const result = await service.exportJobs({ 
+      const result = await service.exportJobs({
         format: "csv",
         fields: ["id", "createdAt", "completedAt"],
       });
@@ -437,7 +468,7 @@ describe("JobExportService", () => {
       const mockWorkbook = new ExcelJS.Workbook();
       const addWorksheetSpy = jest.spyOn(mockWorkbook, "addWorksheet");
 
-      await service.exportJobs({ 
+      await service.exportJobs({
         format: "excel",
         includeLogs: true,
       });
@@ -464,11 +495,13 @@ describe("JobExportService", () => {
     });
 
     it("should handle large datasets efficiently in Excel", async () => {
-      const largeDataset = Array(1000).fill(null).map((_, i) => ({
-        ...mockJobs[0],
-        id: `job-${i}`,
-        jobName: `Job ${i}`,
-      }));
+      const largeDataset = Array(1000)
+        .fill(null)
+        .map((_, i) => ({
+          ...mockJobs[0],
+          id: `job-${i}`,
+          jobName: `Job ${i}`,
+        }));
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -507,9 +540,9 @@ describe("JobExportService", () => {
           "createdAt",
         ];
 
-        result.data.forEach(job => {
+        result.data.forEach((job) => {
           const jobKeys = Object.keys(job);
-          defaultFields.forEach(field => {
+          defaultFields.forEach((field) => {
             expect(jobKeys).toContain(field);
           });
         });
@@ -521,19 +554,19 @@ describe("JobExportService", () => {
       const result = await service.exportJobs({ fields: customFields });
 
       if (Array.isArray(result.data)) {
-        result.data.forEach(job => {
+        result.data.forEach((job) => {
           expect(Object.keys(job)).toEqual(customFields);
         });
       }
     });
 
     it("should handle non-existent fields gracefully", async () => {
-      const result = await service.exportJobs({ 
+      const result = await service.exportJobs({
         fields: ["id", "nonExistentField", "status"],
       });
 
       if (Array.isArray(result.data)) {
-        result.data.forEach(job => {
+        result.data.forEach((job) => {
           expect(job).toHaveProperty("id");
           expect(job).toHaveProperty("status");
           expect(job).not.toHaveProperty("nonExistentField");
@@ -629,14 +662,18 @@ describe("JobExportService", () => {
         new Error("Database connection failed"),
       );
 
-      await expect(service.exportJobs({})).rejects.toThrow("Database connection failed");
+      await expect(service.exportJobs({})).rejects.toThrow(
+        "Database connection failed",
+      );
     });
 
     it("should handle JSON parsing errors", async () => {
-      const jobsWithInvalidJson = [{
-        ...mockJobs[0],
-        inputData: "invalid-json",
-      }];
+      const jobsWithInvalidJson = [
+        {
+          ...mockJobs[0],
+          inputData: "invalid-json",
+        },
+      ];
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -658,14 +695,16 @@ describe("JobExportService", () => {
         new Error("Insufficient storage space"),
       );
 
-      await expect(service.exportJobs({})).rejects.toThrow("Insufficient storage space");
+      await expect(service.exportJobs({})).rejects.toThrow(
+        "Insufficient storage space",
+      );
     });
 
     it("should handle Excel generation errors", async () => {
       const mockWorkbook = new ExcelJS.Workbook();
-      mockWorkbook.xlsx.writeBuffer = jest.fn().mockRejectedValue(
-        new Error("Excel generation failed"),
-      );
+      mockWorkbook.xlsx.writeBuffer = jest
+        .fn()
+        .mockRejectedValue(new Error("Excel generation failed"));
 
       await expect(service.exportJobs({ format: "excel" })).rejects.toThrow();
     });
@@ -673,10 +712,12 @@ describe("JobExportService", () => {
 
   describe("Performance", () => {
     it("should handle memory efficiently for large exports", async () => {
-      const largeDataset = Array(5000).fill(null).map((_, i) => ({
-        ...mockJobs[0],
-        id: `job-${i}`,
-      }));
+      const largeDataset = Array(5000)
+        .fill(null)
+        .map((_, i) => ({
+          ...mockJobs[0],
+          id: `job-${i}`,
+        }));
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -694,10 +735,12 @@ describe("JobExportService", () => {
     });
 
     it("should stream data for very large CSV exports", async () => {
-      const veryLargeDataset = Array(10000).fill(null).map((_, i) => ({
-        ...mockJobs[0],
-        id: `job-${i}`,
-      }));
+      const veryLargeDataset = Array(10000)
+        .fill(null)
+        .map((_, i) => ({
+          ...mockJobs[0],
+          id: `job-${i}`,
+        }));
 
       (databaseService.db.select as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -725,7 +768,7 @@ describe("JobExportService", () => {
     });
 
     it("should handle complex objects in JSON export", async () => {
-      const result = await service.exportJobs({ 
+      const result = await service.exportJobs({
         format: "json",
         includeData: true,
       });
@@ -738,7 +781,7 @@ describe("JobExportService", () => {
     });
 
     it("should stringify complex objects in CSV export", async () => {
-      const result = await service.exportJobs({ 
+      const result = await service.exportJobs({
         format: "csv",
         includeData: true,
       });

@@ -151,7 +151,7 @@ export function useBatchElapsedTime(
     };
     // items is intentionally omitted from dependencies 
     // we use itemsKey which is a stable representation of the active items
-  }, [itemsKey, updateInterval, items]);
+  }, [itemsKey, updateInterval]);
 
   return elapsedTimes;
 }

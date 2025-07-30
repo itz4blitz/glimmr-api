@@ -3,8 +3,8 @@
  * These types replace generic 'unknown' types in job processing
  */
 
-import { Job as BullJob } from 'bullmq';
-import { JsonObject, JsonValue } from './common.types';
+import { Job as BullJob } from "bullmq";
+import { JsonObject, JsonValue } from "./common.types";
 
 /**
  * Base job data interface
@@ -63,8 +63,8 @@ export interface AnalyticsRefreshJobData extends BaseJobData {
  * Export job data
  */
 export interface ExportJobData extends BaseJobData {
-  entityType: 'hospitals' | 'prices' | 'jobs' | 'analytics';
-  format: 'csv' | 'json' | 'xlsx' | 'pdf';
+  entityType: "hospitals" | "prices" | "jobs" | "analytics";
+  format: "csv" | "json" | "xlsx" | "pdf";
   filters?: JsonObject;
   fields?: string[];
 }
@@ -88,7 +88,7 @@ export interface JobResult extends JsonObject {
  */
 export interface JobLogEntry {
   timestamp: Date | string;
-  level: 'info' | 'warn' | 'error' | 'debug';
+  level: "info" | "warn" | "error" | "debug";
   message: string;
   data?: JsonObject;
 }
@@ -111,7 +111,7 @@ export interface ExtendedJobOptions {
   delay?: number;
   attempts?: number;
   backoff?: {
-    type: 'fixed' | 'exponential';
+    type: "fixed" | "exponential";
     delay: number;
   };
   removeOnComplete?: boolean | number;
@@ -127,12 +127,22 @@ export interface ExtendedJobOptions {
 /**
  * Queue job with proper typing
  */
-export type TypedJob<T extends BaseJobData = BaseJobData> = BullJob<T, JsonValue, string>;
+export type TypedJob<T extends BaseJobData = BaseJobData> = BullJob<
+  T,
+  JsonValue,
+  string
+>;
 
 /**
  * Job state
  */
-export type JobState = 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'paused';
+export type JobState =
+  | "waiting"
+  | "active"
+  | "completed"
+  | "failed"
+  | "delayed"
+  | "paused";
 
 /**
  * Job filter criteria
@@ -179,17 +189,21 @@ export interface QueueMetrics {
  * Type guards for job data
  */
 export function isPraScanJobData(data: BaseJobData): data is PraScanJobData {
-  return 'testMode' in data || 'states' in data || 'force' in data;
+  return "testMode" in data || "states" in data || "force" in data;
 }
 
-export function isFileDownloadJobData(data: BaseJobData): data is FileDownloadJobData {
-  return 'fileId' in data && 'url' in data && 'hospitalId' in data;
+export function isFileDownloadJobData(
+  data: BaseJobData,
+): data is FileDownloadJobData {
+  return "fileId" in data && "url" in data && "hospitalId" in data;
 }
 
-export function isPriceFileParserJobData(data: BaseJobData): data is PriceFileParserJobData {
-  return 'fileId' in data && 'filePath' in data && 'hospitalId' in data;
+export function isPriceFileParserJobData(
+  data: BaseJobData,
+): data is PriceFileParserJobData {
+  return "fileId" in data && "filePath" in data && "hospitalId" in data;
 }
 
 export function isExportJobData(data: BaseJobData): data is ExportJobData {
-  return 'entityType' in data && 'format' in data;
+  return "entityType" in data && "format" in data;
 }

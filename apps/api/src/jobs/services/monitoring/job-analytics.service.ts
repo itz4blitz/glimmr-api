@@ -42,7 +42,10 @@ export class JobAnalyticsService {
       { name: QUEUE_NAMES.PRICE_FILE_PARSER, queue: this.priceFileParserQueue },
       { name: QUEUE_NAMES.PRICE_UPDATE, queue: this.priceUpdateQueue },
       { name: QUEUE_NAMES.EXPORT_DATA, queue: this.exportDataQueue },
-      { name: QUEUE_NAMES.ANALYTICS_REFRESH, queue: this.analyticsRefreshQueue },
+      {
+        name: QUEUE_NAMES.ANALYTICS_REFRESH,
+        queue: this.analyticsRefreshQueue,
+      },
       { name: QUEUE_NAMES.PRA_UNIFIED_SCAN, queue: this.praUnifiedScanQueue },
       { name: QUEUE_NAMES.PRA_FILE_DOWNLOAD, queue: this.praFileDownloadQueue },
     ];
@@ -95,7 +98,7 @@ export class JobAnalyticsService {
     try {
       const metrics = await Promise.all(
         this.getAllQueues()
-          .filter(q => !query.queues || query.queues.includes(q.name))
+          .filter((q) => !query.queues || query.queues.includes(q.name))
           .map(async ({ name, queue }) => {
             const queueMetrics = await this.getQueuePerformanceMetrics(
               name,
@@ -128,21 +131,36 @@ export class JobAnalyticsService {
 
     try {
       // Get failure data from database
-      const dbFailures = await this.getDatabaseFailures(timeRange, query.queues);
+      const dbFailures = await this.getDatabaseFailures(
+        timeRange,
+        query.queues,
+      );
 
       // Get recent failures from queues
-      const queueFailures = await this.getQueueFailures(timeRange, query.queues);
+      const queueFailures = await this.getQueueFailures(
+        timeRange,
+        query.queues,
+      );
 
       // Analyze failure patterns
       const analysis = {
         totalFailures: dbFailures.length + queueFailures.length,
-        failuresByQueue: this.groupFailuresByQueue([...dbFailures, ...queueFailures]),
-        failuresByReason: this.groupFailuresByReason([...dbFailures, ...queueFailures]),
+        failuresByQueue: this.groupFailuresByQueue([
+          ...dbFailures,
+          ...queueFailures,
+        ]),
+        failuresByReason: this.groupFailuresByReason([
+          ...dbFailures,
+          ...queueFailures,
+        ]),
         failuresByTime: this.groupFailuresByTime(
           [...dbFailures, ...queueFailures],
           query.timeRange || "24h",
         ),
-        topFailingJobs: this.getTopFailingJobs([...dbFailures, ...queueFailures]),
+        topFailingJobs: this.getTopFailingJobs([
+          ...dbFailures,
+          ...queueFailures,
+        ]),
         recommendations: this.generateFailureRecommendations([
           ...dbFailures,
           ...queueFailures,
@@ -178,7 +196,9 @@ export class JobAnalyticsService {
       // Filter by requested resources
       const filteredUsage = query.resources
         ? Object.fromEntries(
-            Object.entries(usage).filter(([key]) => query.resources.includes(key)),
+            Object.entries(usage).filter(([key]) =>
+              query.resources.includes(key),
+            ),
           )
         : usage;
 
@@ -208,7 +228,7 @@ export class JobAnalyticsService {
     } else {
       const [, value, unit] = match;
       const amount = parseInt(value);
-      
+
       if (unit === "h") {
         start.setHours(end.getHours() - amount);
       } else if (unit === "d") {
@@ -278,14 +298,14 @@ export class JobAnalyticsService {
         ]);
 
         const recentJobs = [...completed, ...failed].filter(
-          job =>
+          (job) =>
             job.finishedOn &&
             new Date(job.finishedOn) >= timeRange.start &&
             new Date(job.finishedOn) <= timeRange.end,
         );
 
         realtimeData.push(
-          ...recentJobs.map(job => ({
+          ...recentJobs.map((job) => ({
             queue: name,
             status: job.failedReason ? "failed" : "completed",
             completedAt: new Date(job.finishedOn),
@@ -322,7 +342,7 @@ export class JobAnalyticsService {
     const combined = [...historical, ...realtime];
     const grouped = new Map();
 
-    combined.forEach(job => {
+    combined.forEach((job) => {
       const timeKey = this.getTimeKey(job.completedAt, interval);
       if (!grouped.has(timeKey)) {
         grouped.set(timeKey, {
@@ -336,7 +356,7 @@ export class JobAnalyticsService {
 
       const group = grouped.get(timeKey);
       group.total++;
-      
+
       if (job.status === "completed") {
         group.completed++;
       } else if (job.status === "failed") {
@@ -346,7 +366,7 @@ export class JobAnalyticsService {
       if (!group.byQueue[job.queue]) {
         group.byQueue[job.queue] = { total: 0, completed: 0, failed: 0 };
       }
-      
+
       group.byQueue[job.queue].total++;
       if (job.status === "completed") {
         group.byQueue[job.queue].completed++;
@@ -356,24 +376,35 @@ export class JobAnalyticsService {
     });
 
     return Array.from(grouped.values())
-      .map(group => ({
+      .map((group) => ({
         ...group,
-        successRate: group.total > 0 ? (group.completed / group.total) * 100 : 0,
+        successRate:
+          group.total > 0 ? (group.completed / group.total) * 100 : 0,
         byQueue: Object.entries(group.byQueue).map(([queue, stats]) => {
-          const queueStats = stats as { total: number; completed: number; failed: number };
+          const queueStats = stats as {
+            total: number;
+            completed: number;
+            failed: number;
+          };
           return {
             queue,
             ...queueStats,
-            successRate: queueStats.total > 0 ? (queueStats.completed / queueStats.total) * 100 : 0,
+            successRate:
+              queueStats.total > 0
+                ? (queueStats.completed / queueStats.total) * 100
+                : 0,
           };
         }),
       }))
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
   }
 
   private getTimeKey(date: Date, interval: string): string {
     const d = new Date(date);
-    
+
     switch (interval) {
       case "15min":
         d.setMinutes(Math.floor(d.getMinutes() / 15) * 15, 0, 0);
@@ -389,12 +420,14 @@ export class JobAnalyticsService {
     return d.toISOString();
   }
 
-  private calculateSummary(trends: Array<{
-    total: number;
-    completed: number;
-    failed: number;
-    successRate: number;
-  }>) {
+  private calculateSummary(
+    trends: Array<{
+      total: number;
+      completed: number;
+      failed: number;
+      successRate: number;
+    }>,
+  ) {
     const total = trends.reduce((sum, t) => sum + t.total, 0);
     const completed = trends.reduce((sum, t) => sum + t.completed, 0);
     const failed = trends.reduce((sum, t) => sum + t.failed, 0);
@@ -408,11 +441,13 @@ export class JobAnalyticsService {
     };
   }
 
-  private calculateTrend(trends: Array<{
-    total: number;
-    completed: number;
-    failed: number;
-  }>): "improving" | "stable" | "declining" {
+  private calculateTrend(
+    trends: Array<{
+      total: number;
+      completed: number;
+      failed: number;
+    }>,
+  ): "improving" | "stable" | "declining" {
     if (trends.length < 2) return "stable";
 
     const recentHalf = trends.slice(Math.floor(trends.length / 2));
@@ -422,16 +457,18 @@ export class JobAnalyticsService {
     const olderRate = this.averageSuccessRate(olderHalf);
 
     const difference = recentRate - olderRate;
-    
+
     if (difference > 5) return "improving";
     if (difference < -5) return "declining";
     return "stable";
   }
 
-  private averageSuccessRate(trends: Array<{
-    total: number;
-    completed: number;
-  }>): number {
+  private averageSuccessRate(
+    trends: Array<{
+      total: number;
+      completed: number;
+    }>,
+  ): number {
     const total = trends.reduce((sum, t) => sum + t.total, 0);
     const completed = trends.reduce((sum, t) => sum + t.completed, 0);
     return total > 0 ? (completed / total) * 100 : 0;
@@ -452,7 +489,7 @@ export class JobAnalyticsService {
 
       const recentJobs = completed
         .filter(
-          job =>
+          (job) =>
             job.finishedOn &&
             new Date(job.finishedOn) >= timeRange.start &&
             new Date(job.finishedOn) <= timeRange.end,
@@ -460,23 +497,32 @@ export class JobAnalyticsService {
         .slice(0, 1000); // Limit to prevent memory issues
 
       const processingTimes = recentJobs
-        .filter(job => job.processedOn && job.finishedOn)
-        .map(job => job.finishedOn - job.processedOn);
+        .filter((job) => job.processedOn && job.finishedOn)
+        .map((job) => job.finishedOn - job.processedOn);
 
-      const throughput = recentJobs.length / 
-        ((timeRange.end.getTime() - timeRange.start.getTime()) / (1000 * 60 * 60)); // jobs/hour
+      const throughput =
+        recentJobs.length /
+        ((timeRange.end.getTime() - timeRange.start.getTime()) /
+          (1000 * 60 * 60)); // jobs/hour
 
       return {
         throughput: Math.round(throughput * 100) / 100,
-        avgProcessingTime: processingTimes.length > 0
-          ? Math.round(processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length / 1000)
-          : 0,
-        minProcessingTime: processingTimes.length > 0
-          ? Math.round(Math.min(...processingTimes) / 1000)
-          : 0,
-        maxProcessingTime: processingTimes.length > 0
-          ? Math.round(Math.max(...processingTimes) / 1000)
-          : 0,
+        avgProcessingTime:
+          processingTimes.length > 0
+            ? Math.round(
+                processingTimes.reduce((a, b) => a + b, 0) /
+                  processingTimes.length /
+                  1000,
+              )
+            : 0,
+        minProcessingTime:
+          processingTimes.length > 0
+            ? Math.round(Math.min(...processingTimes) / 1000)
+            : 0,
+        maxProcessingTime:
+          processingTimes.length > 0
+            ? Math.round(Math.max(...processingTimes) / 1000)
+            : 0,
         activeJobs: active.length,
         waitingJobs: waiting.length,
         failureRate: (failed.length / (completed.length + failed.length)) * 100,
@@ -499,16 +545,18 @@ export class JobAnalyticsService {
     }
   }
 
-  private aggregatePerformanceMetrics(metrics: Array<{
-    queue: string;
-    throughput: number;
-    avgProcessingTime: number;
-    minProcessingTime: number;
-    maxProcessingTime: number;
-    activeJobs: number;
-    waitingJobs: number;
-    failureRate: number;
-  }>) {
+  private aggregatePerformanceMetrics(
+    metrics: Array<{
+      queue: string;
+      throughput: number;
+      avgProcessingTime: number;
+      minProcessingTime: number;
+      maxProcessingTime: number;
+      activeJobs: number;
+      waitingJobs: number;
+      failureRate: number;
+    }>,
+  ) {
     const total = metrics.length;
     if (total === 0) return null;
 
@@ -519,7 +567,8 @@ export class JobAnalyticsService {
         metrics.reduce((sum, m) => sum + m.avgProcessingTime, 0) / total,
       totalActiveJobs: metrics.reduce((sum, m) => sum + m.activeJobs, 0),
       totalWaitingJobs: metrics.reduce((sum, m) => sum + m.waitingJobs, 0),
-      avgFailureRate: metrics.reduce((sum, m) => sum + m.failureRate, 0) / total,
+      avgFailureRate:
+        metrics.reduce((sum, m) => sum + m.failureRate, 0) / total,
     };
   }
 
@@ -567,7 +616,7 @@ export class JobAnalyticsService {
         const failed = await queue.getFailed();
         const recentFailures = failed
           .filter(
-            job =>
+            (job) =>
               job.finishedOn &&
               new Date(job.finishedOn) >= timeRange.start &&
               new Date(job.finishedOn) <= timeRange.end,
@@ -575,7 +624,7 @@ export class JobAnalyticsService {
           .slice(0, 100); // Limit to prevent memory issues
 
         failures.push(
-          ...recentFailures.map(job => ({
+          ...recentFailures.map((job) => ({
             id: job.id,
             jobName: job.name,
             queue: name,
@@ -602,15 +651,19 @@ export class JobAnalyticsService {
         acc[failure.queue] = { count: 0, reasons: {} };
       }
       acc[failure.queue].count++;
-      
+
       const reason = failure.errorMessage || "Unknown error";
-      acc[failure.queue].reasons[reason] = (acc[failure.queue].reasons[reason] || 0) + 1;
-      
+      acc[failure.queue].reasons[reason] =
+        (acc[failure.queue].reasons[reason] || 0) + 1;
+
       return acc;
     }, {});
 
     return Object.entries(grouped).map(([queue, data]) => {
-      const queueData = data as { count: number; reasons: Record<string, number> };
+      const queueData = data as {
+        count: number;
+        reasons: Record<string, number>;
+      };
       return {
         queue,
         count: queueData.count,
@@ -629,17 +682,24 @@ export class JobAnalyticsService {
         acc[reason] = { count: 0, queues: {} };
       }
       acc[reason].count++;
-      acc[reason].queues[failure.queue] = (acc[reason].queues[failure.queue] || 0) + 1;
+      acc[reason].queues[failure.queue] =
+        (acc[reason].queues[failure.queue] || 0) + 1;
       return acc;
     }, {});
 
     return Object.entries(grouped)
       .map(([reason, data]) => {
-        const reasonData = data as { count: number; queues: Record<string, number> };
+        const reasonData = data as {
+          count: number;
+          queues: Record<string, number>;
+        };
         return {
           reason,
           count: reasonData.count,
-          queues: Object.entries(reasonData.queues).map(([queue, count]) => ({ queue, count })),
+          queues: Object.entries(reasonData.queues).map(([queue, count]) => ({
+            queue,
+            count,
+          })),
         };
       })
       .sort((a, b) => b.count - a.count)
@@ -650,14 +710,17 @@ export class JobAnalyticsService {
     const interval = this.getGroupByInterval(timeRange);
     const grouped = new Map();
 
-    failures.forEach(failure => {
+    failures.forEach((failure) => {
       const timeKey = this.getTimeKey(failure.completedAt, interval);
       grouped.set(timeKey, (grouped.get(timeKey) || 0) + 1);
     });
 
     return Array.from(grouped.entries())
       .map(([timestamp, count]) => ({ timestamp, count }))
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
   }
 
   private getTopFailingJobs(failures: JobFailure[]) {
@@ -672,7 +735,9 @@ export class JobAnalyticsService {
 
     type JobFailureCount = { queue: string; jobName: string; count: number };
     return Object.values(jobFailures)
-      .sort((a, b) => (b as JobFailureCount).count - (a as JobFailureCount).count)
+      .sort(
+        (a, b) => (b as JobFailureCount).count - (a as JobFailureCount).count,
+      )
       .slice(0, 10);
   }
 
@@ -680,7 +745,7 @@ export class JobAnalyticsService {
     const recommendations = [];
 
     // Check for timeout errors
-    const timeoutFailures = failures.filter(f =>
+    const timeoutFailures = failures.filter((f) =>
       f.errorMessage?.toLowerCase().includes("timeout"),
     );
     if (timeoutFailures.length > failures.length * 0.1) {
@@ -688,13 +753,14 @@ export class JobAnalyticsService {
         type: "timeout",
         severity: "high",
         message: "High number of timeout failures detected",
-        suggestion: "Consider increasing job timeout limits or optimizing job processing",
-        affectedQueues: [...new Set(timeoutFailures.map(f => f.queue))],
+        suggestion:
+          "Consider increasing job timeout limits or optimizing job processing",
+        affectedQueues: [...new Set(timeoutFailures.map((f) => f.queue))],
       });
     }
 
     // Check for memory errors
-    const memoryFailures = failures.filter(f =>
+    const memoryFailures = failures.filter((f) =>
       f.errorMessage?.toLowerCase().includes("memory"),
     );
     if (memoryFailures.length > 0) {
@@ -702,20 +768,24 @@ export class JobAnalyticsService {
         type: "memory",
         severity: "critical",
         message: "Memory-related failures detected",
-        suggestion: "Review memory limits and optimize memory usage in job processors",
-        affectedQueues: [...new Set(memoryFailures.map(f => f.queue))],
+        suggestion:
+          "Review memory limits and optimize memory usage in job processors",
+        affectedQueues: [...new Set(memoryFailures.map((f) => f.queue))],
       });
     }
 
     // Check for repeated failures
     const jobFailureCounts = this.getTopFailingJobs(failures);
-    const repeatedFailures = jobFailureCounts.filter((j) => (j as { count: number }).count > 5);
+    const repeatedFailures = jobFailureCounts.filter(
+      (j) => (j as { count: number }).count > 5,
+    );
     if (repeatedFailures.length > 0) {
       recommendations.push({
         type: "repeated",
         severity: "medium",
         message: "Some jobs are failing repeatedly",
-        suggestion: "Review job logic and input validation for frequently failing jobs",
+        suggestion:
+          "Review job logic and input validation for frequently failing jobs",
         affectedJobs: repeatedFailures.slice(0, 5),
       });
     }
@@ -728,7 +798,7 @@ export class JobAnalyticsService {
     // For now, return simulated data
     const dataPoints = [];
     const interval = 5 * 60 * 1000; // 5 minutes
-    
+
     for (
       let time = timeRange.start.getTime();
       time <= timeRange.end.getTime();
@@ -742,8 +812,9 @@ export class JobAnalyticsService {
 
     return {
       current: dataPoints[dataPoints.length - 1]?.usage || 0,
-      average: dataPoints.reduce((sum, p) => sum + p.usage, 0) / dataPoints.length,
-      peak: Math.max(...dataPoints.map(p => p.usage)),
+      average:
+        dataPoints.reduce((sum, p) => sum + p.usage, 0) / dataPoints.length,
+      peak: Math.max(...dataPoints.map((p) => p.usage)),
       dataPoints,
     };
   }
@@ -752,7 +823,7 @@ export class JobAnalyticsService {
     // Simulated memory usage data
     const dataPoints = [];
     const interval = 5 * 60 * 1000; // 5 minutes
-    
+
     for (
       let time = timeRange.start.getTime();
       time <= timeRange.end.getTime();
@@ -768,8 +839,9 @@ export class JobAnalyticsService {
     return {
       current: dataPoints[dataPoints.length - 1]?.usage || 0,
       currentPercentage: dataPoints[dataPoints.length - 1]?.percentage || 0,
-      average: dataPoints.reduce((sum, p) => sum + p.usage, 0) / dataPoints.length,
-      peak: Math.max(...dataPoints.map(p => p.usage)),
+      average:
+        dataPoints.reduce((sum, p) => sum + p.usage, 0) / dataPoints.length,
+      peak: Math.max(...dataPoints.map((p) => p.usage)),
       dataPoints,
     };
   }
@@ -788,20 +860,19 @@ export class JobAnalyticsService {
   private async getDatabaseUsage() {
     try {
       const db = this.databaseService.db;
-      
+
       // Get table sizes and counts
-      const [jobCount] = await db
-        .select({ count: count() })
-        .from(jobs);
-      
-      const [logCount] = await db
-        .select({ count: count() })
-        .from(jobLogs);
+      const [jobCount] = await db.select({ count: count() }).from(jobs);
+
+      const [logCount] = await db.select({ count: count() }).from(jobLogs);
 
       return {
         tables: {
           jobs: { count: jobCount.count, estimatedSize: jobCount.count * 2048 }, // 2KB per job estimate
-          jobLogs: { count: logCount.count, estimatedSize: logCount.count * 512 }, // 512B per log estimate
+          jobLogs: {
+            count: logCount.count,
+            estimatedSize: logCount.count * 512,
+          }, // 512B per log estimate
         },
         connections: {
           active: Math.floor(Math.random() * 10) + 1,
@@ -869,8 +940,14 @@ export class JobAnalyticsService {
     }
 
     // Redis alerts
-    const redis = usage.redis as { memoryUsed?: number; memoryMax?: number } | undefined;
-    if (redis?.memoryUsed && redis?.memoryMax && redis.memoryUsed / redis.memoryMax > 0.9) {
+    const redis = usage.redis as
+      | { memoryUsed?: number; memoryMax?: number }
+      | undefined;
+    if (
+      redis?.memoryUsed &&
+      redis?.memoryMax &&
+      redis.memoryUsed / redis.memoryMax > 0.9
+    ) {
       alerts.push({
         type: "redis",
         severity: "high",

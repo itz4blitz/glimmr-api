@@ -8,13 +8,9 @@ import { User } from "../../database/schema/users";
 @Injectable()
 export class ApiKeyStrategy extends PassportStrategy(Strategy, "api-key") {
   constructor(private authService: AuthService) {
-    super(
-      { header: "x-api-key", prefix: "" },
-      true,
-      (apiKey: string, done) => {
-        return this.validate(apiKey, done);
-      },
-    );
+    super({ header: "x-api-key", prefix: "" }, true, (apiKey: string, done) => {
+      return this.validate(apiKey, done);
+    });
   }
 
   async validate(apiKey: string, done: PassportDoneCallback<ApiKeyUser>) {

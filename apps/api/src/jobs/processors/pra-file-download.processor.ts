@@ -135,7 +135,8 @@ export class PRAFileDownloadProcessor extends WorkerHost {
         // Don't throw error, just skip processing
         return {
           skipped: true,
-          reason: "File record not found - this is a stale job for a deleted or missing file",
+          reason:
+            "File record not found - this is a stale job for a deleted or missing file",
         };
       }
 
@@ -152,7 +153,9 @@ export class PRAFileDownloadProcessor extends WorkerHost {
         ) {
           // Verify file still exists in storage before skipping
           try {
-            const exists = await this.storageService.fileExists(fileRecord.storageKey);
+            const exists = await this.storageService.fileExists(
+              fileRecord.storageKey,
+            );
             if (exists) {
               this.logger.info({
                 msg: "File recently downloaded and exists in storage, skipping",
@@ -282,7 +285,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       this.logger.error({
         msg: "File download failed",
         jobId: job.id,
@@ -340,7 +343,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
       let response;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (retryCount < maxRetries) {
         try {
           response = await axios({
@@ -355,13 +358,13 @@ export class PRAFileDownloadProcessor extends WorkerHost {
               Accept: "*/*",
               "Accept-Encoding": "gzip, deflate",
               "Cache-Control": "no-cache",
-              "Connection": "keep-alive",
+              Connection: "keep-alive",
             },
             validateStatus: (status) => status < 500, // Accept redirects and client errors
             maxRedirects: 5,
             decompress: true, // Handle compressed responses
           });
-          
+
           // Check for successful response
           if (response.status >= 200 && response.status < 300) {
             break; // Success, exit retry loop
@@ -375,7 +378,7 @@ export class PRAFileDownloadProcessor extends WorkerHost {
           if (retryCount >= maxRetries) {
             throw error;
           }
-          
+
           this.logger.warn({
             msg: "Download attempt failed, retrying",
             attempt: retryCount,
@@ -383,15 +386,19 @@ export class PRAFileDownloadProcessor extends WorkerHost {
             error: (error as Error).message,
             url: fileUrl,
           });
-          
+
           // Exponential backoff
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, retryCount) * 1000),
+          );
         }
       }
-      
+
       // Ensure response exists after retry loop
       if (!response) {
-        throw new Error(`Failed to download file after ${maxRetries} attempts: ${fileUrl}`);
+        throw new Error(
+          `Failed to download file after ${maxRetries} attempts: ${fileUrl}`,
+        );
       }
 
       const contentLength = parseInt(response.headers["content-length"] || "0");
@@ -490,8 +497,10 @@ export class PRAFileDownloadProcessor extends WorkerHost {
           storageKey,
           downloadedBytes,
         });
-        
-        throw new Error(`Failed to upload to storage: ${(uploadError as Error).message}`);
+
+        throw new Error(
+          `Failed to upload to storage: ${(uploadError as Error).message}`,
+        );
       }
 
       const fileHash = hash.digest("hex");
@@ -515,8 +524,13 @@ export class PRAFileDownloadProcessor extends WorkerHost {
         stack: (error as Error).stack,
       });
 
-      if ((error as { response?: { status: number; statusText: string } }).response) {
-        const err = error as { response: { status: number; statusText: string } };
+      if (
+        (error as { response?: { status: number; statusText: string } })
+          .response
+      ) {
+        const err = error as {
+          response: { status: number; statusText: string };
+        };
         throw new Error(
           `HTTP ${err.response.status}: ${err.response.statusText} - ${fileUrl}`,
         );
@@ -595,7 +609,11 @@ export class PRAFileDownloadProcessor extends WorkerHost {
     );
   }
 
-  private async updateJobFailure(jobId: string, error: Error, duration?: number): Promise<void> {
+  private async updateJobFailure(
+    jobId: string,
+    error: Error,
+    duration?: number,
+  ): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)

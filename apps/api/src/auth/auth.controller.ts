@@ -49,7 +49,6 @@ export class AuthController {
     return this.authService.register(registerDto, req);
   }
 
-
   @ApiOperation({ summary: "Generate API key" })
   @ApiResponse({ status: 200, description: "API key generated successfully" })
   @ApiBearerAuth()

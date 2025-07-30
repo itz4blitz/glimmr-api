@@ -198,7 +198,7 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
       return results;
     } catch (_error) {
       const duration = Date.now() - startTime;
-      
+
       this.logger.error({
         msg: "Analytics refresh failed",
         jobId: job.id,
@@ -313,7 +313,10 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     }
 
     // Build select fields based on scope
-    const selectFields: Record<string, SQL | SQL<number> | SQL<string> | AnyColumn> = {
+    const selectFields: Record<
+      string,
+      SQL | SQL<number> | SQL<string> | AnyColumn
+    > = {
       category: prices.category,
       serviceCount: sql<number>`count(distinct code)`,
       avgPrice: sql<number>`avg(gross_charge)`,
@@ -420,9 +423,12 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
         const payerRates = JSON.parse(price.payerRates || "{}");
 
         for (const [payerName, rateInfo] of Object.entries(payerRates)) {
-          const rate = typeof rateInfo === 'object' && rateInfo !== null && 'rate' in rateInfo 
-            ? (rateInfo as { rate: number }).rate 
-            : rateInfo;
+          const rate =
+            typeof rateInfo === "object" &&
+            rateInfo !== null &&
+            "rate" in rateInfo
+              ? (rateInfo as { rate: number }).rate
+              : rateInfo;
           if (typeof rate === "number" && rate > 0 && price.grossCharge) {
             if (!payerMetrics.has(payerName)) {
               payerMetrics.set(payerName, { total: 0, sum: 0, discounts: [] });
@@ -835,7 +841,11 @@ export class AnalyticsRefreshProcessor extends WorkerHost {
     );
   }
 
-  private async updateJobFailure(jobId: string, error: Error, duration?: number): Promise<void> {
+  private async updateJobFailure(
+    jobId: string,
+    error: Error,
+    duration?: number,
+  ): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)

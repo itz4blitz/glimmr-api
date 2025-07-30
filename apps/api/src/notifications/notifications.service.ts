@@ -24,8 +24,18 @@ export class NotificationsService {
       .insert(notifications)
       .values({
         ...createNotificationDto,
-        type: createNotificationDto.type as "job_success" | "job_failure" | "job_warning" | "system_alert" | "user_action" | "info",
-        priority: (createNotificationDto.priority || "medium") as "low" | "medium" | "high" | "urgent",
+        type: createNotificationDto.type as
+          | "job_success"
+          | "job_failure"
+          | "job_warning"
+          | "system_alert"
+          | "user_action"
+          | "info",
+        priority: (createNotificationDto.priority || "medium") as
+          | "low"
+          | "medium"
+          | "high"
+          | "urgent",
       })
       .returning();
 
@@ -50,11 +60,27 @@ export class NotificationsService {
     }
 
     if (filters?.type) {
-      conditions.push(eq(notifications.type, filters.type as "job_success" | "job_failure" | "job_warning" | "system_alert" | "user_action" | "info"));
+      conditions.push(
+        eq(
+          notifications.type,
+          filters.type as
+            | "job_success"
+            | "job_failure"
+            | "job_warning"
+            | "system_alert"
+            | "user_action"
+            | "info",
+        ),
+      );
     }
 
     if (filters?.priority) {
-      conditions.push(eq(notifications.priority, filters.priority as "low" | "medium" | "high" | "urgent"));
+      conditions.push(
+        eq(
+          notifications.priority,
+          filters.priority as "low" | "medium" | "high" | "urgent",
+        ),
+      );
     }
 
     if (conditions.length > 0) {
@@ -98,7 +124,10 @@ export class NotificationsService {
       conditions.push(eq(notifications.userId, userId));
     }
 
-    const updateData: Record<string, JsonObject | Date | string | boolean | null> = {
+    const updateData: Record<
+      string,
+      JsonObject | Date | string | boolean | null
+    > = {
       ...updateNotificationDto,
       updatedAt: new Date(),
     };

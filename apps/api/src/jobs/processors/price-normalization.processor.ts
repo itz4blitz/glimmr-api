@@ -288,7 +288,7 @@ export class PriceNormalizationProcessor extends WorkerHost {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       this.logger.error({
         msg: "Price normalization failed",
         jobId: job.id,
@@ -305,7 +305,9 @@ export class PriceNormalizationProcessor extends WorkerHost {
     }
   }
 
-  private async normalizePrice(price: typeof prices.$inferSelect): Promise<NormalizedPrice> {
+  private async normalizePrice(
+    price: typeof prices.$inferSelect,
+  ): Promise<NormalizedPrice> {
     const normalized: NormalizedPrice = {
       id: price.id,
       codeType: price.codeType || "unknown",
@@ -329,12 +331,15 @@ export class PriceNormalizationProcessor extends WorkerHost {
     }
 
     // Parse payer rates
-    let payerRates: Record<string, {
-      rate?: number;
-      negotiatedRate?: number;
-      billingClass?: string;
-      methodology?: string;
-    }> = {};
+    let payerRates: Record<
+      string,
+      {
+        rate?: number;
+        negotiatedRate?: number;
+        billingClass?: string;
+        methodology?: string;
+      }
+    > = {};
     if (price.payerSpecificNegotiatedCharges) {
       try {
         payerRates = JSON.parse(price.payerSpecificNegotiatedCharges);
@@ -347,12 +352,18 @@ export class PriceNormalizationProcessor extends WorkerHost {
     // Calculate min/max negotiated rates
     if (normalized.hasNegotiatedRates) {
       const rates = Object.values(payerRates)
-        .map((r: {
-          rate?: number;
-          negotiatedRate?: number;
-          billingClass?: string;
-          methodology?: string;
-        } | number) => typeof r === 'object' ? (r.rate || r.negotiatedRate) : r)
+        .map(
+          (
+            r:
+              | {
+                  rate?: number;
+                  negotiatedRate?: number;
+                  billingClass?: string;
+                  methodology?: string;
+                }
+              | number,
+          ) => (typeof r === "object" ? r.rate || r.negotiatedRate : r),
+        )
         .filter((r): r is number => typeof r === "number" && r > 0);
 
       if (rates.length > 0) {
@@ -363,10 +374,14 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
     // Use explicit min/max if no payer rates
     if (!normalized.minNegotiatedCharge && price.minimumNegotiatedCharge) {
-      normalized.minNegotiatedCharge = parseFloat(price.minimumNegotiatedCharge);
+      normalized.minNegotiatedCharge = parseFloat(
+        price.minimumNegotiatedCharge,
+      );
     }
     if (!normalized.maxNegotiatedCharge && price.maximumNegotiatedCharge) {
-      normalized.maxNegotiatedCharge = parseFloat(price.maximumNegotiatedCharge);
+      normalized.maxNegotiatedCharge = parseFloat(
+        price.maximumNegotiatedCharge,
+      );
     }
 
     // Assess data quality
@@ -472,7 +487,10 @@ export class PriceNormalizationProcessor extends WorkerHost {
 
     // Has cash price
     maxScore += 1;
-    if (price.discountedCashPrice && parseFloat(price.discountedCashPrice) > 0) {
+    if (
+      price.discountedCashPrice &&
+      parseFloat(price.discountedCashPrice) > 0
+    ) {
       qualityScore += 1;
     }
 
@@ -586,7 +604,11 @@ export class PriceNormalizationProcessor extends WorkerHost {
     );
   }
 
-  private async updateJobFailure(jobId: string, error: Error, duration?: number): Promise<void> {
+  private async updateJobFailure(
+    jobId: string,
+    error: Error,
+    duration?: number,
+  ): Promise<void> {
     const db = this.databaseService.db;
     await db
       .update(jobsTable)

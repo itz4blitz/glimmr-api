@@ -82,7 +82,10 @@ export class ODataController {
       return res.send(metadata);
     } catch (error) {
       throw new HttpException(
-        this.odataService.formatODataError("Metadata error", (error as Error).message),
+        this.odataService.formatODataError(
+          "Metadata error",
+          (error as Error).message,
+        ),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -201,7 +204,10 @@ export class ODataController {
           ? HttpStatus.BAD_REQUEST
           : HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(
-        this.odataService.formatODataError("Prices query error", (error as Error).message),
+        this.odataService.formatODataError(
+          "Prices query error",
+          (error as Error).message,
+        ),
         statusCode,
       );
     }

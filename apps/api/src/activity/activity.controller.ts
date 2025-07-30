@@ -65,7 +65,10 @@ export class ActivityController {
   @Post("page-view")
   @SkipActivityLog()
   @ApiOperation({ summary: "Track page view" })
-  async trackPageView(@Body() dto: PageViewDto, @Req() req: Request & { user: { id: string } }) {
+  async trackPageView(
+    @Body() dto: PageViewDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
     await this.activityLoggingService.logPageView(
       req.user.id.toString(),
       dto.page,
@@ -82,7 +85,10 @@ export class ActivityController {
   @Post("session")
   @SkipActivityLog()
   @ApiOperation({ summary: "Track session activity" })
-  async trackSession(@Body() dto: SessionActivityDto, @Req() req: Request & { user: { id: string } }) {
+  async trackSession(
+    @Body() dto: SessionActivityDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
     const actionMap = {
       start: "session_start",
       ping: "session_active",
@@ -217,17 +223,19 @@ export class ActivityController {
     }
   }
 
-  private convertToCSV(activities: Array<{
-    timestamp: Date;
-    userId: string | null;
-    user?: { email: string };
-    action: string;
-    resourceType: string | null;
-    resourceId: string | null;
-    success: boolean;
-    ipAddress: string | null;
-    userAgent: string | null;
-  }>): string {
+  private convertToCSV(
+    activities: Array<{
+      timestamp: Date;
+      userId: string | null;
+      user?: { email: string };
+      action: string;
+      resourceType: string | null;
+      resourceId: string | null;
+      success: boolean;
+      ipAddress: string | null;
+      userAgent: string | null;
+    }>,
+  ): string {
     if (activities.length === 0) return "";
 
     const headers = [

@@ -1,15 +1,15 @@
-import { Request } from 'express';
-import { IncomingMessage } from 'http';
+import { Request } from "express";
+import { IncomingMessage } from "http";
 
-export interface ExtendedRequest extends Omit<Request, 'id'> {
+export interface ExtendedRequest extends Omit<Request, "id"> {
   id?: string;
   headers: Record<string, string | string[] | undefined>;
-  socket: Request['socket'] & {
+  socket: Request["socket"] & {
     remoteAddress?: string;
   };
 }
 
-export interface LoggerRequest extends Omit<IncomingMessage, 'id'> {
+export interface LoggerRequest extends Omit<IncomingMessage, "id"> {
   id?: string;
   headers: Record<string, string | string[] | undefined>;
 }

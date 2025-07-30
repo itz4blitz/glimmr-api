@@ -493,9 +493,12 @@ export class StorageService {
       }
 
       // Read directory recursively
-      const readDirRecursive = async (dir: string, currentPrefix: string = ""): Promise<void> => {
+      const readDirRecursive = async (
+        dir: string,
+        currentPrefix: string = "",
+      ): Promise<void> => {
         const entries = await readdir(dir, { withFileTypes: true });
-        
+
         for (const entry of entries) {
           if (files.length >= limit) {
             break;
@@ -515,7 +518,9 @@ export class StorageService {
               size: stats.size,
               lastModified: stats.mtime,
               etag: `"${stats.mtime.getTime()}-${stats.size}"`, // Simple etag based on mtime and size
-              contentType: this.getContentTypeFromExtension(extname(entry.name)),
+              contentType: this.getContentTypeFromExtension(
+                extname(entry.name),
+              ),
             });
           }
         }
@@ -548,7 +553,8 @@ export class StorageService {
       ".xml": "application/xml",
       ".txt": "text/plain",
       ".pdf": "application/pdf",
-      ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ".xlsx":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       ".xls": "application/vnd.ms-excel",
     };
 

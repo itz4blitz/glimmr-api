@@ -1,6 +1,6 @@
-import type { Request, Response, NextFunction } from 'express';
-import type { ExecutionContext } from '@nestjs/common';
-import type { Socket } from 'socket.io';
+import type { Request, Response, NextFunction } from "express";
+import type { ExecutionContext } from "@nestjs/common";
+import type { Socket } from "socket.io";
 
 export function createMockRequest(overrides: Partial<Request> = {}): Request {
   return {
@@ -9,8 +9,8 @@ export function createMockRequest(overrides: Partial<Request> = {}): Request {
     params: {},
     body: {},
     user: undefined,
-    method: 'GET',
-    url: '/',
+    method: "GET",
+    url: "/",
     get: jest.fn(),
     header: jest.fn(),
     accepts: jest.fn(),
@@ -43,11 +43,11 @@ export function createMockNextFunction(): NextFunction {
 
 export function createMockExecutionContext(
   request: Partial<Request> = {},
-  response: Partial<Response> = {}
+  response: Partial<Response> = {},
 ): ExecutionContext {
   const mockRequest = createMockRequest(request);
   const mockResponse = createMockResponse();
-  
+
   return {
     switchToHttp: jest.fn().mockReturnValue({
       getRequest: jest.fn().mockReturnValue(mockRequest),
@@ -60,13 +60,13 @@ export function createMockExecutionContext(
     getArgByIndex: jest.fn(),
     switchToRpc: jest.fn(),
     switchToWs: jest.fn(),
-    getType: jest.fn().mockReturnValue('http'),
+    getType: jest.fn().mockReturnValue("http"),
   } as ExecutionContext;
 }
 
 export function createMockSocket(overrides: Partial<Socket> = {}): Socket {
   return {
-    id: 'mock-socket-id',
+    id: "mock-socket-id",
     emit: jest.fn(),
     on: jest.fn(),
     once: jest.fn(),

@@ -260,7 +260,8 @@ export class ODataService {
       const searchConditions = this.buildSearchConditions(searchTerm, config);
       conditions.push(...searchConditions);
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
       const orderByClause = this.buildOrderByClause(
         options.$orderby || options.orderby,
         config,
@@ -377,7 +378,8 @@ export class ODataService {
       const searchConditions = this.buildSearchConditions(searchTerm, config);
       conditions.push(...searchConditions);
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
       const orderByClause = this.buildOrderByClause(
         options.$orderby || options.orderby,
         config,
@@ -811,7 +813,10 @@ export class ODataService {
     };
   }
 
-  async processBatch(batchBody: string, _req: Express.Request): Promise<string> {
+  async processBatch(
+    batchBody: string,
+    _req: Express.Request,
+  ): Promise<string> {
     this.logger.info({
       msg: "Processing OData batch request",
       operation: "processBatch",
@@ -841,7 +846,11 @@ export class ODataService {
           responses.push(this.formatBatchResponse(responseId++, 200, result));
         } catch (_error) {
           responses.push(
-            this.formatBatchErrorResponse(responseId++, 500, (_error as Error).message),
+            this.formatBatchErrorResponse(
+              responseId++,
+              500,
+              (_error as Error).message,
+            ),
           );
         }
       }
@@ -890,7 +899,11 @@ export class ODataService {
     };
   }
 
-  private formatBatchResponse(id: number, status: number, data: unknown): string {
+  private formatBatchResponse(
+    id: number,
+    status: number,
+    data: unknown,
+  ): string {
     return `--batchresponse
 Content-Type: application/http
 Content-Transfer-Encoding: binary

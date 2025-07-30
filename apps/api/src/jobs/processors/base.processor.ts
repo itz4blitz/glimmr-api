@@ -57,7 +57,7 @@ export abstract class BaseProcessor {
         `Job ${job.name} completed successfully`,
         {
           duration,
-          result: ((_result as { summary?: unknown })?.summary) || _result,
+          result: (_result as { summary?: unknown })?.summary || _result,
         },
       );
 

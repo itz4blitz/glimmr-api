@@ -87,7 +87,9 @@ export class ActivityLoggingService {
       referrer: request.headers["referer"] as string,
       url: request.originalUrl || request.url,
       method: request.method,
-      sessionId: (request as AuthenticatedRequest & { session?: { id?: string } }).session?.id,
+      sessionId: (
+        request as AuthenticatedRequest & { session?: { id?: string } }
+      ).session?.id,
     };
   }
 
@@ -393,24 +395,26 @@ export class ActivityLoggingService {
       success?: boolean;
       timeRange?: string;
     } = {},
-  ): Promise<Array<{
-    id: string;
-    userId: string | null;
-    action: string;
-    resourceType: string | null;
-    resourceId: string | null;
-    metadata: unknown;
-    ipAddress: string | null;
-    userAgent: string | null;
-    success: boolean;
-    errorMessage: string | null;
-    timestamp: Date;
-    user?: {
-      email: string;
-      firstName: string | null;
-      lastName: string | null;
-    };
-  }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      userId: string | null;
+      action: string;
+      resourceType: string | null;
+      resourceId: string | null;
+      metadata: unknown;
+      ipAddress: string | null;
+      userAgent: string | null;
+      success: boolean;
+      errorMessage: string | null;
+      timestamp: Date;
+      user?: {
+        email: string;
+        firstName: string | null;
+        lastName: string | null;
+      };
+    }>
+  > {
     const {
       limit = 50,
       offset = 0,

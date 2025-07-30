@@ -9,7 +9,11 @@ import { LoggerModule } from "nestjs-pino";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { HealthModule } from "./health/health.module";
-import { SerializedRequest, SerializedResponse, SerializedError } from "./common/types/http";
+import {
+  SerializedRequest,
+  SerializedResponse,
+  SerializedError,
+} from "./common/types/http";
 // import type { IncomingMessage } // Unused import from "http";
 import type { Request } from "express";
 
@@ -55,7 +59,9 @@ import type { Request } from "express";
             },
             customProps: (req) => ({
               userAgent: req.headers["user-agent"],
-              ip: (req as unknown as Request & { ip?: string }).ip ?? req.socket?.remoteAddress,
+              ip:
+                (req as unknown as Request & { ip?: string }).ip ??
+                req.socket?.remoteAddress,
               method: req.method,
               url: req.url,
             }),

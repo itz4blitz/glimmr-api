@@ -47,10 +47,11 @@ export class AnalyticsController {
     try {
       return await this.analyticsService.getDashboardAnalytics();
     } catch (error) {
-      if (error instanceof Error && (
-        error.message.includes("ECONNREFUSED") ||
-        error.message.includes("connect")
-      )) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("ECONNREFUSED") ||
+          error.message.includes("connect"))
+      ) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -100,10 +101,11 @@ export class AnalyticsController {
     try {
       return await this.analyticsService.getPricingTrends(_query);
     } catch (error) {
-      if (error instanceof Error && (
-        error.message.includes("ECONNREFUSED") ||
-        error.message.includes("connect")
-      )) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("ECONNREFUSED") ||
+          error.message.includes("connect"))
+      ) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -141,10 +143,11 @@ export class AnalyticsController {
     try {
       return await this.analyticsService.getPowerBIInfo();
     } catch (error) {
-      if (error instanceof Error && (
-        error.message.includes("ECONNREFUSED") ||
-        error.message.includes("connect")
-      )) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("ECONNREFUSED") ||
+          error.message.includes("connect"))
+      ) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -185,10 +188,11 @@ export class AnalyticsController {
     try {
       return await this.analyticsService.exportData(_query);
     } catch (error) {
-      if (error instanceof Error && (
-        error.message.includes("ECONNREFUSED") ||
-        error.message.includes("connect")
-      )) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("ECONNREFUSED") ||
+          error.message.includes("connect"))
+      ) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -198,11 +202,12 @@ export class AnalyticsController {
           HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
-      if (error instanceof Error && (
-        (error as Error).message.includes("Invalid format") ||
-        (error as Error).message.includes("Invalid dataset") ||
-        (error as Error).message.includes("exceeds maximum")
-      )) {
+      if (
+        error instanceof Error &&
+        ((error as Error).message.includes("Invalid format") ||
+          (error as Error).message.includes("Invalid dataset") ||
+          (error as Error).message.includes("exceeds maximum"))
+      ) {
         throw new HttpException(
           {
             message: (error as Error).message,
@@ -259,10 +264,11 @@ export class AnalyticsController {
       if (error instanceof HttpException) {
         throw error;
       }
-      if (error instanceof Error && (
-        (error as Error).message.includes("ECONNREFUSED") ||
-        (error as Error).message.includes("connect")
-      )) {
+      if (
+        error instanceof Error &&
+        ((error as Error).message.includes("ECONNREFUSED") ||
+          (error as Error).message.includes("connect"))
+      ) {
         throw new HttpException(
           {
             message: "Database connection failed. Please try again later.",
@@ -272,10 +278,11 @@ export class AnalyticsController {
           HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
-      if (error instanceof Error && (
-        (error as Error).message.includes("Invalid format") ||
-        (error as Error).message.includes("Invalid dataset")
-      )) {
+      if (
+        error instanceof Error &&
+        ((error as Error).message.includes("Invalid format") ||
+          (error as Error).message.includes("Invalid dataset"))
+      ) {
         throw new HttpException(
           {
             message: (error as Error).message,
