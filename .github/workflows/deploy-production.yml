@@ -34,14 +34,16 @@ jobs:
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
-        # Load production secrets
+        # Load production secrets and set as outputs
         echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='Glimmr-production' --field='password')" >> $GITHUB_ENV
         echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='Glimmr-production' --field='password')" >> $GITHUB_ENV
         echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='Glimmr-production' --field='jwt_secret')" >> $GITHUB_ENV
         echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='Glimmr-production' --field='password')" >> $GITHUB_ENV
         
-        # SSH deployment key
-        echo "SSH_PRIVATE_KEY=$(op item get 'glimmr-deployment-ssh' --vault='Glimmr-production' --field='private_key')" >> $GITHUB_ENV
+        # SSH deployment credentials
+        echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+        op item get 'glimmr-deployment-ssh' --vault='Glimmr-production' --field='private_key' >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
         echo "SSH_HOST=$(op item get 'glimmr-deployment-ssh' --vault='Glimmr-production' --field='host')" >> $GITHUB_ENV
         echo "SSH_USER=$(op item get 'glimmr-deployment-ssh' --vault='Glimmr-production' --field='username')" >> $GITHUB_ENV
     
@@ -69,7 +71,8 @@ jobs:
     - name: 🏗️ Build and push API image
       uses: docker/build-push-action@v5
       with:
-        context: ./apps/api
+        context: .
+        dockerfile: apps/api/Dockerfile
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
@@ -81,7 +84,8 @@ jobs:
     - name: 🏗️ Build and push Web image
       uses: docker/build-push-action@v5
       with:
-        context: ./apps/web
+        context: .
+        dockerfile: apps/web/Dockerfile
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
@@ -90,17 +94,6 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: 🏗️ Build and push dbt image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./infrastructure/dbt
-        push: true
-        tags: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dbt:latest
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dbt:${{ steps.meta.outputs.version }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         
     - name: 📝 Create deployment package
       run: |

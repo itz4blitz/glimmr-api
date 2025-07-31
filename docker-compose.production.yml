@@ -9,7 +9,7 @@ services:
     container_name: glimmr-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: glimmr_prod
+      POSTGRES_DB: glimmr
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
@@ -19,7 +19,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./tools/scripts/init-db-security.sql:/docker-entrypoint-initdb.d/init-security.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d glimmr_prod"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d glimmr"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -205,11 +205,11 @@ services:
       NODE_ENV: production
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
-      DATABASE_NAME: glimmr_prod
+      DATABASE_NAME: glimmr
       DATABASE_USERNAME: glimmr_api_user
       DATABASE_PASSWORD: ${GLIMMR_API_PASSWORD}
       DATABASE_SSL: true
-      DATABASE_URL: postgresql://glimmr_api_user:${GLIMMR_API_PASSWORD}@postgres:5432/glimmr_prod?sslmode=require
+      DATABASE_URL: postgresql://glimmr_api_user:${GLIMMR_API_PASSWORD}@postgres:5432/glimmr?sslmode=require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
