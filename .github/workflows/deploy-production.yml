@@ -46,11 +46,11 @@ jobs:
         
         # SSH deployment credentials
         echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-        op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' >> $GITHUB_ENV
+        op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' --reveal >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
-        echo "SSH_HOST=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host')" >> $GITHUB_ENV
-        echo "SSH_USER=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username')" >> $GITHUB_ENV
-        echo "SSH_PORT=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port')" >> $GITHUB_ENV
+        echo "SSH_HOST=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host' --reveal)" >> $GITHUB_ENV
+        echo "SSH_USER=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username' --reveal)" >> $GITHUB_ENV
+        echo "SSH_PORT=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port' --reveal)" >> $GITHUB_ENV
     
     - name: 🐳 Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
