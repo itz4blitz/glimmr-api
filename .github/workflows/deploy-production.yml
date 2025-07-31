@@ -71,7 +71,9 @@ jobs:
       with:
         context: ./apps/api
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.tags }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -81,7 +83,9 @@ jobs:
       with:
         context: ./apps/web
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.tags }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -91,7 +95,9 @@ jobs:
       with:
         context: ./infrastructure/dbt
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dbt:${{ steps.meta.outputs.tags }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dbt:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dbt:${{ steps.meta.outputs.version }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -124,7 +130,7 @@ jobs:
         # Container Registry
         REGISTRY=${REGISTRY}
         IMAGE_NAME=${IMAGE_NAME}
-        IMAGE_TAG=${{ steps.meta.outputs.tags }}
+        IMAGE_TAG=${{ steps.meta.outputs.version }}
         EOF
         
         # Create deployment script
