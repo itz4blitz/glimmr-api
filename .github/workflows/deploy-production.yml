@@ -35,17 +35,17 @@ jobs:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
         # Load production secrets from 1Password
-        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='Glimmr' --field='password')" >> $GITHUB_ENV
-        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='Glimmr' --field='password')" >> $GITHUB_ENV
-        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='Glimmr' --field='jwt_secret')" >> $GITHUB_ENV
-        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='Glimmr' --field='password')" >> $GITHUB_ENV
+        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password')" >> $GITHUB_ENV
+        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password')" >> $GITHUB_ENV
+        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret')" >> $GITHUB_ENV
+        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password')" >> $GITHUB_ENV
         
         # SSH deployment credentials
         echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-        op item get 'glimmr-deployment-ssh' --vault='Glimmr' --field='private_key' >> $GITHUB_ENV
+        op item get 'glimmr-deployment-ssh' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
-        echo "SSH_HOST=$(op item get 'glimmr-deployment-ssh' --vault='Glimmr' --field='host')" >> $GITHUB_ENV
-        echo "SSH_USER=$(op item get 'glimmr-deployment-ssh' --vault='Glimmr' --field='username')" >> $GITHUB_ENV
+        echo "SSH_HOST=$(op item get 'glimmr-deployment-ssh' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host')" >> $GITHUB_ENV
+        echo "SSH_USER=$(op item get 'glimmr-deployment-ssh' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username')" >> $GITHUB_ENV
     
     - name: 🐳 Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
