@@ -526,19 +526,11 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
             return null;
           })()}
 
-          {/* Graph Section */}
+          {/* Graph Section - Job Execution Timeline temporarily disabled */}
           <div className="py-4 border-b bg-muted/10">
-            <JobExecutionTimeline
-              logs={logs.map(log => ({
-                ...log,
-                context: {
-                  jobName: log.jobName,
-                  duration: log.duration,
-                  state: log.status
-                }
-              }))}
-              queueName={queueFilter !== "all" ? queueFilter : undefined}
-            />
+            <div className="text-center text-muted-foreground p-4">
+              <p className="text-sm">Job execution timeline view coming soon</p>
+            </div>
           </div>
 
           {/* Filters */}
@@ -773,12 +765,11 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
                                 className="p-0 bg-muted/30"
                               >
                                 <div className="p-6 border-b-2 border-border/50">
-                                  {/* Job Status Summary */}
+                                  {/* Job Status Summary - temporarily disabled */}
                                   <div className="mb-6">
-                                    <JobStatusSummary
-                                      log={log}
-                                      elapsedTime={elapsedTimes[log.jobId]}
-                                    />
+                                    <div className="text-center text-muted-foreground p-2">
+                                      <p className="text-xs">Job status details view coming soon</p>
+                                    </div>
                                   </div>
 
                                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -849,7 +840,7 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
                                     </div>
                                   </div>
 
-                                  {/* Job Health Indicator for active/long-running jobs */}
+                                  {/* Job Health Indicator for active/long-running jobs - temporarily disabled */}
                                   {(log.status === "active" ||
                                     log.message
                                       ?.toLowerCase()
@@ -858,44 +849,10 @@ export function AllLogsModal({ isOpen, onClose }: AllLogsModalProps) {
                                       ?.toLowerCase()
                                       .includes("is being processed")) && (
                                     <div className="mt-6">
-                                      <JobHealthIndicator
-                                        startTime={
-                                          log.timestamp || log.createdAt
-                                        }
-                                        status={log.status || "active"}
-                                        jobName={log.jobName}
-                                        message={log.message}
-                                        progress={(() => {
-                                          // Try to get progress from context
-                                          const ctx = log.context;
-                                          if (ctx?.progress)
-                                            return ctx.progress;
-
-                                          // For download jobs, check if progress info is in context directly
-                                          if (
-                                            ctx?.bytesDownloaded !==
-                                              undefined ||
-                                            ctx?.percentage !== undefined
-                                          ) {
-                                            return {
-                                              percentage: ctx.percentage,
-                                              bytesDownloaded:
-                                                ctx.bytesDownloaded,
-                                              totalBytes: ctx.totalBytes,
-                                              speed: ctx.speed,
-                                              eta: ctx.eta,
-                                            };
-                                          }
-
-                                          // Check if it's in the data property
-                                          if (ctx && typeof ctx === 'object' && 'data' in ctx) {
-                                            const data = ctx.data as { progress?: unknown };
-                                            if (data?.progress) return data.progress;
-                                          }
-
-                                          return undefined;
-                                        })()}
-                                      />
+                                      <div className="text-center text-muted-foreground p-2 border rounded">
+                                        <p className="text-xs">Job health monitoring view coming soon</p>
+                                        <p className="text-xs mt-1">Status: {log.status || "active"}</p>
+                                      </div>
                                     </div>
                                   )}
 
