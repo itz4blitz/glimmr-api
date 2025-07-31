@@ -4,15 +4,12 @@ import {
   Home,
   User,
   Settings,
-  
   BarChart3,
   Users,
   Database,
   FileText,
-  Activity,
   ChevronLeft,
   ChevronRight,
-  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";

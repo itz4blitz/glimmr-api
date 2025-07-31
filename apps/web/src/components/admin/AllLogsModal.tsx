@@ -54,10 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { JobExecutionTimeline } from "./JobExecutionTimeline";
 import { useBatchElapsedTime } from "@/hooks/useElapsedTime";
-import { JobHealthIndicator } from "./JobHealthIndicator";
-import { JobStatusSummary } from "./JobStatusSummary";
 import {
   AlertDialog,
   AlertDialogAction,
