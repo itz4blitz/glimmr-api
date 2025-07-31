@@ -9,10 +9,7 @@ import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { UserManagementPage } from "@/pages/admin/UserManagementPage";
-import { QueueDashboardPage } from "@/pages/admin/QueueDashboardPage";
 import { ActivityDashboardPage } from "@/pages/admin/ActivityDashboardPage";
-import { QueueAnalyticsPage } from "@/pages/admin/QueueAnalyticsPage";
-import { JobSchedulerPage } from "@/pages/admin/JobSchedulerPage";
 
 // Layout components
 import { RootLayout } from "@/components/layout/RootLayout";
@@ -75,34 +72,10 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "queues",
-            element: (
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <QueueDashboardPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
             path: "activity",
             element: (
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ActivityDashboardPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: "analytics",
-            element: (
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <QueueAnalyticsPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: "scheduler",
-            element: (
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <JobSchedulerPage />
               </ProtectedRoute>
             ),
           },

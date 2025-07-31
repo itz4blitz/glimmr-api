@@ -1,0 +1,58 @@
+version: '3.8'
+
+networks:
+  glimmr-backend:
+    external: true
+  glimmr-frontend:
+    external: true
+
+services:
+  # =============================================================================
+  # CLOUDFLARE TUNNEL
+  # =============================================================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: glimmr-cloudflare-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - glimmr-backend
+      - glimmr-frontend
+    depends_on:
+      - tunnel-config
+    healthcheck:
+      test: ["CMD-SHELL", "cloudflared tunnel info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # TUNNEL CONFIGURATION HELPER
+  # =============================================================================
+  tunnel-config:
+    image: alpine:latest
+    container_name: glimmr-tunnel-config
+    restart: "no"
+    command: >
+      sh -c "
+      echo '🌐 Cloudflare Tunnel Configuration';
+      echo '';
+      echo '📋 Configure these hostnames in Cloudflare Dashboard:';
+      echo '   Zero Trust > Networks > Tunnels > [Your Tunnel] > Configure';
+      echo '';
+      echo '🔗 Hostname Mappings:';
+      echo '   dev-api.${DOMAIN:-yourdomain.com}      → http://glimmr-api:3000';
+      echo '   dev-app.${DOMAIN:-yourdomain.com}      → http://glimmr-web:5174';
+      echo '   dev-airflow.${DOMAIN:-yourdomain.com}  → http://airflow-webserver:8080';
+      echo '   dev-airbyte.${DOMAIN:-yourdomain.com}  → http://host.docker.internal:8000';
+      echo '   dev-minio.${DOMAIN:-yourdomain.com}    → http://glimmr-minio:9001';
+      echo '   dev-auth.${DOMAIN:-yourdomain.com}     → http://glimmr-authentik-server:9000';
+      echo '';
+      echo '✅ Traefik has been removed - Cloudflare handles all routing';
+      echo '';
+      sleep 15;
+      "
+    networks:
+      - glimmr-backend

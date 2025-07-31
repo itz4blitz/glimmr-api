@@ -5,64 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1750620292593,
-      "tag": "0000_dashing_cerebro",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1750623892510,
-      "tag": "0001_striped_fabian_cortez",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1752871581486,
-      "tag": "0002_fantastic_ken_ellis",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1752877500981,
-      "tag": "0003_faulty_shiva",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1752977368496,
-      "tag": "0004_wide_swordsman",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1753050246500,
-      "tag": "0005_parallel_fallen_one",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1753051200000,
-      "tag": "0006_job_management_system",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1753056000000,
-      "tag": "0008_add_notifications",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1753065180000,
-      "tag": "0009_fix_price_transparency_files_constraint",
+      "when": 1753897088533,
+      "tag": "0000_white_lizard",
       "breakpoints": true
     }
   ]

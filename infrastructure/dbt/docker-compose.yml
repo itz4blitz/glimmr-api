@@ -1,0 +1,40 @@
+networks:
+  glimmr-backend:
+    external: true
+
+volumes:
+  dbt_logs:
+  dbt_target:
+
+services:
+  dbt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glimmr-dbt
+    restart: "no"  # Don't auto-restart, run on-demand
+    environment:
+      # Database connection
+      DBT_DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DBT_DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DBT_DATABASE_NAME: ${DATABASE_NAME:-glimmr}
+      DBT_DATABASE_USER: ${DATABASE_USER:-postgres}
+      DBT_DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      DBT_DATABASE_SCHEMA: ${DATABASE_SCHEMA:-public}
+      
+      # dbt configuration
+      DBT_PROFILES_DIR: /usr/app/dbt/profiles
+      DBT_PROJECT_DIR: /usr/app/dbt
+      
+      # Environment
+      DBT_ENV: ${DBT_ENV:-development}
+    volumes:
+      - ./dbt_project:/usr/app/dbt:rw
+      - ./profiles:/usr/app/dbt/profiles:ro
+      - dbt_logs:/usr/app/dbt/logs
+      - dbt_target:/usr/app/dbt/target
+    networks:
+      - glimmr-backend
+    working_dir: /usr/app/dbt
+
+

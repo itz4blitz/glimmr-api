@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { hospitals, prices, analytics, jobs as _jobs } from "../schema";
+import { hospitals, prices, analytics } from "../schema";
+// import { jobs as _jobs } from "../schema"; // Moved to external processing tools
 
 const connectionString =
   process.env.DATABASE_URL ||
@@ -13,64 +14,70 @@ export async function seedInitialData() {
   console.log("🌱 Starting database seeding...");
 
   try {
-    // Seed hospitals
-    console.log("📊 Seeding hospitals...");
+    // Check if hospitals already exist to prevent duplicate seeding
+    const existingHospitals = await db.select().from(hospitals).limit(1);
+    
+    if (existingHospitals.length > 0) {
+      console.log("📊 Hospitals already exist, skipping hospital seeding");
+      return;
+    }
+
+    console.log("📊 Seeding demo hospitals...");
     const hospitalData = await db
       .insert(hospitals)
       .values([
         {
-          name: "Mayo Clinic",
-          state: "MN",
-          city: "Rochester",
-          address: "200 First St SW",
-          zipCode: "55905",
-          phone: "(507) 284-2511",
-          website: "https://www.mayoclinic.org",
-          bedCount: 1265,
+          name: "Demo General Hospital",
+          state: "CA",
+          city: "Demo City",
+          address: "123 Demo Street",
+          zipCode: "90210",
+          phone: "(555) 123-4567",
+          website: "https://demo-hospital.example.com",
+          bedCount: 200,
           ownership: "non-profit",
           hospitalType: "general",
-          teachingStatus: true,
-          npiNumber: "1234567890",
-          cmsProviderNumber: "240001",
-          dataSource: "manual",
+          teachingStatus: false,
+          npiNumber: "9999999999",
+          cmsProviderNumber: "999999",
+          dataSource: "demo",
         },
         {
-          name: "Cleveland Clinic",
-          state: "OH",
-          city: "Cleveland",
-          address: "9500 Euclid Ave",
-          zipCode: "44195",
-          phone: "(216) 444-2200",
-          website: "https://my.clevelandclinic.org",
-          bedCount: 1285,
-          ownership: "non-profit",
+          name: "Demo Regional Medical Center",
+          state: "TX",
+          city: "Demo Town",
+          address: "456 Demo Avenue",
+          zipCode: "77001",
+          phone: "(555) 987-6543",
+          website: "https://demo-medical.example.com",
+          bedCount: 150,
+          ownership: "for-profit",
           hospitalType: "general",
-          teachingStatus: true,
-          npiNumber: "1234567891",
-          cmsProviderNumber: "360001",
-          dataSource: "manual",
+          teachingStatus: false,
+          npiNumber: "9999999998",
+          cmsProviderNumber: "999998",
+          dataSource: "demo",
         },
         {
-          name: "Johns Hopkins Hospital",
-          state: "MD",
-          city: "Baltimore",
-          address: "1800 Orleans St",
-          zipCode: "21287",
-          phone: "(410) 955-5000",
-          website: "https://www.hopkinsmedicine.org",
-          bedCount: 1154,
+          name: "Demo Community Hospital",
+          state: "NY",
+          city: "Demo Village",
+          address: "789 Demo Boulevard",
+          zipCode: "10001",
+          phone: "(555) 456-7890",
+          website: "https://demo-community.example.com",
+          bedCount: 100,
           ownership: "non-profit",
-          hospitalType: "general",
-          teachingStatus: true,
-          traumaLevel: "I",
-          npiNumber: "1234567892",
-          cmsProviderNumber: "210001",
-          dataSource: "manual",
+          hospitalType: "community",
+          teachingStatus: false,
+          npiNumber: "9999999997",
+          cmsProviderNumber: "999997",
+          dataSource: "demo",
         },
       ])
       .returning();
 
-    console.log(`✅ Seeded ${hospitalData.length} hospitals`);
+    console.log(`✅ Seeded ${hospitalData.length} demo hospitals`);
 
     // Seed prices for each hospital
     console.log("💰 Seeding prices...");

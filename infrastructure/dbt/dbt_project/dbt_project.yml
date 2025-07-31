@@ -1,0 +1,80 @@
+# dbt project configuration for Glimmr Healthcare Pricing Intelligence
+name: 'glimmr_healthcare'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'glimmr_healthcare'
+
+# These configurations specify where dbt should look for different types of files.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Model configurations
+models:
+  glimmr_healthcare:
+    # Raw data models (staging)
+    staging:
+      +materialized: view
+      +schema: staging
+    
+    # Intermediate models
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    
+    # Data marts (final models)
+    marts:
+      +materialized: table
+      +schema: marts
+      
+      # Core business entities
+      core:
+        +materialized: table
+        +schema: core
+      
+      # Analytics and reporting
+      analytics:
+        +materialized: table
+        +schema: analytics
+
+# Snapshot configurations
+snapshots:
+  glimmr_healthcare:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: updated_at
+
+# Seed configurations
+seeds:
+  glimmr_healthcare:
+    +schema: seeds
+
+# Test configurations
+tests:
+  +store_failures: true
+  +schema: test_failures
+
+# Documentation settings are configured in dbt_project.yml at the model level
+# or through the docs generate command, not as a top-level configuration
+
+# Variables (can be overridden in profiles.yml or via --vars)
+vars:
+  # Date range for incremental models
+  start_date: '2025-01-01'
+  
+  # Healthcare-specific configurations
+  min_price_threshold: 0.01
+  max_price_threshold: 1000000
+  
+  # File processing configurations
+  batch_size: 10000
+  max_file_age_days: 365

@@ -1,0 +1,29 @@
+# dbt profiles configuration for Glimmr Healthcare
+glimmr_healthcare:
+  outputs:
+    development:
+      type: postgres
+      host: "{{ env_var('DBT_DATABASE_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_DATABASE_PORT', 5432) | int }}"
+      user: "{{ env_var('DBT_DATABASE_USER', 'postgres') }}"
+      password: "{{ env_var('DBT_DATABASE_PASSWORD', 'postgres') }}"
+      dbname: "{{ env_var('DBT_DATABASE_NAME', 'glimmr') }}"
+      schema: "{{ env_var('DBT_DATABASE_SCHEMA', 'public') }}"
+      threads: 4
+      keepalives_idle: 0
+      search_path: "public"
+      
+    production:
+      type: postgres
+      host: "{{ env_var('DBT_DATABASE_HOST') }}"
+      port: "{{ env_var('DBT_DATABASE_PORT', 5432) | int }}"
+      user: "{{ env_var('DBT_DATABASE_USER') }}"
+      password: "{{ env_var('DBT_DATABASE_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_DATABASE_NAME') }}"
+      schema: "{{ env_var('DBT_DATABASE_SCHEMA', 'public') }}"
+      threads: 8
+      keepalives_idle: 0
+      search_path: "public"
+      sslmode: require
+      
+  target: "{{ env_var('DBT_ENV', 'development') }}"

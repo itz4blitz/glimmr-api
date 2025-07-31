@@ -5,7 +5,7 @@ import {
   hospitals,
   prices,
   priceTransparencyFiles,
-  jobs,
+  // jobs, // Moved to external processing tools
 } from "../database/schema";
 import { eq, count, sum, desc, and, gte } from "drizzle-orm";
 
@@ -49,40 +49,47 @@ export class DashboardService {
       // Get job stats - last 24 hours
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      const [totalJobs] = await db
-        .select({ count: count() })
-        .from(jobs)
-        .where(gte(jobs.createdAt, twentyFourHoursAgo));
+      // Job statistics moved to external processing tools
+      // const [totalJobs] = await db
+      //   .select({ count: count() })
+      //   .from(jobs)
+      //   .where(gte(jobs.createdAt, twentyFourHoursAgo));
 
-      const [activeJobs] = await db
-        .select({ count: count() })
-        .from(jobs)
-        .where(
-          and(
-            eq(jobs.status, "active"),
-            gte(jobs.createdAt, twentyFourHoursAgo),
-          ),
-        );
+      // const [activeJobs] = await db
+      //   .select({ count: count() })
+      //   .from(jobs)
+      //   .where(
+      //     and(
+      //       eq(jobs.status, "active"),
+      //       gte(jobs.createdAt, twentyFourHoursAgo),
+      //     ),
+      //   );
 
-      const [failedJobs] = await db
-        .select({ count: count() })
-        .from(jobs)
-        .where(
-          and(
-            eq(jobs.status, "failed"),
-            gte(jobs.createdAt, twentyFourHoursAgo),
-          ),
-        );
+      // const [failedJobs] = await db
+      //   .select({ count: count() })
+      //   .from(jobs)
+      //   .where(
+      //     and(
+      //       eq(jobs.status, "failed"),
+      //       gte(jobs.createdAt, twentyFourHoursAgo),
+      //     ),
+      //   );
 
-      const [completedJobs] = await db
-        .select({ count: count() })
-        .from(jobs)
-        .where(
-          and(
-            eq(jobs.status, "completed"),
-            gte(jobs.createdAt, twentyFourHoursAgo),
-          ),
-        );
+      // const [completedJobs] = await db
+      //   .select({ count: count() })
+      //   .from(jobs)
+      //   .where(
+      //     and(
+      //       eq(jobs.status, "completed"),
+      //       gte(jobs.createdAt, twentyFourHoursAgo),
+      //     ),
+      //   );
+
+      // Placeholder data for job statistics (jobs moved to external tools)
+      const totalJobs = { count: 0 };
+      const activeJobs = { count: 0 };
+      const failedJobs = { count: 0 };
+      const completedJobs = { count: 0 };
 
       // Calculate success rate
       const totalProcessed =

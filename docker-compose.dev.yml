@@ -1,7 +1,9 @@
 name: glimmr
 
 services:
-  # PostgreSQL Database
+  # =============================================================================
+  # DATABASE LAYER
+  # =============================================================================
   postgres:
     image: postgres:16-alpine
     container_name: glimmr-postgres
@@ -9,51 +11,107 @@ services:
       POSTGRES_DB: glimmr_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      # Optimize for M3 Mac Studio
+      POSTGRES_SHARED_BUFFERS: 512MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1536MB
+      POSTGRES_WORK_MEM: 16MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 128MB
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Redis for caching and job queues
+  # =============================================================================
+  # CACHE LAYER
+  # =============================================================================
   redis:
     image: redis:7-alpine
     container_name: glimmr-redis
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1000
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # MinIO for S3-compatible object storage
+  # =============================================================================
+  # STORAGE LAYER
+  # =============================================================================
   minio:
     image: minio/minio:latest
     container_name: glimmr-minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
+      # Optimize for M3 performance
+      MINIO_CACHE_DRIVES: /tmp/cache
+      MINIO_CACHE_QUOTA: 80
     ports:
       - "9000:9000"  # API port
       - "9001:9001"  # Console port
     volumes:
       - minio_data:/data
+      - /tmp/minio-cache:/tmp/cache
     command: server /data --console-address ":9001"
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
 
-  # Inbucket for email testing
+  # =============================================================================
+  # STORAGE SETUP
+  # =============================================================================
+  minio-setup:
+    image: minio/mc:latest
+    container_name: glimmr-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin123;
+      mc mb myminio/glimmr-files --ignore-existing;
+      mc policy set public myminio/glimmr-files;
+      echo 'MinIO setup complete';
+      "
+
+  # =============================================================================
+  # EMAIL TESTING
+  # =============================================================================
   inbucket:
     image: inbucket/inbucket:latest
     container_name: glimmr-inbucket
@@ -69,22 +127,97 @@ services:
       timeout: 5s
       retries: 5
 
-  # MinIO Client for bucket creation
-  minio-setup:
-    image: minio/mc:latest
-    container_name: glimmr-minio-setup
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set myminio http://minio:9000 minioadmin minioadmin123;
-      mc mb myminio/glimmr-files --ignore-existing;
-      mc policy set public myminio/glimmr-files;
-      echo 'MinIO setup complete';
-      "
+  # =============================================================================
+  # AUTHENTICATION
+  # =============================================================================
+  authentik-postgres:
+    image: postgres:16-alpine
+    container_name: glimmr-authentik-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - authentik_database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: authentik_dev_password_123
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
 
-  # Glimmr API
+  authentik-redis:
+    image: redis:alpine
+    container_name: glimmr-authentik-redis
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - authentik_redis:/data
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.2.2
+    container_name: glimmr-authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik_dev_password_123
+      AUTHENTIK_SECRET_KEY: authentik_dev_secret_key_replace_in_production
+    volumes:
+      - authentik_media:/media
+      - authentik_custom_templates:/templates
+    ports:
+      - "9002:9000"  # Web UI
+      - "9443:9443"  # HTTPS
+    depends_on:
+      - authentik-postgres
+      - authentik-redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/-/health/live/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.2.2
+    container_name: glimmr-authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik_dev_password_123
+      AUTHENTIK_SECRET_KEY: authentik_dev_secret_key_replace_in_production
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - authentik_media:/media
+      - authentik_certs:/certs
+      - authentik_custom_templates:/templates
+    depends_on:
+      - authentik-postgres
+      - authentik-redis
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A authentik.root.celery inspect ping -d celery@$${HOSTNAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =============================================================================
+  # GLIMMR APPLICATION
+  # =============================================================================
   api:
     build:
       context: .
@@ -94,69 +227,36 @@ services:
       NODE_ENV: development
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
-      DATABASE_NAME: glimmr_dev
+      DATABASE_NAME: glimmr
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
       DATABASE_SSL: false
-      DATABASE_SYNCHRONIZE: true
-      DATABASE_LOGGING: true
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/glimmr
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_DB: 0
-      JWT_SECRET: dev-super-secret-jwt-key-change-in-production
-      JWT_EXPIRES_IN: 7d
-      API_PORT: 3000
-      API_PREFIX: api/v1
-      API_RATE_LIMIT: 1000
-      RATE_LIMIT_WINDOW_MS: 60000  # 1 minute for development
-      RATE_LIMIT_MAX_REQUESTS: 1000  # High limit for development
-      RATE_LIMIT_MAX_REQUESTS_EXPENSIVE: 100  # Higher limit for development
-      LOG_LEVEL: info
-      BULL_REDIS_HOST: redis
-      BULL_REDIS_PORT: 6379
-      CACHE_TTL: 3600
-      CACHE_MAX_ITEMS: 1000
-      CORS_ORIGIN: "*"
-      CORS_CREDENTIALS: "true"
-      SWAGGER_ENABLED: "true"
-      SWAGGER_PATH: api/docs
-      MAX_FILE_SIZE: 10485760
-      UPLOAD_DEST: ./uploads
-      THROTTLE_TTL: 60
-      THROTTLE_LIMIT: 100
-      HEALTH_CHECK_ENABLED: "true"
-      HEALTH_CHECK_DATABASE: "true"
-      HEALTH_CHECK_REDIS: "true"
-      APP_BOOTSTRAP_ENABLED: "true"
-      BULL_BOARD_ENABLED: "true"
-      BULL_BOARD_BASE_PATH: /admin/queues
-      BULL_BOARD_AUTH_ENABLED: "false"
-      BULL_BOARD_CORS_ENABLED: "true"
-      BULL_BOARD_CORS_ORIGIN: "*"
-      BULL_BOARD_CORS_CREDENTIALS: "true"
-      # Storage Configuration - MinIO for Development (S3-compatible)
-      STORAGE_TYPE: spaces
-      STORAGE_LOCAL_PATH: ./storage
-      FILE_STORAGE_PATH: ./storage/pra-files
-      # MinIO Configuration (Development Only)
+      REDIS_URL: redis://redis:6379/0
       STORAGE_SPACES_ENDPOINT: http://minio:9000
       STORAGE_SPACES_BUCKET: glimmr-files
-      STORAGE_SPACES_ACCESS_KEY_ID: minioadmin
-      STORAGE_SPACES_SECRET_ACCESS_KEY: minioadmin123
-      STORAGE_SPACES_REGION: us-east-1
-      # Email Configuration - Inbucket for Development
-      EMAIL_HOST: inbucket
-      EMAIL_PORT: 2500
-      EMAIL_SECURE: false
-      EMAIL_FROM: noreply@glimmr.local
-      EMAIL_FROM_NAME: Glimmr API
+      STORAGE_SPACES_ACCESS_KEY: minioadmin
+      STORAGE_SPACES_SECRET_KEY: minioadmin123
+      JWT_SECRET: dev-jwt-secret-key
+      CORS_ORIGINS: http://localhost:5174,http://localhost:3000
+      # Node.js performance optimizations for M3
+      NODE_OPTIONS: --max-old-space-size=1024 --enable-source-maps
+      UV_THREADPOOL_SIZE: 8
     ports:
       - "3000:3000"
     volumes:
-      - ./apps/api/src:/app/apps/api/src
-      - ./apps/api/uploads:/app/apps/api/uploads
-      - ./apps/api/temp:/app/apps/api/temp
-      - ./storage:/app/storage
+      - .:/app
+      - /app/node_modules
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 1.5G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
     depends_on:
       postgres:
         condition: service_healthy
@@ -169,9 +269,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
 
-  # Glimmr Web App (React UI)
+  # =============================================================================
+  # WEB APPLICATION
+  # =============================================================================
   web:
     build:
       context: .
@@ -180,20 +281,23 @@ services:
     environment:
       NODE_ENV: development
       VITE_API_URL: http://localhost:3000/api/v1
+      # Vite optimization for M3
+      VITE_ESBUILD_TARGET: esnext
+      NODE_OPTIONS: --max-old-space-size=1024
     ports:
       - "5174:5174"
     volumes:
-      - ./apps/web/src:/app/apps/web/src
-      - ./apps/web/public:/app/apps/web/public
-      - ./apps/web/index.html:/app/apps/web/index.html
-      - ./apps/web/package.json:/app/apps/web/package.json
-      - ./apps/web/vite.config.ts:/app/apps/web/vite.config.ts
-      - ./apps/web/tailwind.config.js:/app/apps/web/tailwind.config.js
-      - ./apps/web/postcss.config.js:/app/apps/web/postcss.config.js
-      - ./apps/web/tsconfig.json:/app/apps/web/tsconfig.json
-      - ./apps/web/tsconfig.app.json:/app/apps/web/tsconfig.app.json
-      - ./apps/web/tsconfig.node.json:/app/apps/web/tsconfig.node.json
-      - ./apps/web/components.json:/app/apps/web/components.json
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     depends_on:
       - api
     healthcheck:
@@ -201,13 +305,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
-
-networks:
-  default:
-    name: glimmr-network
+  authentik_database:
+  authentik_redis:
+  authentik_media:
+  authentik_certs:
+  authentik_custom_templates:

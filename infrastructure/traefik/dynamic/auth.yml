@@ -1,7 +1,0 @@
-http:
-  middlewares:
-    traefik-auth:
-      basicAuth:
-        users:
-          # admin:GlimmrHealth2025! (generate with: htpasswd -nb admin GlimmrHealth2025!)
-          - "admin:$2y$10$8K1p/a/ba9jUkc25wqQH4OAnFa7cnFpJxnpOSdgHgAJmFnWRpydHu"

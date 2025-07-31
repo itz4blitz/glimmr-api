@@ -58,7 +58,6 @@ export const permissions = pgTable(
 export const userRoles = pgTable(
   "user_roles",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -71,24 +70,23 @@ export const userRoles = pgTable(
     isActive: boolean("is_active").notNull().default(true),
   },
   (table) => ({
+    // Composite primary key to prevent duplicate role assignments
+    userRolePk: primaryKey({ columns: [table.userId, table.roleId] }),
     userRoleIdx: index("user_roles_user_role_idx").on(
       table.userId,
-      table.roleId,
+      table.roleId
     ),
     userIdx: index("user_roles_user_idx").on(table.userId),
     roleIdx: index("user_roles_role_idx").on(table.roleId),
     activeIdx: index("user_roles_active_idx").on(table.isActive),
     expiresIdx: index("user_roles_expires_idx").on(table.expiresAt),
-    // Unique constraint to prevent duplicate role assignments
-    userRolePk: primaryKey({ columns: [table.userId, table.roleId] }),
-  }),
+  })
 );
 
 // Role-Permission junction table (many-to-many)
 export const rolePermissions = pgTable(
   "role_permissions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
     roleId: uuid("role_id")
       .notNull()
       .references(() => roles.id, { onDelete: "cascade" }),
@@ -100,20 +98,20 @@ export const rolePermissions = pgTable(
     isActive: boolean("is_active").notNull().default(true),
   },
   (table) => ({
-    rolePermissionIdx: index("role_permissions_role_permission_idx").on(
-      table.roleId,
-      table.permissionId,
-    ),
-    roleIdx: index("role_permissions_role_idx").on(table.roleId),
-    permissionIdx: index("role_permissions_permission_idx").on(
-      table.permissionId,
-    ),
-    activeIdx: index("role_permissions_active_idx").on(table.isActive),
-    // Unique constraint to prevent duplicate permission assignments
+    // Composite primary key to prevent duplicate permission assignments
     rolePermissionPk: primaryKey({
       columns: [table.roleId, table.permissionId],
     }),
-  }),
+    rolePermissionIdx: index("role_permissions_role_permission_idx").on(
+      table.roleId,
+      table.permissionId
+    ),
+    roleIdx: index("role_permissions_role_idx").on(table.roleId),
+    permissionIdx: index("role_permissions_permission_idx").on(
+      table.permissionId
+    ),
+    activeIdx: index("role_permissions_active_idx").on(table.isActive),
+  })
 );
 
 // Zod schemas for validation

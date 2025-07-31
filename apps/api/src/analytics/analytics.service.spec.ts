@@ -2,8 +2,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AnalyticsService } from "./analytics.service";
 import { DatabaseService } from "../database/database.service";
 import { PinoLogger } from "nestjs-pino";
-import { getQueueToken } from "@nestjs/bullmq";
-import { QUEUE_NAMES } from "../jobs/queues/queue.config";
 
 describe("AnalyticsService", () => {
   let service: AnalyticsService;
@@ -24,11 +22,6 @@ describe("AnalyticsService", () => {
     debug: jest.fn(),
   };
 
-  const mockExportQueue = {
-    add: jest.fn(),
-    getJob: jest.fn(),
-    getJobs: jest.fn(),
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -41,10 +34,6 @@ describe("AnalyticsService", () => {
         {
           provide: `PinoLogger:${AnalyticsService.name}`,
           useValue: mockLogger,
-        },
-        {
-          provide: getQueueToken(QUEUE_NAMES.EXPORT_DATA),
-          useValue: mockExportQueue,
         },
       ],
     }).compile();

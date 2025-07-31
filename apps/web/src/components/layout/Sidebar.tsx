@@ -83,27 +83,6 @@ export function Sidebar() {
       adminOnly: true,
     },
     {
-      name: "Queue Dashboard",
-      href: "/admin/queues",
-      icon: Activity,
-      description: "Monitor Jobs",
-      adminOnly: true,
-    },
-    {
-      name: "Queue Analytics",
-      href: "/admin/analytics",
-      icon: BarChart3,
-      description: "Queue insights",
-      adminOnly: true,
-    },
-    {
-      name: "Job Scheduler",
-      href: "/admin/scheduler",
-      icon: Clock,
-      description: "Schedule jobs",
-      adminOnly: true,
-    },
-    {
       name: "Activity Logs",
       href: "/admin/activity",
       icon: FileText,

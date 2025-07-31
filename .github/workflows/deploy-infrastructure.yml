@@ -1,9 +1,9 @@
-name: 🚀 Deploy Infrastructure
+name: 🏥 Deploy Glimmr Healthcare Pipeline
 
 on:
   push:
     branches: [main]
-    paths: ['infrastructure/**']
+    paths: ['infrastructure/glimmr-pipeline/**']
   workflow_dispatch:
     inputs:
       environment:
@@ -14,187 +14,116 @@ on:
         options:
           - production
           - staging
+      force_secrets_regeneration:
+        description: 'Force regeneration of secrets'
+        required: false
+        default: false
+        type: boolean
 
 env:
   SERVER_HOST: 104.243.44.8
   SERVER_USER: blitz
-  DEPLOY_PATH: /opt/glimmr
+  DEPLOY_PATH: /opt/glimmr/pipeline
 
 jobs:
   deploy:
-    name: 🚀 Deploy to Server
+    name: 🏥 Deploy Healthcare Pipeline
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
-        
+
       - name: 🔐 Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🔑 Install 1Password CLI
+        run: |
+          curl -sSfLo op.zip https://cache.agilebits.com/dist/1P/op2/pkg/v2.20.0/op_linux_amd64_v2.20.0.zip
+          unzip -o op.zip && sudo mv op /usr/local/bin/
+          op --version
           
       - name: 🔍 Add Server to Known Hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
-          
+
       - name: 🌐 Setup DNS Records
         run: |
-          echo "🌐 Creating DNS records automatically..."
+          echo "🌐 Creating DNS records for healthcare pipeline..."
 
           # Create DNS records via Cloudflare API
           curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
             -H "Authorization: Bearer ${{ secrets.CF_API_KEY }}" \
             -H "Content-Type: application/json" \
-            --data '{"type":"A","name":"traefik.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
+            --data '{"type":"A","name":"airflow.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
 
           curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
             -H "Authorization: Bearer ${{ secrets.CF_API_KEY }}" \
             -H "Content-Type: application/json" \
-            --data '{"type":"A","name":"auth.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
+            --data '{"type":"A","name":"api.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
 
-          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
-            -H "Authorization: Bearer ${{ secrets.CF_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            --data '{"type":"A","name":"airbyte.glimmr.health","content":"${{ env.SERVER_HOST }}","ttl":1}' || echo "DNS record may already exist"
-
-      - name: 📦 Deploy Infrastructure
+      - name: 🏥 Deploy Healthcare Pipeline
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         run: |
-          echo "🚀 Starting deployment..."
+          echo "🏥 Starting healthcare pipeline deployment..."
 
-          # Create directories on server
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "mkdir -p /opt/glimmr/{traefik,authentik,airbyte}"
+          # Create deployment directory on server
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "mkdir -p ${{ env.DEPLOY_PATH }}"
 
-          # Copy configurations to server
-          scp -r infrastructure/traefik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/traefik/
-          scp -r infrastructure/authentik/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/authentik/
-          scp -r infrastructure/airbyte/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/opt/glimmr/airbyte/
+          # Copy pipeline configuration to server
+          scp -r infrastructure/glimmr-pipeline/* ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.DEPLOY_PATH }}/
 
-          # Auto-generate .env files with secure credentials
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo 'CF_API_KEY=${{ secrets.CF_API_KEY }}' > /opt/glimmr/traefik/.env"
-
-          # Create Authentik .env with secure random passwords
+          # Install 1Password CLI on server and authenticate
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "
-          echo 'PG_PASS='\$(openssl rand -base64 32 | tr -d '\n') > /opt/glimmr/authentik/.env
-          echo 'AUTHENTIK_SECRET_KEY='\$(openssl rand -base64 60 | tr -d '\n') >> /opt/glimmr/authentik/.env
-          echo 'AUTHENTIK_BOOTSTRAP_PASSWORD='\$(openssl rand -base64 24 | tr -d '\n') >> /opt/glimmr/authentik/.env
+          # Install 1Password CLI if not present
+          if ! command -v op &> /dev/null; then
+            curl -sSfLo op.zip https://cache.agilebits.com/dist/1P/op2/pkg/v2.20.0/op_linux_amd64_v2.20.0.zip
+            unzip -o op.zip && sudo mv op /usr/local/bin/
+          fi
+
+          # Set up 1Password service account
+          export OP_SERVICE_ACCOUNT_TOKEN='${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}'
+
+          # Make deploy script executable and run deployment
+          chmod +x ${{ env.DEPLOY_PATH }}/deploy.sh
+          cd ${{ env.DEPLOY_PATH }}
+          ./deploy.sh deploy
           "
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cat > /opt/glimmr/airbyte/.env << 'EOF'
-          # Airbyte version
-          VERSION=0.50.33
 
-          # Local storage paths
-          LOCAL_ROOT=/tmp/airbyte_local
-          HACK_LOCAL_ROOT_PARENT=/tmp
 
-          # Basic auth for Airbyte UI (SECURE)
-          BASIC_AUTH_USERNAME=admin
-          BASIC_AUTH_PASSWORD=\$(openssl rand -base64 24 | tr -d '\n')
 
-          # Database configuration (SECURE)
-          DATABASE_USER=airbyte
-          DATABASE_PASSWORD=\$(openssl rand -base64 32 | tr -d '\n')
-          DATABASE_HOST=airbyte-db
-          DATABASE_PORT=5432
-          DATABASE_DB=airbyte
-
-          # Configuration database (SECURE)
-          CONFIG_DATABASE_USER=airbyte
-          CONFIG_DATABASE_PASSWORD=\$(openssl rand -base64 32 | tr -d '\n')
-          CONFIG_DATABASE_DB=airbyte
-          CONFIG_DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
-
-          # Workspace and data directories
-          WORKSPACE_ROOT=/tmp/workspace
-          WORKSPACE_DOCKER_MOUNT=airbyte_workspace
-          LOCAL_DOCKER_MOUNT=airbyte_local
-          DATA_DOCKER_MOUNT=airbyte_data
-          DB_DOCKER_MOUNT=airbyte_db
-
-          # Airbyte URLs
-          WEBAPP_URL=http://localhost:8000
-          API_URL=http://localhost:8001
-          INTERNAL_API_HOST=airbyte-server:8001
-
-          # Worker configuration
-          WORKER_ENVIRONMENT=docker
-
-          # Additional required variables
-          TRACKING_STRATEGY=segment
-          CONFIG_ROOT=/data
-          LOG_LEVEL=INFO
-
-          # Temporal configuration
-          TEMPORAL_HOST=airbyte-temporal:7233
-
-          # Connector registry
-          CONNECTOR_REGISTRY_SEED_PROVIDER=local
-          EOF"
-
-          # Create deployment script on server
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} 'cat > ~/deploy.sh << "EOF"
-          #!/bin/bash
-          set -e
-
-          echo "🚀 Starting deployment on server..."
-
-          # Create networks if they don'\''t exist
-          docker network create glimmr-frontend 2>/dev/null || echo "Network glimmr-frontend exists"
-          docker network create glimmr-backend 2>/dev/null || echo "Network glimmr-backend exists"
-
-          # Deploy services (only if .env files exist)
-          cd /opt/glimmr
-
-          if [ -f traefik/.env ]; then
-            echo "📊 Deploying Traefik..."
-            cd traefik && docker compose up -d && cd ..
-          else
-            echo "⚠️  Skipping Traefik - no .env file"
-          fi
-
-          if [ -f authentik/.env ]; then
-            echo "🔐 Deploying Authentik..."
-            cd authentik && docker compose up -d && cd ..
-          else
-            echo "⚠️  Skipping Authentik - no .env file"
-          fi
-
-          if [ -f airbyte/.env ]; then
-            echo "📊 Deploying Airbyte..."
-            cd airbyte && docker compose up -d && cd ..
-          else
-            echo "⚠️  Skipping Airbyte - no .env file"
-          fi
-
-          echo "✅ Deployment complete!"
-          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-          EOF'
-
-          # Execute deployment script
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "chmod +x ~/deploy.sh && ~/deploy.sh"
-          
-      - name: 🔍 Verify Deployment
+      - name: 🔍 Verify Healthcare Pipeline Deployment
         run: |
           ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "
-            echo '🔍 Checking service status...'
-            docker ps --filter 'name=traefik' --format 'table {{.Names}}\t{{.Status}}'
-            docker ps --filter 'name=authentik' --format 'table {{.Names}}\t{{.Status}}'
-            docker ps --filter 'name=airbyte' --format 'table {{.Names}}\t{{.Status}}'
+            echo '🏥 Checking healthcare pipeline status...'
+            cd ${{ env.DEPLOY_PATH }}
+            ./deploy.sh health
           "
-          
-      - name: 📝 Deployment Summary
+
+      - name: 📊 Pipeline Health Summary
         run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏥 Healthcare Pipeline Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Infrastructure deployed to: \`${{ env.SERVER_HOST }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Pipeline deployed to: \`${{ env.SERVER_HOST }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🌐 Access Points:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Traefik Dashboard**: https://traefik.glimmr.health" >> $GITHUB_STEP_SUMMARY
-          echo "- **Authentik**: https://auth.glimmr.health" >> $GITHUB_STEP_SUMMARY
-          echo "- **Airbyte**: https://airbyte.glimmr.health" >> $GITHUB_STEP_SUMMARY
+          echo "- **Airflow Dashboard**: https://airflow.glimmr.health" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Endpoints**: https://api.glimmr.health" >> $GITHUB_STEP_SUMMARY
+          echo "- **Portainer**: https://portainer.glimmr.health:9000" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏥 Pipeline Components:" >> $GITHUB_STEP_SUMMARY
+          echo "- **PostgreSQL**: Healthcare pricing database (300GB capacity)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Redis**: Queue management and caching (4GB)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Airflow**: Pipeline orchestration and scheduling" >> $GITHUB_STEP_SUMMARY
+          echo "- **Stream Processors**: 10 concurrent file processors (5GB each)" >> $GITHUB_STEP_SUMMARY
+          echo "- **FastAPI**: High-performance REST endpoints" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify services are running" >> $GITHUB_STEP_SUMMARY
-          echo "2. Check SSL certificates" >> $GITHUB_STEP_SUMMARY
-          echo "3. Test authentication flows" >> $GITHUB_STEP_SUMMARY
+          echo "1. Configure Airflow DAGs for daily processing" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test API endpoints with sample queries" >> $GITHUB_STEP_SUMMARY
+          echo "3. Monitor system performance and memory usage" >> $GITHUB_STEP_SUMMARY
+          echo "4. Set up data quality monitoring" >> $GITHUB_STEP_SUMMARY

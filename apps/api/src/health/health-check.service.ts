@@ -3,9 +3,9 @@ import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
 import { DatabaseService } from "../database/database.service";
 import { RedisPoolService } from "../redis/redis-pool.service";
 import { StorageService } from "../storage/storage.service";
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
-import { QUEUE_NAMES } from "../jobs/queues/queue.config";
+// import { InjectQueue } from "@nestjs/bullmq"; // Moved to external processing tools
+// import { Queue } from "bullmq"; // Moved to external processing tools
+// import { QUEUE_NAMES } from "../jobs/queues/queue.config"; // Moved to external processing tools
 
 export interface HealthCheckResult {
   status: "healthy" | "degraded" | "unhealthy";
@@ -13,8 +13,8 @@ export interface HealthCheckResult {
     database: ComponentHealth;
     redis: ComponentHealth;
     storage: ComponentHealth;
-    queues: ComponentHealth;
-    jobs: ComponentHealth;
+    // queues: ComponentHealth; // Moved to external processing tools
+    // jobs: ComponentHealth; // Moved to external processing tools
   };
   timestamp: string;
   uptime: number;
@@ -37,10 +37,10 @@ export class HealthCheckService {
     private readonly databaseService: DatabaseService,
     private readonly redisPoolService: RedisPoolService,
     private readonly storageService: StorageService,
-    @InjectQueue(QUEUE_NAMES.PRA_FILE_DOWNLOAD)
-    private readonly downloadQueue: Queue,
-    @InjectQueue(QUEUE_NAMES.PRICE_FILE_PARSER)
-    private readonly parserQueue: Queue,
+    // @InjectQueue(QUEUE_NAMES.PRA_FILE_DOWNLOAD) // Moved to external processing tools
+    // private readonly downloadQueue: Queue, // Moved to external processing tools
+    // @InjectQueue(QUEUE_NAMES.PRICE_FILE_PARSER) // Moved to external processing tools
+    // private readonly parserQueue: Queue, // Moved to external processing tools
   ) {}
 
   /**
@@ -51,11 +51,12 @@ export class HealthCheckService {
       this.checkDatabase(),
       this.checkRedis(),
       this.checkStorage(),
-      this.checkQueues(),
-      this.checkJobs(),
+      // this.checkQueues(), // Moved to external processing tools
+      // this.checkJobs(), // Moved to external processing tools
     ]);
 
-    const [database, redis, storage, queues, jobs] = checks;
+    const [database, redis, storage] = checks;
+    // const [database, redis, storage, queues, jobs] = checks; // Old destructuring
 
     // Determine overall status
     const statuses = checks.map((c) => c.status);
@@ -73,8 +74,8 @@ export class HealthCheckService {
         database,
         redis,
         storage,
-        queues,
-        jobs,
+        // queues, // Moved to external processing tools
+        // jobs, // Moved to external processing tools
       },
       timestamp: new Date().toISOString(),
       uptime: Date.now() - this.startTime,
@@ -191,110 +192,112 @@ export class HealthCheckService {
   /**
    * Check queue health
    */
-  private async checkQueues(): Promise<ComponentHealth> {
-    try {
-      const [downloadCounts, parserCounts] = await Promise.all([
-        this.downloadQueue.getJobCounts(),
-        this.parserQueue.getJobCounts(),
-      ]);
+  // Moved to external processing tools
+  // private async checkQueues(): Promise<ComponentHealth> {
+  //   try {
+  //     const [downloadCounts, parserCounts] = await Promise.all([
+  //       this.downloadQueue.getJobCounts(),
+  //       this.parserQueue.getJobCounts(),
+  //     ]);
 
-      const totalStalled = downloadCounts.stalled + parserCounts.stalled;
-      const totalFailed = downloadCounts.failed + parserCounts.failed;
+  //     const totalStalled = downloadCounts.stalled + parserCounts.stalled;
+  //     const totalFailed = downloadCounts.failed + parserCounts.failed;
 
-      let status: "up" | "degraded" | "down" = "up";
-      let message = "Queues operating normally";
+  //     let status: "up" | "degraded" | "down" = "up";
+  //     let message = "Queues operating normally";
 
-      if (totalStalled > 10) {
-        status = "degraded";
-        message = `${totalStalled} stalled jobs detected`;
-      }
+  //     if (totalStalled > 10) {
+  //       status = "degraded";
+  //       message = `${totalStalled} stalled jobs detected`;
+  //     }
 
-      if (totalFailed > 100) {
-        status = "degraded";
-        message = `${totalFailed} failed jobs in queues`;
-      }
+  //     if (totalFailed > 100) {
+  //       status = "degraded";
+  //       message = `${totalFailed} failed jobs in queues`;
+  //     }
 
-      return {
-        status,
-        message,
-        details: {
-          download: downloadCounts,
-          parser: parserCounts,
-        },
-      };
-    } catch (_error) {
-      this.logger.error({
-        msg: "Queue health check failed",
-        error: (_error as Error).message,
-      });
+  //     return {
+  //       status,
+  //       message,
+  //       details: {
+  //         download: downloadCounts,
+  //         parser: parserCounts,
+  //       },
+  //     };
+  //   } catch (_error) {
+  //     this.logger.error({
+  //       msg: "Queue health check failed",
+  //       error: (_error as Error).message,
+  //     });
 
-      return {
-        status: "down",
-        message: `Queue error: ${(_error as Error).message}`,
-      };
-    }
-  }
+  //     return {
+  //       status: "down",
+  //       message: `Queue error: ${(_error as Error).message}`,
+  //     };
+  //   }
+  // }
 
-  /**
-   * Check job processing health
-   */
-  private async checkJobs(): Promise<ComponentHealth> {
-    try {
-      const db = this.databaseService.db;
+  // Moved to external processing tools
+  // /**
+  //  * Check job processing health
+  //  */
+  // private async checkJobs(): Promise<ComponentHealth> {
+  //   try {
+  //     const db = this.databaseService.db;
 
-      // Count jobs by status from last hour
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  //     // Count jobs by status from last hour
+  //     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-      const { jobs: jobsTable } = await import("../database/schema");
-      const { gte, count } = await import("drizzle-orm");
+  //     const { jobs: jobsTable } = await import("../database/schema");
+  //     const { gte, count } = await import("drizzle-orm");
 
-      const jobStats = await db
-        .select({
-          status: jobsTable.status,
-          count: count(),
-        })
-        .from(jobsTable)
-        .where(gte(jobsTable.createdAt, oneHourAgo))
-        .groupBy(jobsTable.status);
+  //     const jobStats = await db
+  //       .select({
+  //         status: jobsTable.status,
+  //         count: count(),
+  //       })
+  //       .from(jobsTable)
+  //       .where(gte(jobsTable.createdAt, oneHourAgo))
+  //       .groupBy(jobsTable.status);
 
-      // Convert to object with status counts
-      const statsByStatus = jobStats.reduce(
-        (acc, stat) => {
-          acc[stat.status] = stat.count;
-          return acc;
-        },
-        {} as Record<string, number>,
-      );
+  //     // Convert to object with status counts
+  //     const statsByStatus = jobStats.reduce(
+  //       (acc, stat) => {
+  //         acc[stat.status] = stat.count;
+  //         return acc;
+  //       },
+  //       {} as Record<string, number>,
+  //     );
 
-      // Simple health logic - adjust based on your needs
-      let status: "up" | "degraded" | "down" = "up";
-      let message = "Job processing healthy";
+  //     // Simple health logic - adjust based on your needs
+  //     let status: "up" | "degraded" | "down" = "up";
+  //     let message = "Job processing healthy";
 
-      const failed = statsByStatus.failed || 0;
-      const completed = statsByStatus.completed || 0;
+  //     const failed = statsByStatus.failed || 0;
+  //     const completed = statsByStatus.completed || 0;
 
-      if (failed > completed * 0.2 && completed > 0) {
-        status = "degraded";
-        message = "High job failure rate";
-      }
+  //     if (failed > completed * 0.2 && completed > 0) {
+  //       status = "degraded";
+  //       message = "High job failure rate";
+  //     }
 
-      return {
-        status,
-        message,
-        details: statsByStatus,
-      };
-    } catch (_error) {
-      this.logger.error({
-        msg: "Job health check failed",
-        error: (_error as Error).message,
-      });
+  //     return {
+  //       status,
+  //       message,
+  //       details: statsByStatus,
+  //     };
+  //   } catch (_error) {
+  //     this.logger.error({
+  //       msg: "Job health check failed",
+  //       error: (_error as Error).message,
+  //     });
 
-      return {
-        status: "down",
-        message: `Job check error: ${(_error as Error).message}`,
-      };
-    }
-  }
+  //     return {
+  //       status: "down",
+  //       message: `Job check error: ${(_error as Error).message}`,
+  //     };
+  //   }
+  // }
 
   /**
    * Quick liveness check

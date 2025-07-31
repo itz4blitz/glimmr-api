@@ -22,9 +22,6 @@ import {
   Building2,
   DollarSign,
   Database,
-  Play,
-  RefreshCw,
-  Clock,
 } from "lucide-react";
 import { getRoleDisplayName, isAdmin } from "@/lib/permissions";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -41,12 +38,6 @@ interface DashboardStats {
     total: number;
     lastUpdated: string | null;
   };
-  jobs: {
-    totalProcessed: number;
-    activeJobs: number;
-    failedJobs: number;
-    successRate: number;
-  };
   files: {
     totalFiles: number;
     totalSize: number;
@@ -59,7 +50,6 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRunningJob, setIsRunningJob] = useState<string | null>(null);
 
   const fetchDashboardStats = async () => {
     try {
@@ -73,12 +63,6 @@ export function DashboardPage() {
         setStats({
           hospitals: { total: 0, active: 0, withPrices: 0 },
           prices: { total: 0, lastUpdated: null },
-          jobs: {
-            totalProcessed: 0,
-            activeJobs: 0,
-            failedJobs: 0,
-            successRate: 0,
-          },
           files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 },
         });
       } else {
@@ -90,12 +74,6 @@ export function DashboardPage() {
         setStats({
           hospitals: { total: 0, active: 0, withPrices: 0 },
           prices: { total: 0, lastUpdated: null },
-          jobs: {
-            totalProcessed: 0,
-            activeJobs: 0,
-            failedJobs: 0,
-            successRate: 0,
-          },
           files: { totalFiles: 0, totalSize: 0, pendingDownloads: 0 },
         });
       }
@@ -104,49 +82,6 @@ export function DashboardPage() {
     }
   };
 
-  const runManualJob = async (jobType: string) => {
-    setIsRunningJob(jobType);
-    try {
-      let endpoint = "";
-      let data = {};
-
-      switch (jobType) {
-        case "pra-scan":
-          endpoint = "/jobs/pra/scan";
-          data = { testMode: true }; // Limit to 3 states for testing
-          break;
-        case "analytics":
-          endpoint = "/jobs/analytics/refresh";
-          break;
-        case "export":
-          endpoint = "/jobs/export";
-          data = {
-            format: "json",
-            dataset: "hospitals",
-            limit: 100,
-          };
-          break;
-        default:
-          throw new Error("Unknown job type");
-      }
-
-      const response = await apiClient.post(endpoint, data);
-      toast.success(
-        `Job started successfully! Job ID: ${response.data.jobId || response.data.id}`,
-      );
-
-      // Refresh stats after a delay
-      setTimeout(() => {
-        fetchDashboardStats();
-      }, 2000);
-    } catch (error) {
-      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
-      const errorMessage = axiosError?.response?.data?.message || axiosError?.message || "Unknown error";
-      toast.error(`Failed to start job: ${errorMessage}`);
-    } finally {
-      setIsRunningJob(null);
-    }
-  };
 
   useEffect(() => {
     fetchDashboardStats();
@@ -244,33 +179,6 @@ export function DashboardPage() {
             </Card>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
-          >
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Job Success Rate
-                    </p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {isLoading
-                        ? "-"
-                        : `${Math.round(stats?.jobs.successRate || 0)}%`}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats?.jobs.activeJobs || 0} active,{" "}
-                      {stats?.jobs.failedJobs || 0} failed
-                    </p>
-                  </div>
-                  <Activity className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -367,73 +275,6 @@ export function DashboardPage() {
             </Card>
           </motion.div>
 
-          {/* Manual Job Triggers */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.3 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Play className="h-5 w-5" />
-                  Manual Jobs
-                </CardTitle>
-                <CardDescription>
-                  Trigger background jobs manually
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => runManualJob("pra-scan")}
-                  disabled={isRunningJob === "pra-scan"}
-                >
-                  {isRunningJob === "pra-scan" ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Activity className="h-4 w-4 mr-2" />
-                  )}
-                  PRA Hospital Scan (Test Mode)
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => runManualJob("analytics")}
-                  disabled={isRunningJob === "analytics"}
-                >
-                  {isRunningJob === "analytics" ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                  )}
-                  Refresh Analytics
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => runManualJob("export")}
-                  disabled={isRunningJob === "export"}
-                >
-                  {isRunningJob === "export" ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <FileText className="h-4 w-4 mr-2" />
-                  )}
-                  Export Hospital Data
-                </Button>
-
-                <div className="pt-2 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3 inline mr-1" />
-                  Jobs run in the background. Check the queue dashboard for
-                  progress.
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
         </div>
 
         {/* Quick Actions */}
@@ -489,16 +330,6 @@ export function DashboardPage() {
                       <Users className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
                       <span className="text-xs sm:text-sm">
                         User Management
-                      </span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-16 sm:h-20 flex-col justify-center"
-                      onClick={() => navigate("/admin/queues")}
-                    >
-                      <Activity className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-                      <span className="text-xs sm:text-sm">
-                        Queue Dashboard
                       </span>
                     </Button>
                     <Button

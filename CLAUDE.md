@@ -34,10 +34,12 @@ The system discovers hospital pricing data, monitors changes, downloads files, a
 ### Development
 
 ```bash
-# Start full development environment (recommended)
-docker-compose -f docker-compose.dev.yml up -d
+# 🚀 MASTER DEPLOYMENT SCRIPTS (RECOMMENDED)
+./tools/scripts/deploy.sh --dev     # Complete development setup
+./tools/scripts/deploy.sh --prod    # Complete production deployment
+./tools/scripts/health-check.sh     # Comprehensive health verification
 
-# Start development server
+# Individual development commands
 pnpm dev                    # From root (all apps)
 cd apps/api && pnpm start:dev  # API only with hot reload
 
@@ -59,10 +61,9 @@ cd apps/web
 npm run dev               # Start React development server
 npm run build             # Build for production
 
-# Docker development (Full Stack)
+# Docker development (Manual)
 docker-compose -f docker-compose.dev.yml up -d    # Start all services
-docker-compose -f docker-compose.dev.yml up web -d # Start just web app
-docker-compose -f docker-compose.dev.yml logs web  # View web app logs
+docker-compose -f docker-compose.dev.yml logs -f  # View all logs
 ```
 
 ### **UI Components Built**

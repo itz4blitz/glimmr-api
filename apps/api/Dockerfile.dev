@@ -24,6 +24,9 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY turbo.json ./
 
+# Copy Docker-specific environment file
+COPY apps/api/.env.docker ./apps/api/.env
+
 # Create necessary directories
 RUN mkdir -p /app/apps/api/uploads
 RUN mkdir -p /app/apps/api/temp

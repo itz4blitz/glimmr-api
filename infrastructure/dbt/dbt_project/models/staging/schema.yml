@@ -1,0 +1,118 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw data loaded by Airbyte from hospital pricing transparency files
+    tables:
+      - name: price_transparency_files
+        description: Metadata about hospital pricing transparency files
+        columns:
+          - name: id
+            description: Unique identifier for the file record
+            tests:
+              - unique
+              - not_null
+          - name: hospital_id
+            description: Foreign key to hospitals table
+            tests:
+              - not_null
+          - name: file_url
+            description: URL where the pricing file was found
+            tests:
+              - not_null
+          - name: processing_status
+            description: Current processing status of the file
+            tests:
+              - accepted_values:
+                  values: ['pending', 'processing', 'completed', 'failed']
+
+      - name: hospital_prices
+        description: Individual pricing records extracted from hospital files
+        columns:
+          - name: id
+            description: Unique identifier for the price record
+            tests:
+              - unique
+              - not_null
+          - name: hospital_id
+            description: Foreign key to hospitals table
+            tests:
+              - not_null
+          - name: procedure_code
+            description: Medical procedure code (CPT, DRG, etc.)
+          - name: price_amount
+            description: Price amount in USD
+            tests:
+              - not_null
+
+      - name: hospitals
+        description: Hospital master data
+        columns:
+          - name: id
+            description: Unique identifier for the hospital
+            tests:
+              - unique
+              - not_null
+          - name: name
+            description: Hospital name
+            tests:
+              - not_null
+
+models:
+  - name: stg_hospital_pricing_files
+    description: Cleaned and standardized hospital pricing file metadata
+    columns:
+      - name: file_id
+        description: Unique identifier for the file record
+        tests:
+          - unique
+          - not_null
+      - name: hospital_id
+        description: Foreign key to hospitals
+        tests:
+          - not_null
+      - name: processing_status
+        description: Standardized processing status
+        tests:
+          - accepted_values:
+              values: ['pending', 'processing', 'completed', 'failed']
+      - name: has_valid_size
+        description: Flag indicating if file has a valid size > 0
+        tests:
+          - not_null
+      - name: is_processed
+        description: Flag indicating if file processing completed successfully
+        tests:
+          - not_null
+
+  - name: stg_hospital_prices
+    description: Cleaned and standardized hospital pricing data
+    columns:
+      - name: price_id
+        description: Unique identifier for the price record
+        tests:
+          - unique
+          - not_null
+      - name: hospital_id
+        description: Foreign key to hospitals
+        tests:
+          - not_null
+      - name: procedure_code
+        description: Standardized procedure code
+        tests:
+          - not_null
+      - name: price_amount
+        description: Validated price amount
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.01
+              max_value: 1000000
+      - name: has_valid_price
+        description: Flag indicating if price is within acceptable range
+        tests:
+          - not_null
+      - name: is_currently_effective
+        description: Flag indicating if price is currently effective
+        tests:
+          - not_null

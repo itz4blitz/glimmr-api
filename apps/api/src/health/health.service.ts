@@ -1,14 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { PinoLogger, InjectPinoLogger } from "nestjs-pino";
 import { DatabaseService } from "../database/database.service";
-import { JobsService } from "../jobs/services/core/jobs.service";
+// import { JobsService } from "../jobs/services/core/jobs.service"; // Moved to external processing tools
 import { RedisHealthIndicator } from "../redis/redis-health.service";
 
 @Injectable()
 export class HealthService {
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly jobsService: JobsService,
+    // private readonly jobsService: JobsService, // Moved to external processing tools
     private readonly redisHealthIndicator: RedisHealthIndicator,
     @InjectPinoLogger(HealthService.name)
     private readonly logger: PinoLogger,
@@ -19,11 +19,11 @@ export class HealthService {
     const timestamp = new Date().toISOString();
 
     // Run health checks
-    const [databaseHealth, redisHealth, queueHealth] = await Promise.allSettled(
+    const [databaseHealth, redisHealth] = await Promise.allSettled(
       [
         this.checkDatabaseHealth(),
         this.checkRedisHealth(),
-        this.checkQueueHealth(),
+        // this.checkQueueHealth(), // Moved to external processing tools
       ],
     );
 
@@ -38,10 +38,10 @@ export class HealthService {
         redisHealth.status === "fulfilled"
           ? redisHealth.value
           : { status: "unhealthy", error: redisHealth.reason?.message },
-      queues:
-        queueHealth.status === "fulfilled"
-          ? queueHealth.value
-          : { status: "unhealthy", error: queueHealth.reason?.message },
+      // queues:  // Moved to external processing tools
+      //   queueHealth.status === "fulfilled"
+      //     ? queueHealth.value
+      //     : { status: "unhealthy", error: queueHealth.reason?.message },
     };
 
     // Determine overall status
@@ -114,45 +114,46 @@ export class HealthService {
     }
   }
 
-  private async checkQueueHealth() {
-    try {
-      const queueHealthResult = await this.jobsService.getQueueHealth();
+  // private async checkQueueHealth() {
+  //   // Moved to external processing tools
+  //   try {
+  //     const queueHealthResult = await this.jobsService.getQueueHealth();
 
-      // Determine overall queue health status
-      const hasErrors = queueHealthResult.summary.error > 0;
-      const hasWarnings = queueHealthResult.summary.warning > 0;
+  //     // Determine overall queue health status
+  //     const hasErrors = queueHealthResult.summary.error > 0;
+  //     const hasWarnings = queueHealthResult.summary.warning > 0;
 
-      let status = "healthy";
-      if (hasErrors) {
-        status = "unhealthy";
-      } else if (hasWarnings) {
-        status = "degraded";
-      }
+  //     let status = "healthy";
+  //     if (hasErrors) {
+  //       status = "unhealthy";
+  //     } else if (hasWarnings) {
+  //       status = "degraded";
+  //     }
 
-      return {
-        status,
-        details: {
-          totalQueues: queueHealthResult.summary.total,
-          healthy: queueHealthResult.summary.healthy,
-          warning: queueHealthResult.summary.warning,
-          error: queueHealthResult.summary.error,
-          overallStatus: queueHealthResult.overallStatus,
-        },
-        issues: queueHealthResult.queues
-          .filter((q) => q.status !== "healthy")
-          .map((q) => `${q.name}: ${q.issues.join(", ")}`),
-      };
-    } catch (_error) {
-      this.logger.error({
-        msg: "Queue health check failed",
-        error: (_error as Error).message,
-      });
-      return {
-        status: "unhealthy",
-        error: (_error as Error).message,
-      };
-    }
-  }
+  //     return {
+  //       status,
+  //       details: {
+  //         totalQueues: queueHealthResult.summary.total,
+  //         healthy: queueHealthResult.summary.healthy,
+  //         warning: queueHealthResult.summary.warning,
+  //         error: queueHealthResult.summary.error,
+  //         overallStatus: queueHealthResult.overallStatus,
+  //       },
+  //       issues: queueHealthResult.queues
+  //         .filter((q) => q.status !== "healthy")
+  //         .map((q) => `${q.name}: ${q.issues.join(", ")}`),
+  //     };
+  //   } catch (_error) {
+  //     this.logger.error({
+  //       msg: "Queue health check failed",
+  //       error: (_error as Error).message,
+  //     });
+  //     return {
+  //       status: "unhealthy",
+  //       error: (_error as Error).message,
+  //     };
+  //   }
+  // }
 
   private getMemoryUsage() {
     const usage = process.memoryUsage();

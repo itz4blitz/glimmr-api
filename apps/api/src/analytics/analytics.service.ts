@@ -14,10 +14,10 @@ import type { Response } from "express";
 import { DatabaseService } from "../database/database.service";
 import { analytics, prices, hospitals } from "../database/schema";
 
-import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
-import { QUEUE_NAMES } from "../jobs/queues/queue.config";
-import type { ExportJobData } from "../jobs/processors/export-data.processor";
+// import { InjectQueue } from "@nestjs/bullmq"; // Moved to external processing tools
+// import { Queue } from "bullmq"; // Moved to external processing tools
+// import { QUEUE_NAMES } from "../jobs/queues/queue.config"; // Moved to external processing tools
+// import type { ExportJobData } from "../jobs/processors/export-data.processor"; // Moved to external processing tools
 import * as XLSX from "xlsx";
 
 interface ExportProgress {
@@ -41,8 +41,8 @@ export class AnalyticsService {
     private readonly databaseService: DatabaseService,
     @InjectPinoLogger(AnalyticsService.name)
     private readonly logger: PinoLogger,
-    @InjectQueue(QUEUE_NAMES.EXPORT_DATA)
-    private readonly exportQueue: Queue<ExportJobData>,
+    // @InjectQueue(QUEUE_NAMES.EXPORT_DATA) // Moved to external processing tools
+    // private readonly exportQueue: Queue<ExportJobData>, // Moved to external processing tools
   ) {
     // Clean up old export progress every hour
     setInterval(() => this.cleanupOldExports(), 60 * 60 * 1000);
@@ -560,23 +560,26 @@ export class AnalyticsService {
         completedAt: requiresAsyncProcessing ? undefined : new Date(),
       });
 
-      // Queue job for large exports
+      // Queue job for large exports - Moved to external processing tools
       if (requiresAsyncProcessing) {
-        await this.exportQueue.add(
-          "export-analytics",
-          {
-            exportId,
-            format,
-            dataset,
-            limit: maxRecordsPerDataset,
-            filters,
-          },
-          {
-            jobId: exportId,
-            removeOnComplete: true,
-            removeOnFail: false,
-          },
-        );
+        // For now, disable async processing since jobs moved to external tools
+        // TODO: Implement via external job processing system
+        throw new Error("Large exports temporarily disabled - use external processing tools");
+        // await this.exportQueue.add(
+        //   "export-analytics",
+        //   {
+        //     exportId,
+        //     format,
+        //     dataset,
+        //     limit: maxRecordsPerDataset,
+        //     filters,
+        //   },
+        //   {
+        //     jobId: exportId,
+        //     removeOnComplete: true,
+        //     removeOnFail: false,
+        //   },
+        // );
 
         this.logger.info({
           msg: "Export job queued successfully",
@@ -627,7 +630,8 @@ export class AnalyticsService {
       localProgress.status === "processing"
     ) {
       try {
-        const job = await this.exportQueue.getJob(exportId);
+        // const job = await this.exportQueue.getJob(exportId); // Moved to external processing tools
+        const job = null; // Temporary - jobs moved to external processing tools
         if (job) {
           const jobProgress = job.progress;
           const jobState = await job.getState();

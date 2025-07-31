@@ -14,8 +14,8 @@ import { HealthModule } from "./health/health.module";
 import { HospitalsModule } from "./hospitals/hospitals.module";
 import { PricesModule } from "./prices/prices.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
-import { JobsModule } from "./jobs/modules/jobs.module";
-import { BullBoardModule } from "./jobs/modules/bull-board.module";
+// import { JobsModule } from "./jobs/modules/jobs.module"; // Moved to external processing tools
+// import { BullBoardModule } from "./jobs/modules/bull-board.module"; // Moved to external processing tools
 import { ODataModule } from "./odata/odata.module";
 import { DatabaseModule } from "./database/database.module";
 import { RedisModule } from "./redis/redis.module";
@@ -28,7 +28,7 @@ import { ActivityLoggingModule } from "./activity/activity-logging.module";
 import { ActivityLoggingInterceptor } from "./activity/activity-logging.interceptor";
 import { RequestContextMiddleware } from "./common/middleware";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
-import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middleware";
+// import { BullBoardAuthMiddleware } from "./auth/middleware/bull-board-auth.middleware"; // Moved to external processing tools
 import {
   SerializedRequest,
   SerializedResponse,
@@ -166,8 +166,8 @@ import type { Request } from "express";
     HospitalsModule,
     PricesModule,
     AnalyticsModule,
-    JobsModule,
-    BullBoardModule,
+    // JobsModule, // Moved to external processing tools
+    // BullBoardModule, // Moved to external processing tools
     ODataModule,
     ExternalApisModule,
     AuthModule,
@@ -201,7 +201,7 @@ export class AppModule implements NestModule {
       )
       .forRoutes("*");
 
-    // Apply Bull Board authentication middleware
-    consumer.apply(BullBoardAuthMiddleware).forRoutes("/admin/queues*");
+    // Apply Bull Board authentication middleware - Moved to external processing tools
+    // consumer.apply(BullBoardAuthMiddleware).forRoutes("/admin/queues*");
   }
 }
