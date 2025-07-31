@@ -34,7 +34,7 @@ jobs:
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
-        # Load production secrets and set as outputs
+        # Load production secrets from 1Password
         echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='Glimmr-production' --field='password')" >> $GITHUB_ENV
         echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='Glimmr-production' --field='password')" >> $GITHUB_ENV
         echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='Glimmr-production' --field='jwt_secret')" >> $GITHUB_ENV
@@ -72,7 +72,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        dockerfile: apps/api/Dockerfile
+        file: apps/api/Dockerfile
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
@@ -85,7 +85,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        dockerfile: apps/web/Dockerfile
+        file: apps/web/Dockerfile
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
