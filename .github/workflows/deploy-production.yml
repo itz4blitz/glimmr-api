@@ -50,6 +50,7 @@ jobs:
         echo "EOF" >> $GITHUB_ENV
         echo "SSH_HOST=$(op item get 'glimmr-deployment-ssh' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host')" >> $GITHUB_ENV
         echo "SSH_USER=$(op item get 'glimmr-deployment-ssh' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username')" >> $GITHUB_ENV
+        echo "SSH_PORT=$(op item get 'glimmr-deployment-ssh' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port')" >> $GITHUB_ENV
     
     - name: 🐳 Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -166,7 +167,7 @@ jobs:
         host: ${{ env.SSH_HOST }}
         username: ${{ env.SSH_USER }}
         key: ${{ env.SSH_PRIVATE_KEY }}
-        port: 22
+        port: ${{ env.SSH_PORT }}
         script: |
           # Create deployment directory
           mkdir -p /opt/glimmr
@@ -186,7 +187,7 @@ jobs:
         host: ${{ env.SSH_HOST }}
         username: ${{ env.SSH_USER }}
         key: ${{ env.SSH_PRIVATE_KEY }}
-        port: 22
+        port: ${{ env.SSH_PORT }}
         source: "deployment.tar.gz"
         target: "/opt/glimmr/current/"
         
@@ -196,7 +197,7 @@ jobs:
         host: ${{ env.SSH_HOST }}
         username: ${{ env.SSH_USER }}
         key: ${{ env.SSH_PRIVATE_KEY }}
-        port: 22
+        port: ${{ env.SSH_PORT }}
         script: |
           cd /opt/glimmr/current
           
@@ -216,7 +217,7 @@ jobs:
         host: ${{ env.SSH_HOST }}
         username: ${{ env.SSH_USER }}
         key: ${{ env.SSH_PRIVATE_KEY }}
-        port: 22
+        port: ${{ env.SSH_PORT }}
         script: |
           cd /opt/glimmr/current
           
