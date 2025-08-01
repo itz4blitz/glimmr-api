@@ -193,6 +193,7 @@ jobs:
       with:
         context: .
         file: apps/api/Dockerfile
+        platforms: linux/amd64
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
@@ -216,6 +217,7 @@ jobs:
       with:
         context: .
         file: apps/web/Dockerfile
+        platforms: linux/amd64
         push: true
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
