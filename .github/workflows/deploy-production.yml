@@ -84,6 +84,7 @@ jobs:
         echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='fernet_key' --reveal)" >> $GITHUB_ENV
         echo "AIRFLOW_SECRET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='secret_key' --reveal)" >> $GITHUB_ENV
         echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='admin_password' --reveal)" >> $GITHUB_ENV
+        echo "GRAFANA_ADMIN_PASSWORD=$(op item get 'glimmr-grafana-secrets' --vault='Glimmr' --field='admin_password' --reveal)" >> $GITHUB_ENV
         
         # SSH deployment credentials
         SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
@@ -449,6 +450,38 @@ jobs:
               - airflow-postgres
               - airflow-redis
               
+          # Monitoring & Metrics Stack
+          prometheus:
+            image: prom/prometheus:latest
+            container_name: glimmr-prometheus
+            restart: unless-stopped
+            command:
+              - '--config.file=/etc/prometheus/prometheus.yml'
+              - '--storage.tsdb.path=/prometheus'
+              - '--web.console.libraries=/etc/prometheus/console_libraries'
+              - '--web.console.templates=/etc/prometheus/consoles'
+              - '--storage.tsdb.retention.time=200h'
+              - '--web.enable-lifecycle'
+            volumes:
+              - prometheus_data:/prometheus
+              - prometheus_config:/etc/prometheus
+            ports:
+              - "127.0.0.1:9091:9090"
+              
+          grafana:
+            image: grafana/grafana:latest
+            container_name: glimmr-grafana
+            restart: unless-stopped
+            environment:
+              GF_SECURITY_ADMIN_PASSWORD: \${GRAFANA_ADMIN_PASSWORD}
+              GF_USERS_ALLOW_SIGN_UP: false
+            volumes:
+              - grafana_data:/var/lib/grafana
+            depends_on:
+              - prometheus
+            ports:
+              - "127.0.0.1:3001:3000"
+              
           cloudflare-tunnel:
             image: cloudflare/cloudflared:latest
             container_name: glimmr-cloudflare-tunnel
@@ -475,6 +508,9 @@ jobs:
           airflow_dags:
           airflow_logs:
           airflow_plugins:
+          prometheus_data:
+          prometheus_config:
+          grafana_data:
         EOF
         
         # Create minimal .env file
@@ -492,6 +528,7 @@ jobs:
         AIRFLOW_FERNET_KEY=${AIRFLOW_FERNET_KEY}
         AIRFLOW_SECRET_KEY=${AIRFLOW_SECRET_KEY}
         AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
+        GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
         EOF
         
     - name: 📦 Upload minimal deployment files
@@ -638,6 +675,14 @@ jobs:
                     {
                       "hostname": "minio.glimmr.health",
                       "service": "http://localhost:9001"
+                    },
+                    {
+                      "hostname": "grafana.glimmr.health",
+                      "service": "http://localhost:3001"
+                    },
+                    {
+                      "hostname": "prometheus.glimmr.health",
+                      "service": "http://localhost:9091"
                     },
                     {
                       "service": "http_status:404"
