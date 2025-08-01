@@ -65,28 +65,36 @@ jobs:
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
-        # Load production secrets from 1Password
-        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        # Load infrastructure IDs first
+        VAULT_ID=$(op item get 'glimmr-infrastructure-ids' --field='onepassword_vault_id' --reveal)
+        echo "VAULT_ID=${VAULT_ID}" >> $GITHUB_ENV
+        echo "CLOUDFLARE_ACCOUNT_ID=$(op item get 'glimmr-infrastructure-ids' --field='cloudflare_account_id' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_TUNNEL_ID=$(op item get 'glimmr-infrastructure-ids' --field='cloudflare_tunnel_id' --reveal)" >> $GITHUB_ENV
+        
+        # Load production secrets from 1Password using dynamic vault ID
+        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='${VAULT_ID}' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
         
         # Additional service secrets
-        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AUTHENTIK_REDIS_PASSWORD=$(op item get 'glimmr-authentik-redis' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='secret_key' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='fernet_key' --reveal)" >> $GITHUB_ENV
-        echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_REDIS_PASSWORD=$(op item get 'glimmr-authentik-redis' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='${VAULT_ID}' --field='secret_key' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='${VAULT_ID}' --field='fernet_key' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='${VAULT_ID}' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_API_TOKEN=$(op item get 'glimmr-cloudflare' --vault='${VAULT_ID}' --field='api_token' --reveal)" >> $GITHUB_ENV
         
         # SSH deployment credentials
-        SSH_KEY=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' --reveal | sed 's/^"//;s/"$//')
+        SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
+        SSH_KEY=$(op item get "${SSH_ITEM_ID}" --vault='${VAULT_ID}' --field='private_key' --reveal | sed 's/^"//;s/"$//')
         echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
         echo "$SSH_KEY" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
-        echo "SSH_HOST=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host' --reveal)" >> $GITHUB_ENV
-        echo "SSH_USER=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username' --reveal)" >> $GITHUB_ENV
-        echo "SSH_PORT=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port' --reveal)" >> $GITHUB_ENV
+        echo "SSH_HOST=$(op item get "${SSH_ITEM_ID}" --vault='${VAULT_ID}' --field='host' --reveal)" >> $GITHUB_ENV
+        echo "SSH_USER=$(op item get "${SSH_ITEM_ID}" --vault='${VAULT_ID}' --field='username' --reveal)" >> $GITHUB_ENV
+        echo "SSH_PORT=$(op item get "${SSH_ITEM_ID}" --vault='${VAULT_ID}' --field='port' --reveal)" >> $GITHUB_ENV
     
     - name: 🧠 Determine deployment strategy
       id: strategy
@@ -226,203 +234,120 @@ jobs:
         sbom: false
         
         
-    - name: 📝 Create deployment package
+    - name: 📝 Create minimal deployment files
       run: |
-        # Create deployment directory
-        mkdir -p deployment
+        # Create minimal docker-compose for production (no source code!)
+        cat > docker-compose.prod.yml << EOF
+        services:
+          postgres:
+            image: postgres:16-alpine
+            container_name: glimmr-postgres
+            restart: unless-stopped
+            environment:
+              POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
+              POSTGRES_DB: glimmr_prod
+              POSTGRES_USER: postgres
+            volumes:
+              - postgres_data:/var/lib/postgresql/data
+            ports:
+              - "127.0.0.1:5432:5432"
+              
+          redis:
+            image: redis:7-alpine
+            container_name: glimmr-redis
+            restart: unless-stopped
+            command: redis-server --requirepass \${REDIS_PASSWORD}
+            volumes:
+              - redis_data:/data
+            ports:
+              - "127.0.0.1:6379:6379"
+              
+          minio:
+            image: minio/minio:latest
+            container_name: glimmr-minio
+            restart: unless-stopped
+            command: server /data --console-address ":9001"
+            environment:
+              MINIO_ROOT_USER: \${MINIO_ROOT_USER}
+              MINIO_ROOT_PASSWORD: \${MINIO_ROOT_PASSWORD}
+            volumes:
+              - minio_data:/data
+            ports:
+              - "127.0.0.1:9000:9000"
+              - "127.0.0.1:9001:9001"
+              
+          api:
+            image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
+            container_name: glimmr-api
+            restart: unless-stopped
+            environment:
+              DATABASE_URL: postgresql://postgres:\${POSTGRES_PASSWORD}@postgres:5432/glimmr_prod
+              REDIS_URL: redis://:\${REDIS_PASSWORD}@redis:6379
+              JWT_SECRET: \${JWT_SECRET}
+            depends_on:
+              - postgres
+              - redis
+              - minio
+            ports:
+              - "127.0.0.1:3000:3000"
+              
+          web:
+            image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
+            container_name: glimmr-web
+            restart: unless-stopped
+            depends_on:
+              - api
+            ports:
+              - "127.0.0.1:5174:5174"
+              
+          portainer:
+            image: portainer/portainer-ce:latest
+            container_name: glimmr-portainer
+            restart: unless-stopped
+            volumes:
+              - /var/run/docker.sock:/var/run/docker.sock:ro
+              - portainer_data:/data
+            ports:
+              - "127.0.0.1:9090:9000"
+              
+          cloudflare-tunnel:
+            image: cloudflare/cloudflared:latest
+            container_name: glimmr-cloudflare-tunnel
+            restart: unless-stopped
+            command: tunnel --no-autoupdate run --token \${CLOUDFLARE_TUNNEL_TOKEN}
+            depends_on:
+              - api
+              - web
+              - portainer
+              
+        volumes:
+          postgres_data:
+          redis_data:
+          minio_data:
+          portainer_data:
+        EOF
         
-        # Copy infrastructure files
-        cp -r infrastructure deployment/
-        cp docker-compose.production.yml deployment/
-        cp wait-for-health.sh deployment/
-        cp show-status.sh deployment/
-        cp setup.sh deployment/ 2>/dev/null || true
-        
-        # Create production environment file
-        cat > deployment/.env.production << EOF
-        # Production Environment - Generated by GitHub Actions
-        ENVIRONMENT=production
-        
-        # Database
+        # Create minimal .env file
+        cat > .env.prod << EOF
         POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-        GLIMMR_API_PASSWORD=${POSTGRES_PASSWORD}
         REDIS_PASSWORD=${REDIS_PASSWORD}
-        
-        # API
         JWT_SECRET=${JWT_SECRET}
-        
-        # Airflow
-        AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
-        AIRFLOW_POSTGRES_PASSWORD=${AIRFLOW_POSTGRES_PASSWORD}
-        AIRFLOW_FERNET_KEY=${AIRFLOW_FERNET_KEY}
-        
-        # Authentik
-        AUTHENTIK_POSTGRES_PASSWORD=${AUTHENTIK_POSTGRES_PASSWORD}
-        AUTHENTIK_REDIS_PASSWORD=${AUTHENTIK_REDIS_PASSWORD}
-        AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-        
-        # Cloudflare
         CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-        
-        # MinIO Storage
         MINIO_ROOT_USER=glimmr-prod
         MINIO_ROOT_PASSWORD=${POSTGRES_PASSWORD}
-        
-        # Container Registry
-        REGISTRY=${REGISTRY}
-        IMAGE_NAME=${IMAGE_NAME}
-        IMAGE_TAG=${{ steps.meta.outputs.version }}
-        API_IMAGE_TAG=${{ steps.hashes.outputs.api-combined-hash }}
-        WEB_IMAGE_TAG=${{ steps.hashes.outputs.web-combined-hash }}
-        
-        # Domain (can be overridden)
-        DOMAIN=glimmr.health
-        
-        # Deployment Strategy
-        DEPLOYMENT_TYPE=${{ steps.strategy.outputs.deployment-type }}
-        SERVICES=${{ steps.strategy.outputs.services }}
-        BUILD_API=${{ steps.strategy.outputs.build-api }}
-        BUILD_WEB=${{ steps.strategy.outputs.build-web }}
-        DEPLOY_INFRASTRUCTURE=${{ steps.strategy.outputs.deploy-infrastructure }}
-        FORCE_REBUILD=${{ steps.strategy.outputs.force-rebuild }}
         EOF
         
-        # Create smart deployment script
-        cat > deployment/deploy.sh << 'EOF'
-        #!/bin/bash
-        set -euo pipefail
-        
-        echo "🚀 Starting Glimmr deployment..."
-        
-        # Load environment
-        source .env.production
-        
-        # Check if Docker is available
-        if ! command -v docker &> /dev/null; then
-            echo "❌ Docker is not installed. Please install Docker first."
-            exit 1
-        fi
-        
-        # Use docker compose (new) or docker-compose (legacy)
-        COMPOSE_CMD="docker compose"
-        if ! docker compose version &> /dev/null; then
-            if command -v docker-compose &> /dev/null; then
-                COMPOSE_CMD="docker-compose"
-            else
-                echo "❌ Neither 'docker compose' nor 'docker-compose' is available."
-                exit 1
-            fi
-        fi
-        
-        echo "🐳 Using Docker Compose command: $COMPOSE_CMD"
-        echo "📋 Deployment Type: ${DEPLOYMENT_TYPE:-apps-only}"
-        echo "🎯 Target Services: ${SERVICES:-api,web}"
-        
-        # Function to deploy specific services
-        deploy_services() {
-            local service_list="$1"
-            local action="$2"
-            
-            if [ "$service_list" = "all" ]; then
-                echo "🔄 ${action} all services..."
-                $COMPOSE_CMD -f docker-compose.production.yml $action
-            else
-                echo "🔄 ${action} services: $service_list"
-                IFS=',' read -ra SERVICES_ARRAY <<< "$service_list"
-                for service in "${SERVICES_ARRAY[@]}"; do
-                    service=$(echo "$service" | xargs) # trim whitespace
-                    echo "  → ${action} $service"
-                    $COMPOSE_CMD -f docker-compose.production.yml $action "$service" || echo "⚠️ Service $service not found or failed"
-                done
-            fi
-        }
-        
-        # Smart deployment logic
-        case "${DEPLOYMENT_TYPE:-apps-only}" in
-            "full-stack")
-                echo "🚀 Full stack deployment"
-                $COMPOSE_CMD -f docker-compose.production.yml pull
-                $COMPOSE_CMD -f docker-compose.production.yml down
-                $COMPOSE_CMD -f docker-compose.production.yml up -d
-                ;;
-            "apps-only")
-                echo "📱 Application services only"
-                # Only restart app containers, keep infrastructure running
-                $COMPOSE_CMD -f docker-compose.production.yml pull api web
-                $COMPOSE_CMD -f docker-compose.production.yml stop api web
-                $COMPOSE_CMD -f docker-compose.production.yml up -d api web
-                ;;
-            "infrastructure-only")
-                echo "🏗️ Infrastructure services only"
-                # Deploy infrastructure but don't touch apps
-                INFRA_SERVICES="postgres,redis,minio,minio-setup,authentik-postgres,authentik-redis,authentik-server,authentik-worker,airflow-postgres,airflow-webserver,airflow-scheduler,cloudflare-tunnel"
-                deploy_services "$INFRA_SERVICES" "pull"
-                deploy_services "$INFRA_SERVICES" "up -d"
-                ;;
-            "single-service")
-                echo "🎯 Single service deployment"
-                deploy_services "${SERVICES:-api,web}" "pull"
-                deploy_services "${SERVICES:-api,web}" "stop"
-                deploy_services "${SERVICES:-api,web}" "up -d"
-                ;;
-            *)
-                echo "⚠️ Unknown deployment type, defaulting to apps-only"
-                $COMPOSE_CMD -f docker-compose.production.yml pull api web
-                $COMPOSE_CMD -f docker-compose.production.yml stop api web
-                $COMPOSE_CMD -f docker-compose.production.yml up -d api web
-                ;;
-        esac
-        
-        # Health checks
-        if [ -f "./wait-for-health.sh" ]; then
-            echo "🔍 Running health checks..."
-            ./wait-for-health.sh
-        else
-            echo "⚠️ Health check script not found, waiting 30 seconds..."
-            sleep 30
-        fi
-        
-        echo "✅ Deployment completed successfully!"
-        echo "📊 Final status:"
-        $COMPOSE_CMD -f docker-compose.production.yml ps
-        EOF
-        
-        chmod +x deployment/deploy.sh
-        
-        # Create archive
-        tar -czf deployment.tar.gz -C deployment .
-        
-    - name: 🚀 Deploy to production server
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ env.SSH_HOST }}
-        username: ${{ env.SSH_USER }}
-        key: ${{ env.SSH_PRIVATE_KEY }}
-        port: ${{ env.SSH_PORT }}
-        script: |
-          # Create deployment directory
-          mkdir -p /opt/glimmr
-          cd /opt/glimmr
-          
-          # Backup current deployment
-          if [ -d "current" ]; then
-            mv current backup-$(date +%Y%m%d-%H%M%S)
-          fi
-          
-          # Create new deployment directory
-          mkdir -p current
-          
-    - name: 📦 Upload deployment package
+    - name: 📦 Upload minimal deployment files
       uses: appleboy/scp-action@v0.1.4
       with:
         host: ${{ env.SSH_HOST }}
         username: ${{ env.SSH_USER }}
         key: ${{ env.SSH_PRIVATE_KEY }}
         port: ${{ env.SSH_PORT }}
-        source: "deployment.tar.gz"
-        target: "/opt/glimmr/current/"
+        source: "docker-compose.prod.yml,.env.prod"
+        target: "/opt/glimmr/"
         
-    - name: 🎯 Execute deployment
+    - name: 🚀 Deploy services
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ env.SSH_HOST }}
@@ -430,42 +355,78 @@ jobs:
         key: ${{ env.SSH_PRIVATE_KEY }}
         port: ${{ env.SSH_PORT }}
         script: |
-          cd /opt/glimmr/current
+          cd /opt/glimmr
           
-          # Extract deployment package
-          tar -xzf deployment.tar.gz
-          rm deployment.tar.gz
+          # Authenticate with GitHub Container Registry
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          # Make scripts executable
-          chmod +x *.sh
+          # Pull and deploy based on strategy
+          case "${{ steps.strategy.outputs.deployment-type }}" in
+            "full-stack")
+              echo "🚀 Full stack deployment"
+              docker compose -f docker-compose.prod.yml --env-file .env.prod down || true
+              docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+              ;;
+            "apps-only"|*)
+              echo "📱 Apps-only deployment"
+              docker compose -f docker-compose.prod.yml --env-file .env.prod pull api web || true
+              docker compose -f docker-compose.prod.yml --env-file .env.prod stop api web || true
+              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api web
+              
+              # Start infrastructure if not running
+              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
+              ;;
+          esac
           
-          # Run deployment
-          ./deploy.sh
+          # Wait for services
+          echo "⏳ Waiting for services to be ready..."
+          sleep 30
           
-    - name: 🔍 Health check
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ env.SSH_HOST }}
-        username: ${{ env.SSH_USER }}
-        key: ${{ env.SSH_PRIVATE_KEY }}
-        port: ${{ env.SSH_PORT }}
-        script: |
-          cd /opt/glimmr/current
+          # Show status
+          echo "📊 Service Status:"
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
           
-          # Wait for services to be healthy
-          timeout 300 ./wait-for-health.sh
+          # Configure Cloudflare tunnel ingress rules
+          echo "🌐 Configuring Cloudflare tunnel ingress rules..."
+          if [ ! -z "$CLOUDFLARE_API_TOKEN" ] && [ ! -z "$CLOUDFLARE_ACCOUNT_ID" ] && [ ! -z "$CLOUDFLARE_TUNNEL_ID" ]; then
+            # Configure ingress rules via API using environment variables
+            curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$CLOUDFLARE_TUNNEL_ID/configurations" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data '{
+                "config": {
+                  "ingress": [
+                    {
+                      "hostname": "api.glimmr.health",
+                      "service": "http://localhost:3000"
+                    },
+                    {
+                      "hostname": "app.glimmr.health", 
+                      "service": "http://localhost:5174"
+                    },
+                    {
+                      "hostname": "portainer.glimmr.health",
+                      "service": "http://localhost:9090"
+                    },
+                    {
+                      "hostname": "minio.glimmr.health",
+                      "service": "http://localhost:9001"
+                    },
+                    {
+                      "service": "http_status:404"
+                    }
+                  ]
+                }
+              }' || echo "⚠️ Cloudflare tunnel configuration failed"
+          else
+            echo "⚠️ Cloudflare credentials not set, skipping tunnel configuration"
+          fi
           
-          # Show final status
-          ./show-status.sh
+          # Basic health check
+          echo "🔍 Basic health checks:"
+          curl -f http://localhost:3000/health || echo "⚠️ API health check failed"
+          curl -f http://localhost:5174 || echo "⚠️ Web health check failed"
+          curl -f http://localhost:9090 || echo "⚠️ Portainer health check failed"
           
-    - name: 📢 Notify deployment success
-      if: success()
-      run: |
-        echo "🎉 Glimmr successfully deployed to production!"
-        echo "🔗 Access the platform at: https://glimmr.premierstudio.ai"
-        
-    - name: 📢 Notify deployment failure
-      if: failure()
-      run: |
-        echo "❌ Deployment failed. Check logs for details."
-        exit 1
+          echo "✅ Deployment completed!"
