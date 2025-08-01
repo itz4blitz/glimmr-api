@@ -5,18 +5,18 @@
 FROM node:20-alpine AS builder
 
 # Install pnpm globally
-RUN npm install -g pnpm@9.0.0
+RUN npm install -g pnpm@10.14.0
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/web/package.json apps/web/package-lock.json ./apps/web/
+COPY apps/web/package.json ./apps/web/
 COPY packages ./packages
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (cached if package files haven't changed)
+RUN pnpm install --frozen-lockfile --prefer-offline
 
 # Copy source code
 COPY apps/web ./apps/web

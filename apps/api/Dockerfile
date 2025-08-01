@@ -5,18 +5,18 @@
 FROM node:20-alpine AS builder
 
 # Install pnpm globally
-RUN npm install -g pnpm@9.0.0
+RUN npm install -g pnpm@10.14.0
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (cached if package files haven't changed)
+RUN pnpm install --frozen-lockfile --prefer-offline
 
 # Copy source code
 COPY apps/api ./apps/api
@@ -30,7 +30,7 @@ RUN pnpm run build
 FROM node:20-alpine AS production
 
 # Install pnpm globally
-RUN npm install -g pnpm@9.0.0
+RUN npm install -g pnpm@10.14.0
 
 # Create app user for security
 RUN addgroup -g 1001 -S nodejs
@@ -44,8 +44,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 
-# Install only production dependencies
-RUN pnpm install --frozen-lockfile --prod
+# Install only production dependencies (cached if package files haven't changed)
+RUN pnpm install --frozen-lockfile --prod --prefer-offline
 
 # Copy built application from builder stage
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

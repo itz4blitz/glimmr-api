@@ -39,10 +39,10 @@ jobs:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
         # Load production secrets from 1Password
-        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password')" >> $GITHUB_ENV
-        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password')" >> $GITHUB_ENV
-        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret')" >> $GITHUB_ENV
-        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password')" >> $GITHUB_ENV
+        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
         
         # SSH deployment credentials
         SSH_KEY=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' --reveal | sed 's/^"//;s/"$//')
@@ -74,7 +74,39 @@ jobs:
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
           
+    - name: 🔍 Calculate content hashes for smart caching
+      id: hashes
+      run: |
+        # Calculate hash for API dependencies and source
+        API_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/api/package.json | sha256sum | cut -d' ' -f1)
+        API_SOURCE_HASH=$(find apps/api/src -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+        echo "api-deps-hash=${API_DEPS_HASH}" >> $GITHUB_OUTPUT
+        echo "api-source-hash=${API_SOURCE_HASH}" >> $GITHUB_OUTPUT
+        
+        # Calculate hash for Web dependencies and source  
+        WEB_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/web/package.json | sha256sum | cut -d' ' -f1)
+        WEB_SOURCE_HASH=$(find apps/web/src -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" -o -name "*.css" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+        echo "web-deps-hash=${WEB_DEPS_HASH}" >> $GITHUB_OUTPUT
+        echo "web-source-hash=${WEB_SOURCE_HASH}" >> $GITHUB_OUTPUT
+        
+        # Combined hashes for tagging
+        echo "api-combined-hash=${API_DEPS_HASH}-${API_SOURCE_HASH}" >> $GITHUB_OUTPUT
+        echo "web-combined-hash=${WEB_DEPS_HASH}-${WEB_SOURCE_HASH}" >> $GITHUB_OUTPUT
+          
+    - name: 🔍 Check if API image exists
+      id: api-exists
+      run: |
+        # Check if image with content hash already exists
+        if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }} >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "✅ API image with hash ${{ steps.hashes.outputs.api-combined-hash }} already exists, skipping build"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "🔨 API image with hash ${{ steps.hashes.outputs.api-combined-hash }} not found, building..."
+        fi
+        
     - name: 🏗️ Build and push API image
+      if: steps.api-exists.outputs.exists == 'false'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -83,11 +115,40 @@ jobs:
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: |
+          type=gha,scope=api
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-deps-hash }}
+        cache-to: type=gha,mode=max,scope=api
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+          
+    - name: 🏷️ Tag existing API image
+      if: steps.api-exists.outputs.exists == 'true'
+      run: |
+        # Pull existing image and retag it
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
+        
+    - name: 🔍 Check if Web image exists
+      id: web-exists
+      run: |
+        # Check if image with content hash already exists
+        if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }} >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "✅ Web image with hash ${{ steps.hashes.outputs.web-combined-hash }} already exists, skipping build"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "🔨 Web image with hash ${{ steps.hashes.outputs.web-combined-hash }} not found, building..."
+        fi
         
     - name: 🏗️ Build and push Web image
+      if: steps.web-exists.outputs.exists == 'false'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -96,9 +157,25 @@ jobs:
         tags: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: |
+          type=gha,scope=web
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-deps-hash }}
+        cache-to: type=gha,mode=max,scope=web
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+          
+    - name: 🏷️ Tag existing Web image
+      if: steps.web-exists.outputs.exists == 'true'
+      run: |
+        # Pull existing image and retag it
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
         
         
     - name: 📝 Create deployment package
@@ -130,6 +207,8 @@ jobs:
         REGISTRY=${REGISTRY}
         IMAGE_NAME=${IMAGE_NAME}
         IMAGE_TAG=${{ steps.meta.outputs.version }}
+        API_IMAGE_TAG=${{ steps.hashes.outputs.api-combined-hash }}
+        WEB_IMAGE_TAG=${{ steps.hashes.outputs.web-combined-hash }}
         EOF
         
         # Create deployment script

@@ -195,10 +195,7 @@ services:
   # GLIMMR APPLICATION (PRODUCTION)
   # =============================================================================
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-      target: production
+    image: ${REGISTRY}/${IMAGE_NAME}/api:${API_IMAGE_TAG:-latest}
     container_name: glimmr-api
     restart: unless-stopped
     environment:
@@ -255,10 +252,7 @@ services:
   # WEB APPLICATION (PRODUCTION)
   # =============================================================================
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: production
+    image: ${REGISTRY}/${IMAGE_NAME}/web:${WEB_IMAGE_TAG:-latest}
     container_name: glimmr-web
     restart: unless-stopped
     environment:
