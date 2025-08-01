@@ -576,7 +576,8 @@ jobs:
           
           # Install abctl if not present
           if ! command -v abctl &> /dev/null; then
-            curl -LsfS https://get.airbyte.com | bash - -b "$HOME/.local/bin"
+            mkdir -p "$HOME/.local/bin"
+            curl -LsfS https://get.airbyte.com | bash -s -- --install-dir "$HOME/.local/bin"
             export PATH="$HOME/.local/bin:$PATH"
           fi
           
@@ -622,10 +623,11 @@ jobs:
               secretAccessKey: "${POSTGRES_PASSWORD}"
           AIRBYTE_EOF
           
-          # Create airbyte database in PostgreSQL
-          docker exec glimmr-postgres psql -U postgres -c "CREATE DATABASE IF NOT EXISTS airbyte;" || echo "Database already exists"
+          # Create airbyte database in PostgreSQL (PostgreSQL uses CREATE DATABASE IF NOT EXISTS differently)
+          docker exec glimmr-postgres psql -U postgres -c "SELECT 1 FROM pg_database WHERE datname = 'airbyte'" | grep -q 1 || docker exec glimmr-postgres psql -U postgres -c "CREATE DATABASE airbyte;"
           
           # Install or upgrade Airbyte
+          export PATH="$HOME/.local/bin:$PATH"
           abctl local install --values ./airbyte-values.yaml --port 8000 || echo "⚠️ Airbyte installation completed with warnings"
               ;;
           esac
