@@ -642,6 +642,7 @@ jobs:
           
           # Configure Cloudflare tunnel ingress rules
           echo "🌐 Configuring Cloudflare tunnel ingress rules..."
+          echo "Using tunnel ID: $CLOUDFLARE_TUNNEL_ID"
           if [ ! -z "$CLOUDFLARE_API_TOKEN" ] && [ ! -z "$CLOUDFLARE_ACCOUNT_ID" ] && [ ! -z "$CLOUDFLARE_TUNNEL_ID" ]; then
             # Configure ingress rules via API using environment variables
             curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$CLOUDFLARE_TUNNEL_ID/configurations" \
