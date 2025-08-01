@@ -87,7 +87,7 @@ jobs:
         echo "CLOUDFLARE_API_TOKEN=$(op item get 'glimmr-cloudflare' --vault='${VAULT_ID}' --field='api_token' --reveal)" >> $GITHUB_ENV
         
         # SSH deployment credentials
-        SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
+        SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --vault='${VAULT_ID}' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
         SSH_KEY=$(op item get "${SSH_ITEM_ID}" --vault='${VAULT_ID}' --field='private_key' --reveal | sed 's/^"//;s/"$//')
         echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
         echo "$SSH_KEY" >> $GITHUB_ENV
