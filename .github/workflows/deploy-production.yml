@@ -65,36 +65,34 @@ jobs:
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
-        # Load infrastructure IDs first (hardcode vault for service account)
-        VAULT_ID="ix6on2g66agy3lj42z72y4rmqu"
-        echo "VAULT_ID=${VAULT_ID}" >> $GITHUB_ENV
-        echo "CLOUDFLARE_ACCOUNT_ID=$(op item get 'glimmr-infrastructure-ids' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='cloudflare_account_id' --reveal)" >> $GITHUB_ENV
-        echo "CLOUDFLARE_TUNNEL_ID=$(op item get 'glimmr-infrastructure-ids' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='cloudflare_tunnel_id' --reveal)" >> $GITHUB_ENV
+        # Load infrastructure IDs first (use vault name for cleaner code)
+        echo "CLOUDFLARE_ACCOUNT_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='cloudflare_account_id' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_TUNNEL_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='cloudflare_tunnel_id' --reveal)" >> $GITHUB_ENV
         
-        # Load production secrets from 1Password using hardcoded vault ID for service account
-        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        # Load production secrets from 1Password using vault name
+        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='Glimmr' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
         
         # Additional service secrets
-        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AUTHENTIK_REDIS_PASSWORD=$(op item get 'glimmr-authentik-redis' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='secret_key' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='fernet_key' --reveal)" >> $GITHUB_ENV
-        echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
-        echo "CLOUDFLARE_API_TOKEN=$(op item get 'glimmr-cloudflare' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='api_token' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_REDIS_PASSWORD=$(op item get 'glimmr-authentik-redis' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='Glimmr' --field='secret_key' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='fernet_key' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='Glimmr' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_API_TOKEN=$(op item get 'glimmr-cloudflare' --vault='Glimmr' --field='api_token' --reveal)" >> $GITHUB_ENV
         
         # SSH deployment credentials
-        SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
-        SSH_KEY=$(op item get "${SSH_ITEM_ID}" --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' --reveal | sed 's/^"//;s/"$//')
+        SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
+        SSH_KEY=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='private_key' --reveal | sed 's/^"//;s/"$//')
         echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
         echo "$SSH_KEY" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
-        echo "SSH_HOST=$(op item get "${SSH_ITEM_ID}" --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host' --reveal)" >> $GITHUB_ENV
-        echo "SSH_USER=$(op item get "${SSH_ITEM_ID}" --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username' --reveal)" >> $GITHUB_ENV
-        echo "SSH_PORT=$(op item get "${SSH_ITEM_ID}" --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port' --reveal)" >> $GITHUB_ENV
+        echo "SSH_HOST=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='host' --reveal)" >> $GITHUB_ENV
+        echo "SSH_USER=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='username' --reveal)" >> $GITHUB_ENV
+        echo "SSH_PORT=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='port' --reveal)" >> $GITHUB_ENV
     
     - name: 🧠 Determine deployment strategy
       id: strategy
