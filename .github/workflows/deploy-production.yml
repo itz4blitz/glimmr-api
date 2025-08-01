@@ -345,7 +345,7 @@ jobs:
               
           # Main Application Services
           api:
-            image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
+            image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
             container_name: glimmr-api
             restart: unless-stopped
             environment:
@@ -360,7 +360,7 @@ jobs:
               - "127.0.0.1:3000:3000"
               
           web:
-            image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
+            image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
             container_name: glimmr-web
             restart: unless-stopped
             depends_on:
