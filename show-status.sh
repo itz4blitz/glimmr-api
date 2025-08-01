@@ -4,6 +4,17 @@ set -euo pipefail
 echo "📊 Glimmr Production Deployment Status"
 echo "======================================="
 
+# Use docker compose (new) or docker-compose (legacy)
+COMPOSE_CMD="docker compose"
+if ! docker compose version &> /dev/null; then
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        echo "❌ Neither 'docker compose' nor 'docker-compose' is available."
+        exit 1
+    fi
+fi
+
 # Function to check service status and display with color
 check_and_display_status() {
     local service_name=$1
@@ -29,11 +40,11 @@ echo "------------------------"
 
 # Check all services
 check_and_display_status "PostgreSQL Database" \
-    "docker-compose -f docker-compose.production.yml exec -T postgres pg_isready -U postgres -d glimmr" \
+    "$COMPOSE_CMD -f docker-compose.production.yml exec -T postgres pg_isready -U postgres -d glimmr" \
     ""
 
 check_and_display_status "Redis Cache" \
-    "docker-compose -f docker-compose.production.yml exec -T redis redis-cli --no-auth-warning -a \$REDIS_PASSWORD ping" \
+    "$COMPOSE_CMD -f docker-compose.production.yml exec -T redis redis-cli --no-auth-warning -a \$REDIS_PASSWORD ping" \
     ""
 
 check_and_display_status "MinIO Storage" \
@@ -59,15 +70,15 @@ check_and_display_status "Airflow Scheduler" \
 echo ""
 echo "🐳 Docker Container Status:"
 echo "---------------------------"
-docker-compose -f docker-compose.production.yml ps
+$COMPOSE_CMD -f docker-compose.production.yml ps
 
 echo ""
 echo "💾 Database Information:"
 echo "-----------------------"
-if docker-compose -f docker-compose.production.yml exec -T postgres pg_isready -U postgres -d glimmr >/dev/null 2>&1; then
+if $COMPOSE_CMD -f docker-compose.production.yml exec -T postgres pg_isready -U postgres -d glimmr >/dev/null 2>&1; then
     echo "✅ Database connection: OK"
     # Get database stats if possible
-    if docker-compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d glimmr -c "SELECT 'Hospitals: ' || COUNT(*) FROM hospitals;" 2>/dev/null; then
+    if $COMPOSE_CMD -f docker-compose.production.yml exec -T postgres psql -U postgres -d glimmr -c "SELECT 'Hospitals: ' || COUNT(*) FROM hospitals;" 2>/dev/null; then
         echo "📊 Database statistics retrieved"
     fi
 else

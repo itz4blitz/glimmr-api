@@ -1,0 +1,333 @@
+name: 🎯 Single Service Deploy - Any Branch to Any Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - api
+          - web
+          - postgres
+          - redis
+          - minio
+          - authentik
+          - airflow
+          - cloudflare-tunnel
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      branch:
+        description: 'Branch to deploy (for api/web)'
+        required: false
+        default: 'main'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild image (for api/web)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy-service:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    
+    steps:
+    - name: 🔄 Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.branch || github.ref }}
+      
+    - name: 🔐 Install 1Password CLI
+      uses: 1password/install-cli-action@v1
+      
+    - name: 🔑 Load secrets from 1Password
+      env:
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      run: |
+        # Load production secrets from 1Password
+        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        
+        # Additional service secrets
+        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_REDIS_PASSWORD=$(op item get 'glimmr-authentik-redis' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='secret_key' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='fernet_key' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
+        
+        # SSH deployment credentials
+        SSH_KEY=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' --reveal | sed 's/^"//;s/"$//')
+        echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+        echo "$SSH_KEY" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        echo "SSH_HOST=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host' --reveal)" >> $GITHUB_ENV
+        echo "SSH_USER=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username' --reveal)" >> $GITHUB_ENV
+        echo "SSH_PORT=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port' --reveal)" >> $GITHUB_ENV
+    
+    - name: 🐳 Set up Docker Buildx
+      if: contains(fromJson('["api", "web"]'), github.event.inputs.service)
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🔐 Log in to Container Registry
+      if: contains(fromJson('["api", "web"]'), github.event.inputs.service)
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📦 Extract metadata
+      if: contains(fromJson('["api", "web"]'), github.event.inputs.service)
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 🔍 Calculate content hashes
+      if: contains(fromJson('["api", "web"]'), github.event.inputs.service)
+      id: hashes
+      run: |
+        if [[ "${{ github.event.inputs.service }}" == "api" ]]; then
+          API_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/api/package.json | sha256sum | cut -d' ' -f1 | cut -c1-12)
+          API_SOURCE_HASH=$(find apps/api/src -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1 | cut -c1-12)
+          echo "api-combined-hash=${API_DEPS_HASH}-${API_SOURCE_HASH}" >> $GITHUB_OUTPUT
+        fi
+        
+        if [[ "${{ github.event.inputs.service }}" == "web" ]]; then
+          WEB_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/web/package.json | sha256sum | cut -d' ' -f1 | cut -c1-12)
+          WEB_SOURCE_HASH=$(find apps/web/src -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" -o -name "*.css" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1 | cut -c1-12)
+          echo "web-combined-hash=${WEB_DEPS_HASH}-${WEB_SOURCE_HASH}" >> $GITHUB_OUTPUT
+        fi
+          
+    - name: 🏗️ Build and push API image
+      if: github.event.inputs.service == 'api'
+      uses: docker/build-push-action@v5
+      timeout-minutes: 20
+      with:
+        context: .
+        file: apps/api/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: |
+          type=gha,scope=api
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+        cache-to: type=gha,mode=max,scope=api
+        provenance: false
+        sbom: false
+        
+    - name: 🏗️ Build and push Web image
+      if: github.event.inputs.service == 'web'
+      uses: docker/build-push-action@v5
+      timeout-minutes: 15
+      with:
+        context: .
+        file: apps/web/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: |
+          type=gha,scope=web
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+        cache-to: type=gha,mode=max,scope=web
+        provenance: false
+        sbom: false
+        
+    - name: 📝 Create deployment package
+      run: |
+        # Create deployment directory
+        mkdir -p deployment
+        
+        # Copy necessary files
+        cp -r infrastructure deployment/ 2>/dev/null || true
+        cp docker-compose.production.yml deployment/
+        cp wait-for-health.sh deployment/
+        cp show-status.sh deployment/
+        
+        # Create production environment file
+        cat > deployment/.env.production << EOF
+        # Single Service Deployment - Generated by GitHub Actions
+        ENVIRONMENT=production
+        
+        # Database
+        POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        GLIMMR_API_PASSWORD=${POSTGRES_PASSWORD}
+        REDIS_PASSWORD=${REDIS_PASSWORD}
+        
+        # API
+        JWT_SECRET=${JWT_SECRET}
+        
+        # Airflow
+        AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
+        AIRFLOW_POSTGRES_PASSWORD=${AIRFLOW_POSTGRES_PASSWORD}
+        AIRFLOW_FERNET_KEY=${AIRFLOW_FERNET_KEY}
+        
+        # Authentik
+        AUTHENTIK_POSTGRES_PASSWORD=${AUTHENTIK_POSTGRES_PASSWORD}
+        AUTHENTIK_REDIS_PASSWORD=${AUTHENTIK_REDIS_PASSWORD}
+        AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+        
+        # Cloudflare
+        CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+        
+        # MinIO Storage
+        MINIO_ROOT_USER=glimmr-prod
+        MINIO_ROOT_PASSWORD=${POSTGRES_PASSWORD}
+        
+        # Container Registry
+        REGISTRY=${REGISTRY}
+        IMAGE_NAME=${IMAGE_NAME}
+        IMAGE_TAG=${{ steps.meta.outputs.version || 'latest' }}
+        API_IMAGE_TAG=${{ steps.hashes.outputs.api-combined-hash || 'latest' }}
+        WEB_IMAGE_TAG=${{ steps.hashes.outputs.web-combined-hash || 'latest' }}
+        
+        # Single Service Deployment
+        TARGET_SERVICE=${{ github.event.inputs.service }}
+        DEPLOYMENT_TYPE=single-service
+        SERVICES=${{ github.event.inputs.service }}
+        FORCE_REBUILD=${{ github.event.inputs.force_rebuild }}
+        
+        DOMAIN=glimmr.health
+        EOF
+        
+        # Create single service deployment script
+        cat > deployment/deploy-single.sh << 'EOF'
+        #!/bin/bash
+        set -euo pipefail
+        
+        echo "🎯 Deploying single service: ${TARGET_SERVICE}"
+        
+        # Load environment
+        source .env.production
+        
+        # Docker setup
+        COMPOSE_CMD="docker compose"
+        if ! docker compose version &> /dev/null; then
+            if command -v docker-compose &> /dev/null; then
+                COMPOSE_CMD="docker-compose"
+            else
+                echo "❌ Neither 'docker compose' nor 'docker-compose' is available."
+                exit 1
+            fi
+        fi
+        
+        echo "🐳 Using Docker Compose command: $COMPOSE_CMD"
+        echo "🎯 Target Service: ${TARGET_SERVICE}"
+        
+        # Deploy the specific service
+        case "${TARGET_SERVICE}" in
+            "api"|"web")
+                echo "📱 Deploying application service: ${TARGET_SERVICE}"
+                $COMPOSE_CMD -f docker-compose.production.yml pull ${TARGET_SERVICE}
+                $COMPOSE_CMD -f docker-compose.production.yml stop ${TARGET_SERVICE}
+                $COMPOSE_CMD -f docker-compose.production.yml up -d ${TARGET_SERVICE}
+                ;;
+            *)
+                echo "🏗️ Deploying infrastructure service: ${TARGET_SERVICE}"
+                $COMPOSE_CMD -f docker-compose.production.yml up -d ${TARGET_SERVICE}
+                ;;
+        esac
+        
+        echo "✅ Service ${TARGET_SERVICE} deployed successfully!"
+        
+        # Show status
+        echo "📊 Service status:"
+        $COMPOSE_CMD -f docker-compose.production.yml ps ${TARGET_SERVICE}
+        EOF
+        
+        chmod +x deployment/deploy-single.sh
+        
+        # Create archive
+        tar -czf deployment.tar.gz -C deployment .
+        
+    - name: 🚀 Deploy to production server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.SSH_HOST }}
+        username: ${{ env.SSH_USER }}
+        key: ${{ env.SSH_PRIVATE_KEY }}
+        port: ${{ env.SSH_PORT }}
+        script: |
+          # Create deployment directory
+          mkdir -p /opt/glimmr
+          cd /opt/glimmr
+          
+          # Backup current deployment
+          if [ -d "current" ]; then
+            mv current backup-$(date +%Y%m%d-%H%M%S)
+          fi
+          
+          # Create new deployment directory
+          mkdir -p current
+          
+    - name: 📦 Upload deployment package
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ env.SSH_HOST }}
+        username: ${{ env.SSH_USER }}
+        key: ${{ env.SSH_PRIVATE_KEY }}
+        port: ${{ env.SSH_PORT }}
+        source: "deployment.tar.gz"
+        target: "/opt/glimmr/current/"
+        
+    - name: 🎯 Execute single service deployment
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.SSH_HOST }}
+        username: ${{ env.SSH_USER }}
+        key: ${{ env.SSH_PRIVATE_KEY }}
+        port: ${{ env.SSH_PORT }}
+        script: |
+          cd /opt/glimmr/current
+          
+          # Extract deployment package
+          tar -xzf deployment.tar.gz
+          rm deployment.tar.gz
+          
+          # Make scripts executable
+          chmod +x *.sh
+          
+          # Run single service deployment
+          ./deploy-single.sh
+          
+    - name: 📢 Notify deployment success
+      if: success()
+      run: |
+        echo "🎉 Service ${{ github.event.inputs.service }} successfully deployed!"
+        
+    - name: 📢 Notify deployment failure
+      if: failure()
+      run: |
+        echo "❌ Service ${{ github.event.inputs.service }} deployment failed. Check logs for details."
+        exit 1

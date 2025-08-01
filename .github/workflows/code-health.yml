@@ -1,4 +1,4 @@
-name: Code Health Check
+name: 🩺 Weekly Code Health - Automated Cleanup
 
 on:
   schedule:

@@ -3,6 +3,17 @@ set -euo pipefail
 
 echo "🔍 Waiting for all services to be healthy..."
 
+# Use docker compose (new) or docker-compose (legacy)
+COMPOSE_CMD="docker compose"
+if ! docker compose version &> /dev/null; then
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        echo "❌ Neither 'docker compose' nor 'docker-compose' is available."
+        exit 1
+    fi
+fi
+
 # Maximum wait time in seconds (5 minutes)
 MAX_WAIT=300
 WAIT_TIME=0
@@ -24,8 +35,8 @@ check_service_health() {
 
 # Define health checks for each service
 HEALTH_CHECKS=(
-    "PostgreSQL:docker-compose -f docker-compose.production.yml exec -T postgres pg_isready -U postgres -d glimmr"
-    "Redis:docker-compose -f docker-compose.production.yml exec -T redis redis-cli --no-auth-warning -a \$REDIS_PASSWORD ping"
+    "PostgreSQL:$COMPOSE_CMD -f docker-compose.production.yml exec -T postgres pg_isready -U postgres -d glimmr"
+    "Redis:$COMPOSE_CMD -f docker-compose.production.yml exec -T redis redis-cli --no-auth-warning -a \$REDIS_PASSWORD ping"
     "MinIO:curl -sf http://localhost:9000/minio/health/live"
     "API:curl -sf http://localhost:3000/api/v1/health"
     "Web:curl -sf http://localhost:5174"
@@ -68,6 +79,6 @@ echo "❌ Services failed to become healthy within ${MAX_WAIT} seconds"
 echo "🔍 Checking service status..."
 
 # Show service status for debugging
-docker-compose -f docker-compose.production.yml ps
+$COMPOSE_CMD -f docker-compose.production.yml ps
 
 exit 1

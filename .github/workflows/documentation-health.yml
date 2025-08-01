@@ -1,4 +1,4 @@
-name: Documentation Health Check
+name: 📚 Weekly Documentation - Coverage Reports
 
 on:
   schedule:

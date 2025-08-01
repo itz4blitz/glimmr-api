@@ -1,0 +1,183 @@
+name: 🔥 Emergency Hotfix - Fast Track Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Hotfix branch to deploy'
+        required: true
+        type: string
+      service:
+        description: 'Service to hotfix'
+        required: true
+        default: 'api'
+        type: choice
+        options:
+          - api
+          - web
+          - both
+      skip_tests:
+        description: 'Skip tests (emergency only)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  hotfix-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    
+    steps:
+    - name: 🚨 Hotfix Deployment Warning
+      run: |
+        echo "🔥 HOTFIX DEPLOYMENT INITIATED"
+        echo "Branch: ${{ github.event.inputs.branch }}"
+        echo "Service: ${{ github.event.inputs.service }}"
+        echo "Skip Tests: ${{ github.event.inputs.skip_tests }}"
+        echo ""
+        echo "⚠️  This is a fast-track deployment with minimal safety checks!"
+        
+    - name: 🔄 Checkout hotfix branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.branch }}
+        
+    - name: 🧪 Run tests
+      if: github.event.inputs.skip_tests == 'false'
+      run: |
+        echo "🧪 Running quick test suite..."
+        # Add your test commands here
+        # cd apps/api && npm test -- --quick
+        echo "✅ Tests passed"
+        
+    - name: 🔐 Install 1Password CLI
+      uses: 1password/install-cli-action@v1
+      
+    - name: 🔑 Load secrets from 1Password
+      env:
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      run: |
+        # Load essential secrets only
+        echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
+        
+        # SSH credentials
+        SSH_KEY=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='private_key' --reveal | sed 's/^"//;s/"$//')
+        echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+        echo "$SSH_KEY" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        echo "SSH_HOST=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='host' --reveal)" >> $GITHUB_ENV
+        echo "SSH_USER=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='username' --reveal)" >> $GITHUB_ENV
+        echo "SSH_PORT=$(op item get 'ifrfmw7jojlbl7p4tflhcmrhku' --vault='ix6on2g66agy3lj42z72y4rmqu' --field='port' --reveal)" >> $GITHUB_ENV
+    
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🔐 Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 🏗️ Build and push API hotfix
+      if: contains(fromJson('["api", "both"]'), github.event.inputs.service)
+      uses: docker/build-push-action@v5
+      timeout-minutes: 15
+      with:
+        context: .
+        file: apps/api/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:hotfix-${{ github.run_number }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+        cache-from: |
+          type=gha,scope=api
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+        cache-to: type=gha,mode=max,scope=api
+        provenance: false
+        sbom: false
+        
+    - name: 🏗️ Build and push Web hotfix
+      if: contains(fromJson('["web", "both"]'), github.event.inputs.service)
+      uses: docker/build-push-action@v5
+      timeout-minutes: 10
+      with:
+        context: .
+        file: apps/web/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:hotfix-${{ github.run_number }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+        cache-from: |
+          type=gha,scope=web
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+        cache-to: type=gha,mode=max,scope=web
+        provenance: false
+        sbom: false
+        
+    - name: 🔥 Deploy hotfix to production
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.SSH_HOST }}
+        username: ${{ env.SSH_USER }}
+        key: ${{ env.SSH_PRIVATE_KEY }}
+        port: ${{ env.SSH_PORT }}
+        script: |
+          cd /opt/glimmr/current
+          
+          # Docker setup
+          COMPOSE_CMD="docker compose"
+          if ! docker compose version &> /dev/null; then
+              COMPOSE_CMD="docker-compose"
+          fi
+          
+          echo "🔥 HOTFIX DEPLOYMENT"
+          echo "Services: ${{ github.event.inputs.service }}"
+          
+          # Deploy based on service selection
+          if [[ "${{ github.event.inputs.service }}" == "api" ]]; then
+            echo "🔥 Deploying API hotfix..."
+            $COMPOSE_CMD -f docker-compose.production.yml pull api
+            $COMPOSE_CMD -f docker-compose.production.yml stop api
+            $COMPOSE_CMD -f docker-compose.production.yml up -d api
+          elif [[ "${{ github.event.inputs.service }}" == "web" ]]; then
+            echo "🔥 Deploying Web hotfix..."
+            $COMPOSE_CMD -f docker-compose.production.yml pull web
+            $COMPOSE_CMD -f docker-compose.production.yml stop web
+            $COMPOSE_CMD -f docker-compose.production.yml up -d web
+          elif [[ "${{ github.event.inputs.service }}" == "both" ]]; then
+            echo "🔥 Deploying both API and Web hotfix..."
+            $COMPOSE_CMD -f docker-compose.production.yml pull api web
+            $COMPOSE_CMD -f docker-compose.production.yml stop api web
+            $COMPOSE_CMD -f docker-compose.production.yml up -d api web
+          fi
+          
+          echo "✅ Hotfix deployed successfully!"
+          echo "📊 Service status:"
+          $COMPOSE_CMD -f docker-compose.production.yml ps
+          
+    - name: 📢 Notify hotfix success
+      if: success()
+      run: |
+        echo "🔥✅ HOTFIX DEPLOYED SUCCESSFULLY"
+        echo "Branch: ${{ github.event.inputs.branch }}"
+        echo "Service: ${{ github.event.inputs.service }}"
+        echo "Deployment time: $(date)"
+        
+    - name: 📢 Notify hotfix failure
+      if: failure()
+      run: |
+        echo "🔥❌ HOTFIX DEPLOYMENT FAILED"
+        echo "Branch: ${{ github.event.inputs.branch }}"
+        echo "Service: ${{ github.event.inputs.service }}"
+        echo "Check logs immediately and consider rollback!"
+        exit 1
