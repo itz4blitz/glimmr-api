@@ -65,11 +65,11 @@ jobs:
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
       run: |
-        # Load infrastructure IDs first
-        VAULT_ID=$(op item get 'glimmr-infrastructure-ids' --field='onepassword_vault_id' --reveal)
+        # Load infrastructure IDs first (hardcode vault for service account)
+        VAULT_ID="ix6on2g66agy3lj42z72y4rmqu"
         echo "VAULT_ID=${VAULT_ID}" >> $GITHUB_ENV
-        echo "CLOUDFLARE_ACCOUNT_ID=$(op item get 'glimmr-infrastructure-ids' --field='cloudflare_account_id' --reveal)" >> $GITHUB_ENV
-        echo "CLOUDFLARE_TUNNEL_ID=$(op item get 'glimmr-infrastructure-ids' --field='cloudflare_tunnel_id' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_ACCOUNT_ID=$(op item get 'glimmr-infrastructure-ids' --vault='${VAULT_ID}' --field='cloudflare_account_id' --reveal)" >> $GITHUB_ENV
+        echo "CLOUDFLARE_TUNNEL_ID=$(op item get 'glimmr-infrastructure-ids' --vault='${VAULT_ID}' --field='cloudflare_tunnel_id' --reveal)" >> $GITHUB_ENV
         
         # Load production secrets from 1Password using dynamic vault ID
         echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='${VAULT_ID}' --field='password' --reveal)" >> $GITHUB_ENV
