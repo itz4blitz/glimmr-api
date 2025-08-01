@@ -78,35 +78,22 @@ jobs:
       id: hashes
       run: |
         # Calculate hash for API dependencies and source
-        API_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/api/package.json | sha256sum | cut -d' ' -f1)
-        API_SOURCE_HASH=$(find apps/api/src -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+        API_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/api/package.json | sha256sum | cut -d' ' -f1 | cut -c1-12)
+        API_SOURCE_HASH=$(find apps/api/src -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1 | cut -c1-12)
         echo "api-deps-hash=${API_DEPS_HASH}" >> $GITHUB_OUTPUT
         echo "api-source-hash=${API_SOURCE_HASH}" >> $GITHUB_OUTPUT
         
         # Calculate hash for Web dependencies and source  
-        WEB_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/web/package.json | sha256sum | cut -d' ' -f1)
-        WEB_SOURCE_HASH=$(find apps/web/src -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" -o -name "*.css" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+        WEB_DEPS_HASH=$(sha256sum package.json pnpm-lock.yaml apps/web/package.json | sha256sum | cut -d' ' -f1 | cut -c1-12)
+        WEB_SOURCE_HASH=$(find apps/web/src -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" -o -name "*.css" | sort | xargs sha256sum | sha256sum | cut -d' ' -f1 | cut -c1-12)
         echo "web-deps-hash=${WEB_DEPS_HASH}" >> $GITHUB_OUTPUT
         echo "web-source-hash=${WEB_SOURCE_HASH}" >> $GITHUB_OUTPUT
         
-        # Combined hashes for tagging
+        # Combined hashes for tagging (12+12+1 = 25 chars, well under Docker limit)
         echo "api-combined-hash=${API_DEPS_HASH}-${API_SOURCE_HASH}" >> $GITHUB_OUTPUT
         echo "web-combined-hash=${WEB_DEPS_HASH}-${WEB_SOURCE_HASH}" >> $GITHUB_OUTPUT
           
-    - name: 🔍 Check if API image exists
-      id: api-exists
-      run: |
-        # Check if image with content hash already exists
-        if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }} >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "✅ API image with hash ${{ steps.hashes.outputs.api-combined-hash }} already exists, skipping build"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "🔨 API image with hash ${{ steps.hashes.outputs.api-combined-hash }} not found, building..."
-        fi
-        
     - name: 🏗️ Build and push API image
-      if: steps.api-exists.outputs.exists == 'false'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -120,35 +107,12 @@ jobs:
         cache-from: |
           type=gha,scope=api
           type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
-          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-deps-hash }}
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
         cache-to: type=gha,mode=max,scope=api
         build-args: |
           BUILDKIT_INLINE_CACHE=1
-          
-    - name: 🏷️ Tag existing API image
-      if: steps.api-exists.outputs.exists == 'true'
-      run: |
-        # Pull existing image and retag it
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
-        
-    - name: 🔍 Check if Web image exists
-      id: web-exists
-      run: |
-        # Check if image with content hash already exists
-        if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }} >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "✅ Web image with hash ${{ steps.hashes.outputs.web-combined-hash }} already exists, skipping build"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "🔨 Web image with hash ${{ steps.hashes.outputs.web-combined-hash }} not found, building..."
-        fi
         
     - name: 🏗️ Build and push Web image
-      if: steps.web-exists.outputs.exists == 'false'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -162,20 +126,10 @@ jobs:
         cache-from: |
           type=gha,scope=web
           type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
-          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-deps-hash }}
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
         cache-to: type=gha,mode=max,scope=web
         build-args: |
           BUILDKIT_INLINE_CACHE=1
-          
-    - name: 🏷️ Tag existing Web image
-      if: steps.web-exists.outputs.exists == 'true'
-      run: |
-        # Pull existing image and retag it
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }}
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.hashes.outputs.web-combined-hash }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.meta.outputs.version }}
         
         
     - name: 📝 Create deployment package
