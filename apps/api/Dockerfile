@@ -45,8 +45,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 
-# Install production dependencies only and rebuild native modules
-RUN pnpm install --frozen-lockfile --production && \
+# Install all dependencies (including dev dependencies needed for native builds)
+RUN pnpm install --frozen-lockfile && \
     pnpm rebuild bcrypt
 
 # Copy built application from builder stage

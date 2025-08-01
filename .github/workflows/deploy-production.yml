@@ -322,7 +322,7 @@ jobs:
               - authentik-postgres
               - authentik-redis
             ports:
-              - "127.0.0.1:9000:9000"
+              - "127.0.0.1:9002:9000"
               - "127.0.0.1:9443:9443"
               
           authentik-worker:
@@ -539,7 +539,7 @@ jobs:
           
           # Install abctl if not present
           if ! command -v abctl &> /dev/null; then
-            curl -LsfS https://get.airbyte.com | bash -
+            curl -LsfS https://get.airbyte.com | bash - -b "$HOME/.local/bin"
             export PATH="$HOME/.local/bin:$PATH"
           fi
           
@@ -621,7 +621,7 @@ jobs:
                     },
                     {
                       "hostname": "auth.glimmr.health",
-                      "service": "http://localhost:9000"
+                      "service": "http://localhost:9002"
                     },
                     {
                       "hostname": "airflow.glimmr.health",
