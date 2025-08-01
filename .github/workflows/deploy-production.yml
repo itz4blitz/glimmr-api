@@ -69,18 +69,10 @@ jobs:
         echo "CLOUDFLARE_ACCOUNT_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='cloudflare_account_id' --reveal)" >> $GITHUB_ENV
         echo "CLOUDFLARE_TUNNEL_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='cloudflare_tunnel_id' --reveal)" >> $GITHUB_ENV
         
-        # Load production secrets from 1Password using vault name
+        # Load production secrets from 1Password using vault name (only secrets we actually use)
         echo "POSTGRES_PASSWORD=$(op item get 'glimmr-postgres-master' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
         echo "REDIS_PASSWORD=$(op item get 'glimmr-redis-master' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
         echo "JWT_SECRET=$(op item get 'glimmr-api-secrets' --vault='Glimmr' --field='jwt_secret' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-admin' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
-        
-        # Additional service secrets
-        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AUTHENTIK_REDIS_PASSWORD=$(op item get 'glimmr-authentik-redis' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='Glimmr' --field='secret_key' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
-        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='fernet_key' --reveal)" >> $GITHUB_ENV
         echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='Glimmr' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
         echo "CLOUDFLARE_API_TOKEN=$(op item get 'glimmr-cloudflare' --vault='Glimmr' --field='api_token' --reveal)" >> $GITHUB_ENV
         
