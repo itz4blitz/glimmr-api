@@ -29,8 +29,8 @@ RUN npm run build
 # Stage 2: Production stage with Nginx
 FROM nginx:alpine AS production
 
-# Copy custom nginx config
-COPY <<EOF /etc/nginx/conf.d/default.conf
+# Create nginx configuration
+RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
 server {
     listen 80;
     server_name _;
