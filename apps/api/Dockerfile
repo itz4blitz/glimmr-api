@@ -46,8 +46,9 @@ COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 
 # Install all dependencies (including dev dependencies needed for native builds)
-RUN pnpm install --frozen-lockfile && \
-    pnpm rebuild bcrypt
+RUN pnpm install --frozen-lockfile --include-workspace-root && \
+    pnpm rebuild bcrypt && \
+    pnpm install --prod --frozen-lockfile
 
 # Copy built application from builder stage
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
