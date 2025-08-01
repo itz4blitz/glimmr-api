@@ -44,12 +44,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 
-# Install only production dependencies (cached if package files haven't changed)
-RUN pnpm install --frozen-lockfile --prod --prefer-offline
+# Install all dependencies (including dev) to ensure native modules build correctly
+RUN pnpm install --frozen-lockfile --prefer-offline
 
 # Copy built application from builder stage
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+
+# Rebuild native dependencies for Alpine Linux
+RUN pnpm rebuild
 
 # Create uploads directory and set permissions
 RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
