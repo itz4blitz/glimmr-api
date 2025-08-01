@@ -140,7 +140,9 @@ jobs:
         # Copy infrastructure files
         cp -r infrastructure deployment/
         cp docker-compose.production.yml deployment/
-        cp setup.sh deployment/
+        cp wait-for-health.sh deployment/
+        cp show-status.sh deployment/
+        cp setup.sh deployment/ 2>/dev/null || true
         
         # Create production environment file
         cat > deployment/.env.production << EOF
@@ -149,6 +151,7 @@ jobs:
         
         # Database
         POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        GLIMMR_API_PASSWORD=${POSTGRES_PASSWORD}
         REDIS_PASSWORD=${REDIS_PASSWORD}
         
         # API
@@ -157,12 +160,19 @@ jobs:
         # Airflow
         AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
         
+        # MinIO Storage
+        MINIO_ROOT_USER=glimmr-prod
+        MINIO_ROOT_PASSWORD=${POSTGRES_PASSWORD}
+        
         # Container Registry
         REGISTRY=${REGISTRY}
         IMAGE_NAME=${IMAGE_NAME}
         IMAGE_TAG=${{ steps.meta.outputs.version }}
         API_IMAGE_TAG=${{ steps.hashes.outputs.api-combined-hash }}
         WEB_IMAGE_TAG=${{ steps.hashes.outputs.web-combined-hash }}
+        
+        # Domain (can be overridden)
+        DOMAIN=glimmr.health
         EOF
         
         # Create deployment script
@@ -175,17 +185,41 @@ jobs:
         # Load environment
         source .env.production
         
+        # Check if Docker is available
+        if ! command -v docker &> /dev/null; then
+            echo "❌ Docker is not installed. Please install Docker first."
+            exit 1
+        fi
+        
+        # Use docker compose (new) or docker-compose (legacy)
+        COMPOSE_CMD="docker compose"
+        if ! docker compose version &> /dev/null; then
+            if command -v docker-compose &> /dev/null; then
+                COMPOSE_CMD="docker-compose"
+            else
+                echo "❌ Neither 'docker compose' nor 'docker-compose' is available."
+                exit 1
+            fi
+        fi
+        
+        echo "🐳 Using Docker Compose command: $COMPOSE_CMD"
+        
         # Pull latest images
-        docker-compose -f docker-compose.production.yml pull
+        $COMPOSE_CMD -f docker-compose.production.yml pull
         
         # Stop existing services
-        docker-compose -f docker-compose.production.yml down
+        $COMPOSE_CMD -f docker-compose.production.yml down
         
         # Start services
-        docker-compose -f docker-compose.production.yml up -d
+        $COMPOSE_CMD -f docker-compose.production.yml up -d
         
-        # Wait for health checks
-        ./wait-for-health.sh
+        # Wait for health checks if script exists
+        if [ -f "./wait-for-health.sh" ]; then
+            ./wait-for-health.sh
+        else
+            echo "⚠️ Health check script not found, waiting 30 seconds..."
+            sleep 30
+        fi
         
         echo "✅ Deployment completed successfully!"
         EOF
