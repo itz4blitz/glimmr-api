@@ -76,6 +76,15 @@ jobs:
         echo "CLOUDFLARE_TUNNEL_TOKEN=$(op item get 'glimmr-cloudflare' --vault='Glimmr' --field='tunnel_token' --reveal)" >> $GITHUB_ENV
         echo "CLOUDFLARE_API_TOKEN=$(op item get 'glimmr-cloudflare' --vault='Glimmr' --field='api_token' --reveal)" >> $GITHUB_ENV
         
+        # Load additional service secrets from 1Password
+        echo "AUTHENTIK_SECRET_KEY=$(op item get 'glimmr-authentik-secrets' --vault='Glimmr' --field='secret_key' --reveal)" >> $GITHUB_ENV
+        echo "AUTHENTIK_POSTGRES_PASSWORD=$(op item get 'glimmr-authentik-postgres' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_POSTGRES_PASSWORD=$(op item get 'glimmr-airflow-postgres' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_REDIS_PASSWORD=$(op item get 'glimmr-airflow-redis' --vault='Glimmr' --field='password' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_FERNET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='fernet_key' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_SECRET_KEY=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='secret_key' --reveal)" >> $GITHUB_ENV
+        echo "AIRFLOW_ADMIN_PASSWORD=$(op item get 'glimmr-airflow-secrets' --vault='Glimmr' --field='admin_password' --reveal)" >> $GITHUB_ENV
+        
         # SSH deployment credentials
         SSH_ITEM_ID=$(op item get 'glimmr-infrastructure-ids' --vault='Glimmr' --field='ssh_credentials_id' --reveal 2>/dev/null || echo 'ifrfmw7jojlbl7p4tflhcmrhku')
         SSH_KEY=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='private_key' --reveal | sed 's/^"//;s/"$//')
@@ -119,7 +128,7 @@ jobs:
           "single-service")
             if [[ "${SERVICES}" == *"api"* ]]; then BUILD_API="true"; fi
             if [[ "${SERVICES}" == *"web"* ]]; then BUILD_WEB="true"; fi
-            if [[ "${SERVICES}" == *"postgres"* ]] || [[ "${SERVICES}" == *"redis"* ]] || [[ "${SERVICES}" == *"minio"* ]] || [[ "${SERVICES}" == *"authentik"* ]] || [[ "${SERVICES}" == *"airflow"* ]]; then
+            if [[ "${SERVICES}" == *"postgres"* ]] || [[ "${SERVICES}" == *"redis"* ]] || [[ "${SERVICES}" == *"minio"* ]] || [[ "${SERVICES}" == *"authentik"* ]] || [[ "${SERVICES}" == *"portainer"* ]]; then
               DEPLOY_INFRASTRUCTURE="true"
             fi
             ;;
@@ -229,6 +238,7 @@ jobs:
         # Create minimal docker-compose for production (no source code!)
         cat > docker-compose.prod.yml << EOF
         services:
+          # Core Database Services
           postgres:
             image: postgres:16-alpine
             container_name: glimmr-postgres
@@ -252,6 +262,7 @@ jobs:
             ports:
               - "127.0.0.1:6379:6379"
               
+          # Storage Services
           minio:
             image: minio/minio:latest
             container_name: glimmr-minio
@@ -266,6 +277,73 @@ jobs:
               - "127.0.0.1:9000:9000"
               - "127.0.0.1:9001:9001"
               
+          # Authentik SSO/Identity Provider
+          authentik-postgres:
+            image: postgres:16-alpine
+            container_name: glimmr-authentik-postgres
+            restart: unless-stopped
+            environment:
+              POSTGRES_PASSWORD: \${AUTHENTIK_POSTGRES_PASSWORD}
+              POSTGRES_USER: authentik
+              POSTGRES_DB: authentik
+            volumes:
+              - authentik_postgres_data:/var/lib/postgresql/data
+            ports:
+              - "127.0.0.1:5433:5432"
+            
+          authentik-redis:
+            image: redis:alpine
+            container_name: glimmr-authentik-redis
+            restart: unless-stopped
+            command: --save 60 1 --loglevel warning
+            volumes:
+              - authentik_redis_data:/data
+            ports:
+              - "127.0.0.1:6380:6379"
+              
+          authentik-server:
+            image: ghcr.io/goauthentik/server:2025.6.4
+            container_name: glimmr-authentik-server
+            restart: unless-stopped
+            command: server
+            environment:
+              AUTHENTIK_SECRET_KEY: \${AUTHENTIK_SECRET_KEY}
+              AUTHENTIK_REDIS__HOST: authentik-redis
+              AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+              AUTHENTIK_POSTGRESQL__USER: authentik
+              AUTHENTIK_POSTGRESQL__NAME: authentik
+              AUTHENTIK_POSTGRESQL__PASSWORD: \${AUTHENTIK_POSTGRES_PASSWORD}
+            volumes:
+              - authentik_media:/media
+              - authentik_templates:/templates
+            depends_on:
+              - authentik-postgres
+              - authentik-redis
+            ports:
+              - "127.0.0.1:9000:9000"
+              - "127.0.0.1:9443:9443"
+              
+          authentik-worker:
+            image: ghcr.io/goauthentik/server:2025.6.4
+            container_name: glimmr-authentik-worker
+            restart: unless-stopped
+            command: worker
+            environment:
+              AUTHENTIK_SECRET_KEY: \${AUTHENTIK_SECRET_KEY}
+              AUTHENTIK_REDIS__HOST: authentik-redis
+              AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+              AUTHENTIK_POSTGRESQL__USER: authentik
+              AUTHENTIK_POSTGRESQL__NAME: authentik
+              AUTHENTIK_POSTGRESQL__PASSWORD: \${AUTHENTIK_POSTGRES_PASSWORD}
+            volumes:
+              - authentik_media:/media
+              - authentik_templates:/templates
+              - /var/run/docker.sock:/var/run/docker.sock:ro
+            depends_on:
+              - authentik-postgres
+              - authentik-redis
+              
+          # Main Application Services
           api:
             image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.hashes.outputs.api-combined-hash }}
             container_name: glimmr-api
@@ -288,8 +366,9 @@ jobs:
             depends_on:
               - api
             ports:
-              - "127.0.0.1:5174:5174"
+              - "127.0.0.1:5174:80"
               
+          # Management Services
           portainer:
             image: portainer/portainer-ce:latest
             container_name: glimmr-portainer
@@ -300,6 +379,74 @@ jobs:
             ports:
               - "127.0.0.1:9090:9000"
               
+          # Apache Airflow (Workflow Orchestration)
+          airflow-postgres:
+            image: postgres:16-alpine
+            container_name: glimmr-airflow-postgres
+            restart: unless-stopped
+            environment:
+              POSTGRES_PASSWORD: \${AIRFLOW_POSTGRES_PASSWORD}
+              POSTGRES_USER: airflow
+              POSTGRES_DB: airflow
+            volumes:
+              - airflow_postgres_data:/var/lib/postgresql/data
+            ports:
+              - "127.0.0.1:5434:5432"
+              
+          airflow-redis:
+            image: redis:7-alpine
+            container_name: glimmr-airflow-redis
+            restart: unless-stopped
+            command: redis-server --requirepass \${AIRFLOW_REDIS_PASSWORD}
+            volumes:
+              - airflow_redis_data:/data
+            ports:
+              - "127.0.0.1:6381:6379"
+              
+          airflow-webserver:
+            image: apache/airflow:2.10.5
+            container_name: glimmr-airflow-webserver
+            restart: unless-stopped
+            command: webserver
+            environment:
+              AIRFLOW__CORE__EXECUTOR: LocalExecutor
+              AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:\${AIRFLOW_POSTGRES_PASSWORD}@airflow-postgres:5432/airflow
+              AIRFLOW__CELERY__BROKER_URL: redis://:\${AIRFLOW_REDIS_PASSWORD}@airflow-redis:6379/0
+              AIRFLOW__CORE__FERNET_KEY: \${AIRFLOW_FERNET_KEY}
+              AIRFLOW__WEBSERVER__SECRET_KEY: \${AIRFLOW_SECRET_KEY}
+              AIRFLOW__CORE__LOAD_EXAMPLES: false
+              _AIRFLOW_WWW_USER_USERNAME: admin
+              _AIRFLOW_WWW_USER_PASSWORD: \${AIRFLOW_ADMIN_PASSWORD}
+            volumes:
+              - airflow_dags:/opt/airflow/dags
+              - airflow_logs:/opt/airflow/logs
+              - airflow_plugins:/opt/airflow/plugins
+            depends_on:
+              - airflow-postgres
+              - airflow-redis
+            ports:
+              - "127.0.0.1:8080:8080"
+              
+          airflow-scheduler:
+            image: apache/airflow:2.10.5
+            container_name: glimmr-airflow-scheduler
+            restart: unless-stopped
+            command: scheduler
+            environment:
+              AIRFLOW__CORE__EXECUTOR: LocalExecutor
+              AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:\${AIRFLOW_POSTGRES_PASSWORD}@airflow-postgres:5432/airflow
+              AIRFLOW__CELERY__BROKER_URL: redis://:\${AIRFLOW_REDIS_PASSWORD}@airflow-redis:6379/0
+              AIRFLOW__CORE__FERNET_KEY: \${AIRFLOW_FERNET_KEY}
+              AIRFLOW__WEBSERVER__SECRET_KEY: \${AIRFLOW_SECRET_KEY}
+              AIRFLOW__CORE__LOAD_EXAMPLES: false
+            volumes:
+              - airflow_dags:/opt/airflow/dags
+              - airflow_logs:/opt/airflow/logs
+              - airflow_plugins:/opt/airflow/plugins
+            depends_on:
+              - airflow-postgres
+              - airflow-redis
+              
           cloudflare-tunnel:
             image: cloudflare/cloudflared:latest
             container_name: glimmr-cloudflare-tunnel
@@ -309,12 +456,23 @@ jobs:
               - api
               - web
               - portainer
+              - authentik-server
+              - airflow-webserver
               
         volumes:
           postgres_data:
           redis_data:
           minio_data:
           portainer_data:
+          authentik_postgres_data:
+          authentik_redis_data:
+          authentik_media:
+          authentik_templates:
+          airflow_postgres_data:
+          airflow_redis_data:
+          airflow_dags:
+          airflow_logs:
+          airflow_plugins:
         EOF
         
         # Create minimal .env file
@@ -325,6 +483,13 @@ jobs:
         CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
         MINIO_ROOT_USER=glimmr-prod
         MINIO_ROOT_PASSWORD=${POSTGRES_PASSWORD}
+        AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+        AUTHENTIK_POSTGRES_PASSWORD=${AUTHENTIK_POSTGRES_PASSWORD}
+        AIRFLOW_POSTGRES_PASSWORD=${AIRFLOW_POSTGRES_PASSWORD}
+        AIRFLOW_REDIS_PASSWORD=${AIRFLOW_REDIS_PASSWORD}
+        AIRFLOW_FERNET_KEY=${AIRFLOW_FERNET_KEY}
+        AIRFLOW_SECRET_KEY=${AIRFLOW_SECRET_KEY}
+        AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
         EOF
         
     - name: 📦 Upload minimal deployment files
@@ -366,6 +531,63 @@ jobs:
               
               # Start infrastructure if not running
               docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
+              
+          # Install and configure Airbyte using abctl CLI
+          echo "🚀 Installing Airbyte using abctl CLI..."
+          
+          # Install abctl if not present
+          if ! command -v abctl &> /dev/null; then
+            curl -LsfS https://get.airbyte.com | bash -
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          
+          # Create Airbyte values.yaml for production configuration
+          cat > airbyte-values.yaml << 'AIRBYTE_EOF'
+          global:
+            edition: "community"
+            
+          webapp:
+            ingress:
+              enabled: false
+            service:
+              type: ClusterIP
+              port: 8000
+              
+          server:
+            service:
+              type: ClusterIP
+              port: 8001
+              
+          # Use external PostgreSQL (our main postgres service)
+          postgresql:
+            enabled: false
+            
+          externalDatabase:
+            host: "localhost"
+            port: 5432
+            database: "airbyte"
+            user: "postgres"
+            password: "${POSTGRES_PASSWORD}"
+            
+          # Disable built-in storage, we'll use our MinIO
+          minio:
+            enabled: false
+            
+          # Configure external storage
+          externalStorage:
+            type: "S3"
+            s3:
+              endpoint: "http://localhost:9000"
+              bucket: "airbyte-data"
+              accessKeyId: "glimmr-prod"
+              secretAccessKey: "${POSTGRES_PASSWORD}"
+          AIRBYTE_EOF
+          
+          # Create airbyte database in PostgreSQL
+          docker exec glimmr-postgres psql -U postgres -c "CREATE DATABASE IF NOT EXISTS airbyte;" || echo "Database already exists"
+          
+          # Install or upgrade Airbyte
+          abctl local install --values ./airbyte-values.yaml --port 8000 || echo "⚠️ Airbyte installation completed with warnings"
               ;;
           esac
           
@@ -394,6 +616,18 @@ jobs:
                     {
                       "hostname": "app.glimmr.health", 
                       "service": "http://localhost:5174"
+                    },
+                    {
+                      "hostname": "auth.glimmr.health",
+                      "service": "http://localhost:9000"
+                    },
+                    {
+                      "hostname": "airflow.glimmr.health",
+                      "service": "http://localhost:8080"
+                    },
+                    {
+                      "hostname": "airbyte.glimmr.health",
+                      "service": "http://localhost:8000"
                     },
                     {
                       "hostname": "portainer.glimmr.health",

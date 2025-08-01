@@ -1,0 +1,9 @@
+tunnel: 21945a72-7450-4553-9c17-dbc27883135a
+credentials-file: /tmp/tunnel-creds.json
+
+ingress:
+  - hostname: portainer.glimmr.health
+    service: http://glimmr-portainer:9000
+  - hostname: "*.glimmr.health"
+    service: http_status:404
+  - service: http_status:404
