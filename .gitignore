@@ -52,3 +52,4 @@ apps/api/temp/
 
 #Ignore vscode AI rules
 .github/copilot-instructions.md
+*.tar.gz
