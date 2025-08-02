@@ -632,6 +632,7 @@ jobs:
         # Create minimal .env file
         cat > .env.prod << EOF
         POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        GLIMMR_API_PASSWORD=${POSTGRES_PASSWORD}
         REDIS_PASSWORD=${REDIS_PASSWORD}
         JWT_SECRET=${JWT_SECRET}
         CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
@@ -654,7 +655,7 @@ jobs:
         username: ${{ env.SSH_USER }}
         key: ${{ env.SSH_PRIVATE_KEY }}
         port: ${{ env.SSH_PORT }}
-        source: "docker-compose.prod.yml,.env.prod"
+        source: "docker-compose.production.yml,.env.prod"
         target: "/opt/glimmr/"
         
     - name: 🚀 Deploy services
@@ -672,12 +673,30 @@ jobs:
           
           # Deploy infrastructure first (without API)
           echo "🏗️ Starting infrastructure services..."
-          docker compose -f docker-compose.prod.yml --env-file .env.prod pull postgres redis minio portainer cloudflare-tunnel || true
-          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
+          docker compose -f docker-compose.production.yml --env-file .env.prod pull postgres redis minio portainer cloudflare-tunnel || true
+          docker compose -f docker-compose.production.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
           
           # Wait for PostgreSQL to be ready
           echo "⏳ Waiting for PostgreSQL to be ready..."
           timeout 60 bash -c 'until docker exec glimmr-postgres pg_isready -U postgres; do sleep 2; done'
+          
+          # Create API database user
+          echo "👤 Creating API database user..."
+          docker exec glimmr-postgres psql -U postgres -c "DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'glimmr_api_user') THEN
+              CREATE USER glimmr_api_user WITH PASSWORD '${GLIMMR_API_PASSWORD}';
+              GRANT ALL PRIVILEGES ON DATABASE glimmr TO glimmr_api_user;
+              GRANT ALL ON SCHEMA public TO glimmr_api_user;
+              GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO glimmr_api_user;
+              GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO glimmr_api_user;
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO glimmr_api_user;
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO glimmr_api_user;
+            END IF;
+          END
+          \$\$;"
+          
+          echo "✅ Database user configured"
           
           # Deploy SSL certificates to PostgreSQL
           echo "🔐 Deploying SSL certificates to PostgreSQL..."
@@ -708,8 +727,8 @@ jobs:
           
           # Now deploy applications with SSL-enabled database
           echo "🚀 Starting applications with SSL-enabled database..."
-          docker compose -f docker-compose.prod.yml --env-file .env.prod pull api web || true
-          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api web
+          docker compose -f docker-compose.production.yml --env-file .env.prod pull api web || true
+          docker compose -f docker-compose.production.yml --env-file .env.prod up -d api web
           
           echo "✅ Application deployment complete with SSL"
           
