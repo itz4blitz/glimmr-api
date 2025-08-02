@@ -248,7 +248,7 @@ jobs:
             restart: unless-stopped
             environment:
               POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
-              POSTGRES_DB: glimmr_prod
+              POSTGRES_DB: glimmr
               POSTGRES_USER: postgres
             volumes:
               - postgres_data:/var/lib/postgresql/data
@@ -352,9 +352,26 @@ jobs:
             container_name: glimmr-api
             restart: unless-stopped
             environment:
-              DATABASE_URL: postgresql://postgres:\${POSTGRES_PASSWORD}@postgres:5432/glimmr_prod
-              REDIS_URL: redis://:\${REDIS_PASSWORD}@redis:6379
+              NODE_ENV: production
+              DATABASE_HOST: postgres
+              DATABASE_PORT: 5432
+              DATABASE_NAME: glimmr
+              DATABASE_USERNAME: postgres
+              DATABASE_PASSWORD: \${POSTGRES_PASSWORD}
+              DATABASE_SSL: false
+              DATABASE_URL: postgresql://postgres:\${POSTGRES_PASSWORD}@postgres:5432/glimmr
+              REDIS_HOST: redis
+              REDIS_PORT: 6379
+              REDIS_PASSWORD: \${REDIS_PASSWORD}
+              REDIS_URL: redis://:\${REDIS_PASSWORD}@redis:6379/0
+              STORAGE_SPACES_ENDPOINT: http://minio:9000
+              STORAGE_SPACES_BUCKET: glimmr-prod
+              STORAGE_SPACES_ACCESS_KEY: \${MINIO_ROOT_USER}
+              STORAGE_SPACES_SECRET_KEY: \${MINIO_ROOT_PASSWORD}
               JWT_SECRET: \${JWT_SECRET}
+              JWT_EXPIRES_IN: 24h
+              BCRYPT_ROUNDS: 12
+              LOG_LEVEL: info
             depends_on:
               - postgres
               - redis
@@ -366,6 +383,10 @@ jobs:
             image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
             container_name: glimmr-web
             restart: unless-stopped
+            environment:
+              NODE_ENV: production
+              VITE_API_URL: https://api.glimmr.health/api/v1
+              VITE_WS_URL: wss://api.glimmr.health
             depends_on:
               - api
             ports:
