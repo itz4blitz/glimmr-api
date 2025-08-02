@@ -72,27 +72,11 @@ server {
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_cache_bypass $http_upgrade;
         }
-    }
 }
 EOF
 
 # Copy built application from builder stage
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
-
-# Create non-root user
-RUN addgroup -g 1001 -S nginx-user && \
-    adduser -S nginx-user -u 1001 -G nginx-user
-
-# Set ownership and permissions
-RUN chown -R nginx-user:nginx-user /usr/share/nginx/html && \
-    chown -R nginx-user:nginx-user /var/cache/nginx && \
-    chown -R nginx-user:nginx-user /var/log/nginx && \
-    chown -R nginx-user:nginx-user /etc/nginx/conf.d && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx-user:nginx-user /var/run/nginx.pid
-
-# Switch to non-root user
-USER nginx-user
 
 # Expose port
 EXPOSE 80
