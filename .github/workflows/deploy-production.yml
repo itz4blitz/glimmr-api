@@ -98,65 +98,29 @@ jobs:
         
     - name: 🔐 Manage PostgreSQL SSL Certificates
       run: |
-        # Check if PostgreSQL SSL certificate exists and is valid
-        CERT_EXISTS=$(op item get 'glimmr-postgres-ssl-cert' --vault='Glimmr' --format=json 2>/dev/null || echo "null")
+        # TODO: Fix Cloudflare Origin Certificate API call - temporarily disabled
+        echo "⚠️ SSL certificate generation temporarily disabled - using self-signed certificates"
         
-        if [ "$CERT_EXISTS" = "null" ]; then
-          echo "🔧 Generating new Cloudflare Origin Certificate for PostgreSQL..."
-          
-          # Generate private key and CSR for Origin Certificate
-          openssl genrsa -out /tmp/origin.key 2048
-          openssl req -new -key /tmp/origin.key -out /tmp/origin.csr -subj "/CN=*.glimmr.health/O=Glimmr/C=US" -addext "subjectAltName=DNS:*.glimmr.health,DNS:glimmr.health"
-          
-          # Read CSR content and format for JSON
-          CSR_CONTENT=$(cat /tmp/origin.csr | sed ':a;N;$!ba;s/\n/\\n/g')
-          
-          # Generate Cloudflare Origin Certificate via API
-          CERT_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/certificates" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data "{
-              \"csr\": \"$CSR_CONTENT\",
-              \"hostnames\": [\"*.glimmr.health\", \"glimmr.health\"],
-              \"requested_validity\": 5475
-            }")
-          
-          # Check if API call was successful
-          if echo "$CERT_RESPONSE" | jq -e '.success == true' > /dev/null; then
-            # Extract certificate from response (key was generated locally)
-            CERT_PEM=$(echo "$CERT_RESPONSE" | jq -r '.result.certificate')
-            KEY_PEM=$(cat /tmp/origin.key)
-            EXPIRY_DATE=$(echo "$CERT_RESPONSE" | jq -r '.result.expires_on')
-            
-            # Store in 1Password using our standard approach
-            op item create --category="Secure Note" \
-              --title="glimmr-postgres-ssl-cert" \
-              --vault="Glimmr" \
-              certificate="$CERT_PEM" \
-              expiry_date="$EXPIRY_DATE"
-            
-            op item create --category="Secure Note" \
-              --title="glimmr-postgres-ssl-key" \
-              --vault="Glimmr" \
-              private_key="$KEY_PEM"
-              
-            echo "✅ New PostgreSQL SSL certificate generated and stored in 1Password"
-            
-            # Clean up temporary files
-            rm -f /tmp/origin.key /tmp/origin.csr
-          else
-            echo "❌ Failed to generate Cloudflare Origin Certificate"
-            echo "$CERT_RESPONSE" | jq '.errors'
-            rm -f /tmp/origin.key /tmp/origin.csr
-            exit 1
-          fi
-        else
-          echo "✅ PostgreSQL SSL certificate exists in 1Password"
-        fi
+        # Generate temporary self-signed certificate for PostgreSQL
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+          -keyout /tmp/postgres-server.key \
+          -out /tmp/postgres-server.crt \
+          -subj "/CN=*.glimmr.health/O=Glimmr/C=US" \
+          -addext "subjectAltName=DNS:*.glimmr.health,DNS:glimmr.health"
         
-        # Load SSL certificate for deployment (always needed)
-        echo "POSTGRES_SSL_CERT=$(op item get 'glimmr-postgres-ssl-cert' --vault='Glimmr' --field='certificate' --reveal)" >> $GITHUB_ENV
-        echo "POSTGRES_SSL_KEY=$(op item get 'glimmr-postgres-ssl-key' --vault='Glimmr' --field='private_key' --reveal)" >> $GITHUB_ENV
+        # Set environment variables for deployment
+        echo "POSTGRES_SSL_CERT<<EOF" >> $GITHUB_ENV
+        cat /tmp/postgres-server.crt >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+        echo "POSTGRES_SSL_KEY<<EOF" >> $GITHUB_ENV
+        cat /tmp/postgres-server.key >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+        # Clean up temporary files
+        rm -f /tmp/postgres-server.key /tmp/postgres-server.crt
+        
+        echo "✅ Self-signed PostgreSQL SSL certificate generated"
     
     - name: 🧠 Determine deployment strategy
       id: strategy
