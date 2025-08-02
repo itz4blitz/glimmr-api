@@ -11,7 +11,7 @@ export default defineConfig({
     password: process.env.DATABASE_PASSWORD || "postgres",
     database: process.env.DATABASE_NAME || "glimmr",
     ssl:
-      process.env.NODE_ENV === "production"
+      process.env.DATABASE_SSL === "true"
         ? { rejectUnauthorized: false }
         : false,
   },

@@ -48,6 +48,10 @@ COPY packages ./packages
 # Copy built application from builder stage first
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
+# Copy drizzle configuration and migrations
+COPY apps/api/drizzle.config.ts ./apps/api/
+COPY --from=builder /app/apps/api/src/database/migrations ./apps/api/src/database/migrations
+
 # Install production dependencies only, then rebuild native modules
 RUN pnpm install --frozen-lockfile --prod --include-workspace-root && \
     cd /app/apps/api && npm rebuild bcrypt && \
@@ -70,5 +74,13 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/v1/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start the application
-CMD ["node", "dist/main.js"]
+# Create startup script that runs migrations before starting the app
+RUN echo '#!/bin/sh' > /app/apps/api/start.sh && \
+    echo 'echo "Running database migrations..."' >> /app/apps/api/start.sh && \
+    echo 'cd /app/apps/api && npx drizzle-kit migrate || echo "Migration failed, continuing..."' >> /app/apps/api/start.sh && \
+    echo 'echo "Starting application..."' >> /app/apps/api/start.sh && \
+    echo 'node dist/main.js' >> /app/apps/api/start.sh && \
+    chmod +x /app/apps/api/start.sh
+
+# Start the application with migrations
+CMD ["/app/apps/api/start.sh"]
