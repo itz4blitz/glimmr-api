@@ -104,21 +104,28 @@ jobs:
         if [ "$CERT_EXISTS" = "null" ]; then
           echo "🔧 Generating new Cloudflare Origin Certificate for PostgreSQL..."
           
+          # Generate private key and CSR for Origin Certificate
+          openssl genrsa -out /tmp/origin.key 2048
+          openssl req -new -key /tmp/origin.key -out /tmp/origin.csr -subj "/CN=*.glimmr.health/O=Glimmr/C=US" -addext "subjectAltName=DNS:*.glimmr.health,DNS:glimmr.health"
+          
+          # Read CSR content and format for JSON
+          CSR_CONTENT=$(cat /tmp/origin.csr | sed ':a;N;$!ba;s/\n/\\n/g')
+          
           # Generate Cloudflare Origin Certificate via API
           CERT_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/certificates" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/json" \
-            --data '{
-              "type": "origin-rsa",
-              "hostnames": ["*.glimmr.health", "glimmr.health"],
-              "requested_validity": 5475
-            }')
+            --data "{
+              \"csr\": \"$CSR_CONTENT\",
+              \"hostnames\": [\"*.glimmr.health\", \"glimmr.health\"],
+              \"requested_validity\": 5475
+            }")
           
           # Check if API call was successful
           if echo "$CERT_RESPONSE" | jq -e '.success == true' > /dev/null; then
-            # Extract certificate and key
+            # Extract certificate from response (key was generated locally)
             CERT_PEM=$(echo "$CERT_RESPONSE" | jq -r '.result.certificate')
-            KEY_PEM=$(echo "$CERT_RESPONSE" | jq -r '.result.private_key')
+            KEY_PEM=$(cat /tmp/origin.key)
             EXPIRY_DATE=$(echo "$CERT_RESPONSE" | jq -r '.result.expires_on')
             
             # Store in 1Password using our standard approach
@@ -134,9 +141,13 @@ jobs:
               private_key="$KEY_PEM"
               
             echo "✅ New PostgreSQL SSL certificate generated and stored in 1Password"
+            
+            # Clean up temporary files
+            rm -f /tmp/origin.key /tmp/origin.csr
           else
             echo "❌ Failed to generate Cloudflare Origin Certificate"
             echo "$CERT_RESPONSE" | jq '.errors'
+            rm -f /tmp/origin.key /tmp/origin.csr
             exit 1
           fi
         else
