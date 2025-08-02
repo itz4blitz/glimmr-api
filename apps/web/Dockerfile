@@ -72,6 +72,7 @@ server {
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_cache_bypass $http_upgrade;
         }
+    }
 }
 EOF
 
