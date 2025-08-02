@@ -51,6 +51,7 @@ server {
     
     # Static files caching
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        root /usr/share/nginx/html;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
