@@ -57,9 +57,18 @@ RUN pnpm install --frozen-lockfile --prod --include-workspace-root && \
     cd /app/apps/api && npm rebuild bcrypt && \
     pnpm store prune
 
+# Create startup script that runs migrations before starting the app (as root)
+RUN echo '#!/bin/sh' > /app/apps/api/start.sh && \
+    echo 'echo "Running database migrations..."' >> /app/apps/api/start.sh && \
+    echo 'cd /app/apps/api && npx drizzle-kit migrate || echo "Migration failed, continuing..."' >> /app/apps/api/start.sh && \
+    echo 'echo "Starting application..."' >> /app/apps/api/start.sh && \
+    echo 'node dist/main.js' >> /app/apps/api/start.sh && \
+    chmod +x /app/apps/api/start.sh
+
 # Create uploads directory and set permissions
 RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
 RUN mkdir -p /app/logs && chown -R nestjs:nodejs /app/logs
+RUN chown -R nestjs:nodejs /app/apps/api/start.sh
 
 # Switch to non-root user
 USER nestjs
@@ -73,14 +82,6 @@ EXPOSE 3000
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/v1/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
-
-# Create startup script that runs migrations before starting the app
-RUN echo '#!/bin/sh' > /app/apps/api/start.sh && \
-    echo 'echo "Running database migrations..."' >> /app/apps/api/start.sh && \
-    echo 'cd /app/apps/api && npx drizzle-kit migrate || echo "Migration failed, continuing..."' >> /app/apps/api/start.sh && \
-    echo 'echo "Starting application..."' >> /app/apps/api/start.sh && \
-    echo 'node dist/main.js' >> /app/apps/api/start.sh && \
-    chmod +x /app/apps/api/start.sh
 
 # Start the application with migrations
 CMD ["/app/apps/api/start.sh"]
