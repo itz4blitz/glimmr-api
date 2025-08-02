@@ -98,15 +98,54 @@ jobs:
         
     - name: 🔐 Manage PostgreSQL SSL Certificates
       run: |
-        # TODO: Fix Cloudflare Origin Certificate API call - temporarily disabled
-        echo "⚠️ SSL certificate generation temporarily disabled - using self-signed certificates"
+        echo "🔐 Generating Cloudflare Origin Certificate for PostgreSQL..."
         
-        # Generate temporary self-signed certificate for PostgreSQL
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-          -keyout /tmp/postgres-server.key \
-          -out /tmp/postgres-server.crt \
-          -subj "/CN=*.glimmr.health/O=Glimmr/C=US" \
-          -addext "subjectAltName=DNS:*.glimmr.health,DNS:glimmr.health"
+        # Generate RSA private key
+        openssl genrsa -out /tmp/postgres-server.key 2048
+        
+        # Generate Certificate Signing Request (CSR)
+        openssl req -new -key /tmp/postgres-server.key \
+          -out /tmp/postgres-server.csr \
+          -subj "/CN=postgres.glimmr.health/O=Glimmr/C=US" \
+          -addext "subjectAltName=DNS:postgres.glimmr.health,DNS:*.glimmr.health,DNS:glimmr.health"
+        
+        # Submit CSR to Cloudflare Origin Certificate API
+        echo "📋 Submitting CSR to Cloudflare for Origin Certificate..."
+        
+        # Format CSR for JSON (escape newlines)
+        CSR_CONTENT=$(cat /tmp/postgres-server.csr | sed ':a;N;$!ba;s/\n/\\n/g')
+        
+        CERT_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/certificates" \
+          -H "X-Auth-Email: $CLOUDFLARE_EMAIL" \
+          -H "X-Auth-Key: $CLOUDFLARE_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"certificate\": \"$CSR_CONTENT\",
+            \"hostnames\": [\"postgres.glimmr.health\", \"*.glimmr.health\", \"glimmr.health\"],
+            \"requested_validity\": 365
+          }")
+        
+        echo "🔍 Cloudflare API Response Status: $(echo "$CERT_RESPONSE" | jq -r '.success // "unknown"')"
+        
+        # Check if certificate generation was successful
+        if echo "$CERT_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+          echo "✅ Successfully obtained Cloudflare Origin Certificate"
+          echo "$CERT_RESPONSE" | jq -r '.result.certificate' > /tmp/postgres-server.crt
+          echo "🎯 Certificate written successfully"
+        else
+          echo "❌ Failed to obtain Cloudflare Origin Certificate"
+          echo "📋 API Error: $(echo "$CERT_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')"
+          echo "🔄 Falling back to self-signed certificate..."
+          
+          # Fallback to self-signed certificate
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /tmp/postgres-server.key \
+            -out /tmp/postgres-server.crt \
+            -subj "/CN=postgres.glimmr.health/O=Glimmr/C=US" \
+            -addext "subjectAltName=DNS:postgres.glimmr.health,DNS:*.glimmr.health,DNS:glimmr.health"
+          
+          echo "⚠️ Using self-signed certificate as fallback"
+        fi
         
         # Set environment variables for deployment
         echo "POSTGRES_SSL_CERT<<EOF" >> $GITHUB_ENV
@@ -118,9 +157,9 @@ jobs:
         echo "EOF" >> $GITHUB_ENV
         
         # Clean up temporary files
-        rm -f /tmp/postgres-server.key /tmp/postgres-server.crt
+        rm -f /tmp/postgres-server.key /tmp/postgres-server.crt /tmp/postgres-server.csr
         
-        echo "✅ Self-signed PostgreSQL SSL certificate generated"
+        echo "✅ PostgreSQL SSL certificate configuration complete"
     
     - name: 🧠 Determine deployment strategy
       id: strategy
@@ -631,24 +670,10 @@ jobs:
           # Authenticate with GitHub Container Registry
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          # Pull and deploy based on strategy
-          case "${{ steps.strategy.outputs.deployment-type }}" in
-            "full-stack")
-              echo "🚀 Full stack deployment"
-              docker compose -f docker-compose.prod.yml --env-file .env.prod down || true
-              docker compose -f docker-compose.prod.yml --env-file .env.prod pull
-              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-              ;;
-            "apps-only"|*)
-              echo "📱 Apps-only deployment"
-              docker compose -f docker-compose.prod.yml --env-file .env.prod pull api web || true
-              docker compose -f docker-compose.prod.yml --env-file .env.prod stop api web || true
-              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api web
-              
-              # Start infrastructure if not running
-              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
-              ;;
-          esac
+          # Deploy infrastructure first (without API)
+          echo "🏗️ Starting infrastructure services..."
+          docker compose -f docker-compose.prod.yml --env-file .env.prod pull postgres redis minio portainer cloudflare-tunnel || true
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
           
           # Wait for PostgreSQL to be ready
           echo "⏳ Waiting for PostgreSQL to be ready..."
@@ -680,6 +705,13 @@ jobs:
           rm -f /tmp/postgres-server.crt /tmp/postgres-server.key
           
           echo "✅ PostgreSQL SSL enabled with Cloudflare Origin Certificate"
+          
+          # Now deploy applications with SSL-enabled database
+          echo "🚀 Starting applications with SSL-enabled database..."
+          docker compose -f docker-compose.prod.yml --env-file .env.prod pull api web || true
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api web
+          
+          echo "✅ Application deployment complete with SSL"
           
           # Install and configure Airbyte using abctl CLI
           echo "🚀 Installing Airbyte using abctl CLI..."
