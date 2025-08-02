@@ -116,8 +116,7 @@ jobs:
         CSR_CONTENT=$(cat /tmp/postgres-server.csr | sed ':a;N;$!ba;s/\n/\\n/g')
         
         CERT_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/certificates" \
-          -H "X-Auth-Email: $CLOUDFLARE_EMAIL" \
-          -H "X-Auth-Key: $CLOUDFLARE_API_KEY" \
+          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
           -H "Content-Type: application/json" \
           -d "{
             \"certificate\": \"$CSR_CONTENT\",
@@ -631,21 +630,42 @@ jobs:
         
         # Create minimal .env file
         cat > .env.prod << EOF
+        # Database Configuration
         POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
         GLIMMR_API_PASSWORD=${POSTGRES_PASSWORD}
+        
+        # Redis Configuration
         REDIS_PASSWORD=${REDIS_PASSWORD}
+        
+        # Application Configuration
         JWT_SECRET=${JWT_SECRET}
+        REGISTRY=${REGISTRY}
+        IMAGE_NAME=${IMAGE_NAME}
+        API_IMAGE_TAG=latest
+        WEB_IMAGE_TAG=latest
+        SENTRY_DSN=${SENTRY_DSN:-}
+        
+        # Cloudflare Configuration
         CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+        
+        # Storage Configuration
         MINIO_ROOT_USER=glimmr-prod
         MINIO_ROOT_PASSWORD=${POSTGRES_PASSWORD}
+        
+        # Authentik Configuration
         AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
         AUTHENTIK_POSTGRES_PASSWORD=${AUTHENTIK_POSTGRES_PASSWORD}
+        AUTHENTIK_REDIS_PASSWORD=${AUTHENTIK_REDIS_PASSWORD:-}
+        
+        # Airflow Configuration
         AIRFLOW_POSTGRES_PASSWORD=${AIRFLOW_POSTGRES_PASSWORD}
-        AIRFLOW_REDIS_PASSWORD=${AIRFLOW_REDIS_PASSWORD}
+        AIRFLOW_REDIS_PASSWORD=${AIRFLOW_REDIS_PASSWORD:-}
         AIRFLOW_FERNET_KEY=${AIRFLOW_FERNET_KEY}
-        AIRFLOW_SECRET_KEY=${AIRFLOW_SECRET_KEY}
-        AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
-        GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+        AIRFLOW_SECRET_KEY=${AIRFLOW_SECRET_KEY:-}
+        AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD:-}
+        
+        # Monitoring Configuration
+        GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-}
         EOF
         
     - name: 📦 Upload minimal deployment files
@@ -673,7 +693,14 @@ jobs:
           
           # Deploy infrastructure first (without API)
           echo "🏗️ Starting infrastructure services..."
+          
+          # Stop existing containers to avoid conflicts
+          docker compose -f docker-compose.production.yml --env-file .env.prod stop postgres redis minio portainer cloudflare-tunnel 2>/dev/null || true
+          
+          # Pull latest images
           docker compose -f docker-compose.production.yml --env-file .env.prod pull postgres redis minio portainer cloudflare-tunnel || true
+          
+          # Start infrastructure services
           docker compose -f docker-compose.production.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
           
           # Wait for PostgreSQL to be ready
@@ -727,10 +754,30 @@ jobs:
           
           # Now deploy applications with SSL-enabled database
           echo "🚀 Starting applications with SSL-enabled database..."
+          
+          # Stop existing application containers
+          docker compose -f docker-compose.production.yml --env-file .env.prod stop api web 2>/dev/null || true
+          
+          # Pull latest application images
           docker compose -f docker-compose.production.yml --env-file .env.prod pull api web || true
+          
+          # Start application services
           docker compose -f docker-compose.production.yml --env-file .env.prod up -d api web
           
           echo "✅ Application deployment complete with SSL"
+          
+          # Wait for applications to be healthy
+          echo "🔍 Verifying application health..."
+          
+          # Wait for API to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:3000/health >/dev/null 2>&1; do echo "Waiting for API..."; sleep 5; done' || echo "⚠️ API health check timeout"
+          
+          # Wait for Web to be ready  
+          timeout 30 bash -c 'until curl -f http://localhost:5174 >/dev/null 2>&1; do echo "Waiting for Web..."; sleep 5; done' || echo "⚠️ Web health check timeout"
+          
+          # Display container status
+          echo "📋 Container Status:"
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep glimmr-
           
           # Install and configure Airbyte using abctl CLI
           echo "🚀 Installing Airbyte using abctl CLI..."
@@ -843,8 +890,8 @@ jobs:
           geoip-database /usr/share/GeoIP/GeoLite2-City.mmdb
           GOACCESS_EOF
           
-          # Create GoAccess systemd service
-          cat > /etc/systemd/system/goaccess.service << 'SYSTEMD_EOF'
+          # Create GoAccess systemd service (with sudo)
+          sudo tee /etc/systemd/system/goaccess.service > /dev/null << 'SYSTEMD_EOF'
           [Unit]
           Description=GoAccess Real-time Web Log Analytics
           After=docker.service
@@ -973,6 +1020,14 @@ jobs:
           
           # Start GoAccess service
           cd /opt/glimmr/goaccess
+          
+          # Stop existing GoAccess containers
+          docker compose down 2>/dev/null || true
+          
+          # Remove any conflicting containers
+          docker rm -f glimmr-goaccess glimmr-goaccess-web glimmr-goaccess-log-collector 2>/dev/null || true
+          
+          # Start GoAccess services
           docker compose up -d || echo "⚠️ GoAccess startup had warnings"
           
           echo "✅ GoAccess analytics dashboard installed and running on port 7891 (WebSocket on 7890)"
