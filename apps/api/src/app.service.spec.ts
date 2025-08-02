@@ -43,11 +43,28 @@ describe("AppService", () => {
       expect(result1.status).toBe(result2.status);
     });
 
-    it("should return endpoints object", () => {
+    it("should return endpoints object with correct URLs based on API_PREFIX", () => {
       const result = service.getApiInfo();
       expect(result.endpoints).toBeDefined();
+      expect(result.endpoints.health).toBeDefined();
+      expect(result.endpoints.docs).toBeDefined();
+      
+      // Default behavior (no API_PREFIX set)
+      expect(result.endpoints.health).toBe("/health");
+      expect(result.endpoints.docs).toBe("/docs");
+    });
+
+    it("should return correct endpoints when API_PREFIX is set", () => {
+      // Set API_PREFIX environment variable
+      const originalPrefix = process.env.API_PREFIX;
+      process.env.API_PREFIX = "api/v1";
+      
+      const result = service.getApiInfo();
       expect(result.endpoints.health).toBe("/api/v1/health");
       expect(result.endpoints.docs).toBe("/api/v1/docs");
+      
+      // Restore original value
+      process.env.API_PREFIX = originalPrefix;
     });
 
     it("should return valid timestamp", () => {

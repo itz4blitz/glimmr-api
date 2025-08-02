@@ -95,6 +95,57 @@ jobs:
         echo "SSH_HOST=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='host' --reveal)" >> $GITHUB_ENV
         echo "SSH_USER=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='username' --reveal)" >> $GITHUB_ENV
         echo "SSH_PORT=$(op item get "${SSH_ITEM_ID}" --vault='Glimmr' --field='port' --reveal)" >> $GITHUB_ENV
+        
+    - name: 🔐 Manage PostgreSQL SSL Certificates
+      run: |
+        # Check if PostgreSQL SSL certificate exists and is valid
+        CERT_EXISTS=$(op item get 'glimmr-postgres-ssl-cert' --vault='Glimmr' --format=json 2>/dev/null || echo "null")
+        
+        if [ "$CERT_EXISTS" = "null" ]; then
+          echo "🔧 Generating new Cloudflare Origin Certificate for PostgreSQL..."
+          
+          # Generate Cloudflare Origin Certificate via API
+          CERT_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/certificates" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "type": "origin-rsa",
+              "hostnames": ["*.glimmr.health", "glimmr.health"],
+              "requested_validity": 5475
+            }')
+          
+          # Check if API call was successful
+          if echo "$CERT_RESPONSE" | jq -e '.success == true' > /dev/null; then
+            # Extract certificate and key
+            CERT_PEM=$(echo "$CERT_RESPONSE" | jq -r '.result.certificate')
+            KEY_PEM=$(echo "$CERT_RESPONSE" | jq -r '.result.private_key')
+            EXPIRY_DATE=$(echo "$CERT_RESPONSE" | jq -r '.result.expires_on')
+            
+            # Store in 1Password using our standard approach
+            op item create --category="Secure Note" \
+              --title="glimmr-postgres-ssl-cert" \
+              --vault="Glimmr" \
+              certificate="$CERT_PEM" \
+              expiry_date="$EXPIRY_DATE"
+            
+            op item create --category="Secure Note" \
+              --title="glimmr-postgres-ssl-key" \
+              --vault="Glimmr" \
+              private_key="$KEY_PEM"
+              
+            echo "✅ New PostgreSQL SSL certificate generated and stored in 1Password"
+          else
+            echo "❌ Failed to generate Cloudflare Origin Certificate"
+            echo "$CERT_RESPONSE" | jq '.errors'
+            exit 1
+          fi
+        else
+          echo "✅ PostgreSQL SSL certificate exists in 1Password"
+        fi
+        
+        # Load SSL certificate for deployment (always needed)
+        echo "POSTGRES_SSL_CERT=$(op item get 'glimmr-postgres-ssl-cert' --vault='Glimmr' --field='certificate' --reveal)" >> $GITHUB_ENV
+        echo "POSTGRES_SSL_KEY=$(op item get 'glimmr-postgres-ssl-key' --vault='Glimmr' --field='private_key' --reveal)" >> $GITHUB_ENV
     
     - name: 🧠 Determine deployment strategy
       id: strategy
@@ -280,6 +331,34 @@ jobs:
               - "127.0.0.1:9000:9000"
               - "127.0.0.1:9001:9001"
               
+          # Database Backup (managed by Airflow)
+          pgbackrest:
+            image: pgbackrest/pgbackrest:latest
+            container_name: glimmr-pgbackrest
+            restart: unless-stopped
+            environment:
+              PGBACKREST_STANZA: glimmr-main
+              PGBACKREST_DB1_HOST: postgres
+              PGBACKREST_DB1_USER: postgres
+              PGBACKREST_DB1_PATH: /var/lib/postgresql/data
+              PGBACKREST_REPO1_TYPE: s3
+              PGBACKREST_REPO1_S3_ENDPOINT: minio:9000
+              PGBACKREST_REPO1_S3_BUCKET: glimmr-backups
+              PGBACKREST_REPO1_S3_KEY: \${MINIO_ROOT_USER}
+              PGBACKREST_REPO1_S3_KEY_SECRET: \${MINIO_ROOT_PASSWORD}
+              PGBACKREST_REPO1_S3_URI_STYLE: path
+              PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
+              PGBACKREST_REPO1_CIPHER_PASS: \${POSTGRES_PASSWORD}
+              PGBACKREST_LOG_LEVEL_CONSOLE: info
+              PGBACKREST_LOG_LEVEL_FILE: detail
+            volumes:
+              - pgbackrest_config:/etc/pgbackrest
+              - pgbackrest_logs:/var/log/pgbackrest
+              - postgres_data:/var/lib/postgresql/data:ro
+            depends_on:
+              - postgres
+              - minio
+              
           # Authentik SSO/Identity Provider
           authentik-postgres:
             image: postgres:16-alpine
@@ -358,7 +437,7 @@ jobs:
               DATABASE_NAME: glimmr
               DATABASE_USERNAME: postgres
               DATABASE_PASSWORD: \${POSTGRES_PASSWORD}
-              DATABASE_SSL: false
+              DATABASE_SSL: true
               DATABASE_URL: postgresql://postgres:\${POSTGRES_PASSWORD}@postgres:5432/glimmr
               REDIS_HOST: redis
               REDIS_PORT: 6379
@@ -519,6 +598,8 @@ jobs:
           postgres_data:
           redis_data:
           minio_data:
+          pgbackrest_config:
+          pgbackrest_logs:
           portainer_data:
           authentik_postgres_data:
           authentik_redis_data:
@@ -591,7 +672,40 @@ jobs:
               
               # Start infrastructure if not running
               docker compose -f docker-compose.prod.yml --env-file .env.prod up -d postgres redis minio portainer cloudflare-tunnel
-              
+              ;;
+          esac
+          
+          # Wait for PostgreSQL to be ready
+          echo "⏳ Waiting for PostgreSQL to be ready..."
+          timeout 60 bash -c 'until docker exec glimmr-postgres pg_isready -U postgres; do sleep 2; done'
+          
+          # Deploy SSL certificates to PostgreSQL
+          echo "🔐 Deploying SSL certificates to PostgreSQL..."
+          
+          # Write certificates to temporary files
+          echo "$POSTGRES_SSL_CERT" > /tmp/postgres-server.crt
+          echo "$POSTGRES_SSL_KEY" > /tmp/postgres-server.key
+          
+          # Copy certificates into PostgreSQL container
+          docker cp /tmp/postgres-server.crt glimmr-postgres:/var/lib/postgresql/data/server.crt
+          docker cp /tmp/postgres-server.key glimmr-postgres:/var/lib/postgresql/data/server.key
+          
+          # Set proper ownership and permissions
+          docker exec glimmr-postgres chown postgres:postgres /var/lib/postgresql/data/server.crt /var/lib/postgresql/data/server.key
+          docker exec glimmr-postgres chmod 600 /var/lib/postgresql/data/server.key
+          docker exec glimmr-postgres chmod 644 /var/lib/postgresql/data/server.crt
+          
+          # Enable SSL in PostgreSQL configuration
+          docker exec glimmr-postgres psql -U postgres -c "ALTER SYSTEM SET ssl = 'on';"
+          docker exec glimmr-postgres psql -U postgres -c "ALTER SYSTEM SET ssl_cert_file = 'server.crt';"
+          docker exec glimmr-postgres psql -U postgres -c "ALTER SYSTEM SET ssl_key_file = 'server.key';"
+          docker exec glimmr-postgres psql -U postgres -c "SELECT pg_reload_conf();"
+          
+          # Clean up temporary files
+          rm -f /tmp/postgres-server.crt /tmp/postgres-server.key
+          
+          echo "✅ PostgreSQL SSL enabled with Cloudflare Origin Certificate"
+          
           # Install and configure Airbyte using abctl CLI
           echo "🚀 Installing Airbyte using abctl CLI..."
           
@@ -650,8 +764,192 @@ jobs:
           # Install or upgrade Airbyte
           export PATH="$HOME/.local/bin:$PATH"
           abctl local install --values ./airbyte-values.yaml --port 8000 || echo "⚠️ Airbyte installation completed with warnings"
-              ;;
-          esac
+          
+          # Install and configure GoAccess for real-time log analytics
+          echo "📊 Installing GoAccess for web analytics..."
+          
+          # Install GoAccess if not present
+          if ! command -v goaccess &> /dev/null; then
+            apt-get update -qq
+            apt-get install -y goaccess
+          fi
+          
+          # Create GoAccess configuration directory
+          mkdir -p /opt/glimmr/goaccess/{config,data,logs}
+          
+          # Create GoAccess configuration file
+          cat > /opt/glimmr/goaccess/config/goaccess.conf << 'GOACCESS_EOF'
+          # GoAccess Configuration for Glimmr
+          
+          # Server configuration
+          port 7890
+          origin http://localhost:7890
+          real-time-html true
+          
+          # Log format for combined Nginx + Cloudflare logs
+          time-format %H:%M:%S
+          date-format %d/%b/%Y
+          log-format COMBINED
+          
+          # Additional formats for different log sources
+          # Cloudflare format: CF-Ray, CF-Connecting-IP, etc.
+          # log-format %h %^[%d:%t %^] "%r" %s %b "%R" "%u" CF-Ray=%^
+          
+          # Output settings
+          output /opt/glimmr/goaccess/data/report.html
+          log-file /opt/glimmr/goaccess/logs/goaccess.log
+          
+          # Data processing
+          keep-db-files true
+          load-from-disk true
+          db-path /opt/glimmr/goaccess/data
+          
+          # Analytics settings
+          ignore-crawlers true
+          crawlers-only false
+          ignore-panel REFERRERS
+          ignore-panel KEYPHRASES
+          
+          # Real-time updates
+          ws-url wss://goaccess.glimmr.health/ws
+          
+          # GeoIP (if available)
+          geoip-database /usr/share/GeoIP/GeoLite2-City.mmdb
+          GOACCESS_EOF
+          
+          # Create GoAccess systemd service
+          cat > /etc/systemd/system/goaccess.service << 'SYSTEMD_EOF'
+          [Unit]
+          Description=GoAccess Real-time Web Log Analytics
+          After=docker.service
+          Requires=docker.service
+          
+          [Service]
+          Type=simple
+          User=root
+          Group=root
+          WorkingDirectory=/opt/glimmr/goaccess
+          ExecStartPre=/bin/bash -c 'mkdir -p /opt/glimmr/goaccess/{data,logs}'
+          ExecStart=/usr/bin/goaccess --config-file=/opt/glimmr/goaccess/config/goaccess.conf --log-file=/dev/stdin
+          StandardInput=file:/var/log/nginx/access.log
+          Restart=always
+          RestartSec=10
+          
+          [Install]
+          WantedBy=multi-user.target
+          SYSTEMD_EOF
+          
+          # Create log aggregation script for multiple sources
+          cat > /opt/glimmr/goaccess/collect-logs.sh << 'COLLECT_EOF'
+          #!/bin/bash
+          # Collect logs from multiple sources for GoAccess analysis
+          
+          LOG_DIR="/opt/glimmr/goaccess/logs"
+          COMBINED_LOG="$LOG_DIR/combined-access.log"
+          
+          # Create log directory
+          mkdir -p "$LOG_DIR"
+          
+          # Function to extract logs from Docker container
+          extract_nginx_logs() {
+            if docker ps --format '{{.Names}}' | grep -q glimmr-web; then
+              docker logs glimmr-web 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' >> "$COMBINED_LOG" || true
+            fi
+          }
+          
+          # Function to extract API logs (if they contain access patterns)
+          extract_api_logs() {
+            if docker ps --format '{{.Names}}' | grep -q glimmr-api; then
+              docker logs glimmr-api 2>/dev/null | grep -E '"method":|"url":|"statusCode":' | \
+                jq -r 'select(.method and .url and .statusCode) | "\(.remoteAddress // "127.0.0.1") - - [\(now | strftime("%d/%b/%Y:%H:%M:%S %z"))] \"\(.method) \(.url) HTTP/1.1\" \(.statusCode) \(.contentLength // "-") \"-\" \(.userAgent // "\"-\"")"' >> "$COMBINED_LOG" 2>/dev/null || true
+            fi
+          }
+          
+          # Function to extract Cloudflare tunnel logs (if available)
+          extract_tunnel_logs() {
+            if docker ps --format '{{.Names}}' | grep -q glimmr-cloudflare-tunnel; then
+              docker logs glimmr-cloudflare-tunnel 2>/dev/null | grep -E 'HTTP|request' >> "$LOG_DIR/tunnel.log" || true
+            fi
+          }
+          
+          # Run log extraction
+          extract_nginx_logs
+          extract_api_logs  
+          extract_tunnel_logs
+          
+          # Remove duplicates and sort by timestamp
+          if [ -f "$COMBINED_LOG" ]; then
+            sort -k4 "$COMBINED_LOG" | uniq > "$COMBINED_LOG.tmp" && mv "$COMBINED_LOG.tmp" "$COMBINED_LOG"
+          fi
+          COLLECT_EOF
+          
+          chmod +x /opt/glimmr/goaccess/collect-logs.sh
+          
+          # Create GoAccess Docker service configuration
+          cat > /opt/glimmr/goaccess/docker-compose.yml << 'GOACCESS_DOCKER_EOF'
+          services:
+            goaccess:
+              image: allinurl/goaccess:latest
+              container_name: glimmr-goaccess
+              restart: unless-stopped
+              entrypoint: ""
+              command: ["goaccess", "/var/log/access.log", "--config-file=/etc/goaccess/goaccess.conf", "--output=/var/www/html/index.html", "--real-time-html"]
+              ports:
+                - "127.0.0.1:7890:7890"
+              volumes:
+                - goaccess_html:/var/www/html
+                - /opt/glimmr/goaccess/logs:/var/log:ro
+                - /opt/glimmr/goaccess/config:/etc/goaccess:ro
+              environment:
+                - TZ=UTC
+              depends_on:
+                - log-collector
+
+            # HTTP server to serve the generated HTML dashboard
+            web:
+              image: nginx:alpine
+              container_name: glimmr-goaccess-web
+              restart: unless-stopped
+              ports:
+                - "127.0.0.1:7891:80"
+              volumes:
+                - goaccess_html:/usr/share/nginx/html:ro
+              depends_on:
+                - goaccess
+                
+            # Sidecar to collect logs from various containers
+            log-collector:
+              image: alpine:latest
+              container_name: glimmr-log-collector
+              restart: unless-stopped
+              command: >
+                sh -c "
+                apk add --no-cache jq curl && 
+                while true; do
+                  # Collect Nginx logs from web container
+                  docker logs glimmr-web --since=1m 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' >> /var/log/access.log || true
+                  
+                  # Collect API access logs (structured JSON to common log format)
+                  docker logs glimmr-api --since=1m 2>/dev/null | grep -E '\"method\":|\"url\":|\"statusCode\":' | 
+                    jq -r 'select(.method and .url and .statusCode) | \"\(.remoteAddress // \"127.0.0.1\") - - [\(now | strftime(\"%d/%b/%Y:%H:%M:%S %z\"))] \\\"\(.method) \(.url) HTTP/1.1\\\" \(.statusCode) \(.contentLength // \"-\") \\\"-\\\" \(.userAgent // \"\\\"-\\\")\"' >> /var/log/access.log 2>/dev/null || true
+                  
+                  sleep 60
+                done"
+              volumes:
+                - /opt/glimmr/goaccess/logs:/var/log
+                - /var/run/docker.sock:/var/run/docker.sock:ro
+              environment:
+                - TZ=UTC
+
+          volumes:
+            goaccess_html:
+          GOACCESS_DOCKER_EOF
+          
+          # Start GoAccess service
+          cd /opt/glimmr/goaccess
+          docker compose up -d || echo "⚠️ GoAccess startup had warnings"
+          
+          echo "✅ GoAccess analytics dashboard installed and running on port 7891 (WebSocket on 7890)"
           
           # Wait for services
           echo "⏳ Waiting for services to be ready..."
@@ -709,6 +1007,10 @@ jobs:
                       "service": "http://localhost:9091"
                     },
                     {
+                      "hostname": "goaccess.glimmr.health",
+                      "service": "http://localhost:7891"
+                    },
+                    {
                       "service": "http_status:404"
                     }
                   ]
@@ -723,5 +1025,6 @@ jobs:
           curl -f http://localhost:3000/health || echo "⚠️ API health check failed"
           curl -f http://localhost:5174 || echo "⚠️ Web health check failed"
           curl -f http://localhost:9090 || echo "⚠️ Portainer health check failed"
+          curl -f http://localhost:7891 || echo "⚠️ GoAccess health check failed"
           
           echo "✅ Deployment completed!"
