@@ -24,18 +24,10 @@ export const createRedisConfig = (
   const isProduction = configService.get("NODE_ENV") === "production";
 
   return {
-    host: isProduction
-      ? configService.get<string>("VALKEY_HOST", "localhost")
-      : configService.get<string>("REDIS_HOST", "localhost"),
-    port: isProduction
-      ? configService.get<number>("VALKEY_PORT", 6379)
-      : configService.get<number>("REDIS_PORT", 6379),
-    password: isProduction
-      ? configService.get<string>("VALKEY_PASSWORD")
-      : configService.get<string>("REDIS_PASSWORD"),
-    db: isProduction
-      ? configService.get<number>("VALKEY_DB", 0)
-      : configService.get<number>("REDIS_DB", 0),
+    host: configService.get<string>("REDIS_HOST", "localhost"),
+    port: configService.get<number>("REDIS_PORT", 6379),
+    password: configService.get<string>("REDIS_PASSWORD"),
+    db: configService.get<number>("REDIS_DB", 0),
     maxRetriesPerRequest: null, // Required by BullMQ
     lazyConnect: false, // Connect immediately for better error handling
     connectTimeout: isProduction ? 10000 : 5000,
@@ -56,10 +48,7 @@ export const createOptimizedRedisConnection = (
   const isProduction = configService.get("NODE_ENV") === "production";
 
   // Check for connection URL first
-  const connectionUrl = isProduction
-    ? configService.get<string>("VALKEY_URL") ||
-      configService.get<string>("REDIS_URL")
-    : configService.get<string>("REDIS_URL");
+  const connectionUrl = configService.get<string>("REDIS_URL");
 
   let redis: IORedis;
 
@@ -93,11 +82,11 @@ export const createOptimizedRedisConnection = (
   } else {
     // Production: Only log critical events
     redis.on("error", (err) => {
-      console.error("Valkey connection error:", err.message);
+      console.error("Redis connection error:", err.message);
     });
 
     redis.on("connect", () => {
-      console.info("Valkey connected successfully");
+      console.info("Redis connected successfully");
     });
   }
 
