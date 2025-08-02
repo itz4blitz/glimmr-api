@@ -50,7 +50,7 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # Install production dependencies only, then rebuild native modules
 RUN pnpm install --frozen-lockfile --prod --include-workspace-root && \
-    pnpm rebuild bcrypt --production && \
+    cd /app/apps/api && npm rebuild bcrypt && \
     pnpm store prune
 
 # Create uploads directory and set permissions
