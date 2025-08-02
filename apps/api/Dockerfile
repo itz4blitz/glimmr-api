@@ -29,9 +29,9 @@ RUN pnpm run build
 # Stage 2: Production stage
 FROM node:20-alpine AS production
 
-# Install pnpm globally and build dependencies
+# Install pnpm globally and essential build dependencies
 RUN npm install -g pnpm@10.14.0 && \
-    apk add --no-cache python3 make g++
+    apk add --no-cache python3 make g++ libc6-compat
 
 # Create app user for security
 RUN addgroup -g 1001 -S nodejs
@@ -45,13 +45,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages ./packages
 
-# Install all dependencies (including dev dependencies needed for native builds)
-RUN pnpm install --frozen-lockfile --include-workspace-root && \
-    pnpm rebuild bcrypt && \
-    pnpm install --prod --frozen-lockfile
-
-# Copy built application from builder stage
+# Copy built application from builder stage first
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Install production dependencies only, then rebuild native modules
+RUN pnpm install --frozen-lockfile --prod --include-workspace-root && \
+    pnpm rebuild bcrypt --production && \
+    pnpm store prune
 
 # Create uploads directory and set permissions
 RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
