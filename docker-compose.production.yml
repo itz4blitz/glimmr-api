@@ -294,14 +294,31 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  airflow-redis:
+    image: redis:7-alpine
+    container_name: glimmr-airflow-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${AIRFLOW_REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - airflow_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${AIRFLOW_REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
   airflow-webserver:
-    image: apache/airflow:2.8.1-python3.11
+    image: apache/airflow:2.10.5
     container_name: glimmr-airflow-webserver
     restart: unless-stopped
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_POSTGRES_PASSWORD}@airflow-postgres:5432/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:${AIRFLOW_REDIS_PASSWORD}@airflow-redis:6379/0
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
@@ -313,11 +330,13 @@ services:
     depends_on:
       airflow-postgres:
         condition: service_healthy
+      airflow-redis:
+        condition: service_healthy
     volumes:
       - ./infrastructure/airflow/dags:/opt/airflow/dags:ro
       - airflow_logs:/opt/airflow/logs
     ports:
-      - "8081:8080"
+      - "8080:8080"
     command: webserver
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
@@ -328,17 +347,21 @@ services:
       - no-new-privileges:true
 
   airflow-scheduler:
-    image: apache/airflow:2.8.1-python3.11
+    image: apache/airflow:2.10.5
     container_name: glimmr-airflow-scheduler
     restart: unless-stopped
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_POSTGRES_PASSWORD}@airflow-postgres:5432/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:${AIRFLOW_REDIS_PASSWORD}@airflow-redis:6379/0
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     depends_on:
       airflow-postgres:
+        condition: service_healthy
+      airflow-redis:
         condition: service_healthy
     volumes:
       - ./infrastructure/airflow/dags:/opt/airflow/dags:ro
@@ -346,6 +369,75 @@ services:
     command: scheduler
     healthcheck:
       test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  # =============================================================================
+  # MONITORING STACK (PRODUCTION)
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: glimmr-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: glimmr-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  # =============================================================================
+  # CONTAINER MANAGEMENT (PRODUCTION)
+  # =============================================================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: glimmr-portainer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9443:9443"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/api/system/status"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -363,10 +455,12 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - api
-      - web
+      - portainer
+      - minio
       - authentik-server
       - airflow-webserver
+      - grafana
+      - prometheus
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -382,5 +476,9 @@ volumes:
   authentik_certs:
   authentik_custom_templates:
   airflow_postgres_data:
+  airflow_redis_data:
   airflow_logs:
   api_logs:
+  prometheus_data:
+  grafana_data:
+  portainer_data:
